@@ -31,6 +31,15 @@ dependencies:
   flutter:
     sdk: flutter
 
+  # Supabase
+  supabase_flutter: ^2.8.1
+
+  # Routing
+  go_router: ^14.2.1
+
+  # Fonts
+  google_fonts: ^6.2.1
+
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.8
