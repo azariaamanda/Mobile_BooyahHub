@@ -1,4 +1,5 @@
 import 'package:go_router/go_router.dart';
+import '../presentation/auth/splash_screen.dart';
 import '../presentation/auth/login_screen.dart';
 import '../presentation/auth/register_admin_page.dart';
 import '../presentation/auth/register_user_page.dart';
