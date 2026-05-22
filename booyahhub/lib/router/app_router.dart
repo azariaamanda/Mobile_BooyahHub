@@ -21,6 +21,7 @@ import '../presentation/user/payment_checkout_page.dart';
 import '../presentation/user/leaderboard_page.dart';
 import '../presentation/user/history_scrim_page.dart';
 import '../presentation/user/claim_prize_page.dart';
+import '../presentation/user/user_main_navigator.dart';
 
 class AppRouter {
   AppRouter._();
@@ -119,6 +120,11 @@ class AppRouter {
       GoRoute(
         path: '/user/home',
         name: 'user_home',
+        builder: (context, state) => const UserMainNavigator(),
+      ),
+      GoRoute(
+        path: '/user/beranda-konten',
+        name: 'user_beranda_konten',
         builder: (context, state) => const UserHomeScreen(),
       ),
       GoRoute(
