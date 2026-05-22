@@ -223,7 +223,6 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                           GestureDetector(
                             onTap: () {
-                              // TODO: Lupa password
                             },
                             child: Text(
                               'LUPA PASSWORD?',
@@ -413,6 +412,39 @@ class _LoginScreenState extends State<LoginScreen> {
                     GestureDetector(
                       onTap: () {
                         context.go('/register/pengguna');
+                      },
+                      child: Text(
+                        'Daftar',
+                        style: AppTextStyles.interLink.copyWith(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.primary,
+                          decoration: TextDecoration.underline,
+                          decorationColor: AppColors.primary,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 12),
+
+              // Daftar link regis admin
+              Center(
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      'Daftar Sebagai Admin? ',
+                      style: AppTextStyles.interBody.copyWith(
+                        fontSize: 13,
+                        color: Colors.white.withOpacity(0.5),
+                      ),
+                    ),
+                    GestureDetector(
+                      onTap: () {
+                        context.go('/register/admin');
                       },
                       child: Text(
                         'Daftar',
