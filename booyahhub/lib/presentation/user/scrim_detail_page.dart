@@ -25,7 +25,7 @@ class _ScrimDetailPageState extends State<ScrimDetailPage> {
     _loadScrimData();
   }
 
-  // Hanya mengambil data utama dari tabel scrim
+  // Menggunakan query awal lu yang super aman dan lancar
   Future<void> _loadScrimData() async {
     try {
       final response = await SupabaseClientHelper.client
@@ -63,11 +63,14 @@ class _ScrimDetailPageState extends State<ScrimDetailPage> {
       );
     }
 
-    // Ambil data nominal dari database
+    // Ambil data nominal dari database sesuai kode awal lu
     final double biaya = double.tryParse(_scrimData!['biaya_pendaftaran'].toString()) ?? 0;
     final double hadiah = double.tryParse(_scrimData!['total_hadiah'].toString()) ?? 0;
     final int maksPeserta = _scrimData!['maks_peserta'] ?? 12;
     final String posterUrl = AppImageHelper.posterByIdScrim(widget.scrimId);
+
+    // Ambil string syarat_ketentuan dari database
+    final String syaratText = _scrimData!['syarat_ketentuan'] ?? 'Tidak ada syarat khusus.';
 
     // Format teks untuk box info emas sesuai mockup
     final String txtBiaya = biaya == 0 ? 'Free' : '${(biaya / 1000).toStringAsFixed(0)}k/tim';
@@ -91,15 +94,15 @@ class _ScrimDetailPageState extends State<ScrimDetailPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // ================= 1. POSTER BESAR (Sudah Include List Sesi di Dalam Gambarnya) =================
+              // ================= 1. POSTER BESAR =================
               Container(
                 width: double.infinity,
-                height: 386, // Kita set tinggi mendekati aspek rasio mockup lu (350x386)
+                height: 386, 
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(AppConstants.radiusL),
                   image: DecorationImage(
                     image: NetworkImage(posterUrl),
-                    fit: BoxFit.contain, // Memastikan seluruh isi gambar poster tidak terpotong
+                    fit: BoxFit.contain, 
                   ),
                 ),
               ),
@@ -116,12 +119,12 @@ class _ScrimDetailPageState extends State<ScrimDetailPage> {
               ),
               const SizedBox(height: AppConstants.paddingM),
 
-              // ================= 3. 4 KOTAK INFO EMAS (KAPASITAS, SLOT, BIAYA, HADIAH) =================
+              // ================= 3. 4 KOTAK INFO EMAS =================
               Row(
                 children: [
                   _buildGoldInfoCard('Kapasitas', '$maksPeserta Tim'),
                   const SizedBox(width: 8),
-                  _buildGoldInfoCard('Sisa Slot', '$maksPeserta Tim'),
+                  _buildGoldInfoCard('Sisa Slot', '$maksPeserta Tim'), // Kembali ke format awal lu yang aman
                   const SizedBox(width: 8),
                   _buildGoldInfoCard('Biaya', txtBiaya),
                   const SizedBox(width: 8),
@@ -130,36 +133,34 @@ class _ScrimDetailPageState extends State<ScrimDetailPage> {
               ),
               const SizedBox(height: AppConstants.paddingL),
 
-              // ================= 4. TEXT DESKRIPSI & ATURAN =================
+              // ================= 4. TEXT SYARAT & KETENTUAN (MURNI TANPA DESKRIPSI) =================
               Text(
-                'Deskripsi & Aturan', 
+                'Syarat & Ketentuan', 
                 style: AppTextStyles.poppinsSectionTitle.copyWith(color: Colors.white, fontSize: 16),
               ),
               const SizedBox(height: AppConstants.paddingS),
               Text(
-                'Scrim kompetitif untuk semua kalangan. Format Battle Royale, 4v4. Dilarang menggunakan cheat atau exploit. Admin berhak mendiskualifikasi tim yang melanggar aturan.',
+                syaratText,
                 style: AppTextStyles.interBodyMedium.copyWith(
                   color: Colors.grey[400], 
                   height: 1.5,
                   fontSize: 13,
                 ),
               ),
-              const SizedBox(height: 30),
+              const SizedBox(height: 40),
 
-              // ================= 5. TOMBOL BOOKING SEKARANG (SELALU AKTIF) =================
+              // ================= 5. TOMBOL BOOKING SEKARANG =================
               SizedBox(
                 width: double.infinity,
                 height: 50,
                 child: ElevatedButton(
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary, // Kuning emas melayang BooyahHub
+                    backgroundColor: AppColors.primary, 
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(AppConstants.radiusL),
                     ),
                   ),
                   onPressed: () {
-                    // Karena sesi langsung dipilih di form berikutnya, kita lempar id_scrim bawaan
-                    // ke halaman bookingform sesuai alur go_router tim lu
                     context.pushNamed(
                       'booking',
                       pathParameters: {
@@ -191,7 +192,7 @@ class _ScrimDetailPageState extends State<ScrimDetailPage> {
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: AppConstants.paddingS),
         decoration: BoxDecoration(
-          color: AppColors.primary, // Warna emas seragam
+          color: AppColors.primary, 
           borderRadius: BorderRadius.circular(AppConstants.radiusM),
         ),
         child: Column(
