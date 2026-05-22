@@ -60,11 +60,9 @@ class AuthService {
             .eq('akun_id', akun.idAkun)
             .maybeSingle();
         if (profilData != null) {
-          // profil harus berupa Map<String, dynamic> (langsung dari Supabase)
           profil = profilData;
         }
       }
-
 
       return {
         'success': true,
@@ -73,11 +71,17 @@ class AuthService {
         'profil': profil,
         'role': akun.role,
       };
+    } on AuthException catch (e) {
+      // Pesan error Supabase Auth lebih spesifik
+      String message = 'Email atau password salah';
+      if (e.message.contains('Email not confirmed')) {
+        message = 'Email belum dikonfirmasi. Cek inbox kamu.';
+      } else if (e.message.contains('Invalid login credentials')) {
+        message = 'Email atau password salah';
+      }
+      return {'success': false, 'message': message};
     } catch (e) {
-      return {
-        'success': false,
-        'message': 'Terjadi kesalahan: $e',
-      };
+      return {'success': false, 'message': 'Terjadi kesalahan: $e'};
     }
   }
 
@@ -90,7 +94,6 @@ class AuthService {
     required String password,
   }) async {
     try {
-      // 1. Register ke Supabase Auth
       final authResponse = await _supabase.auth.signUp(
         email: email,
         password: password,
@@ -100,10 +103,9 @@ class AuthService {
         return {'success': false, 'message': 'Gagal membuat akun'};
       }
 
-      // 2. Insert ke tabel akun
+
       final akunData = await _supabase.from('akun').insert({
         'email': email,
-        'kata_sandi': password, // Akan di-hash oleh Supabase
         'role': 'pengguna',
         'status_akun': 'aktif',
       }).select().single();
@@ -124,11 +126,16 @@ class AuthService {
         'akun': akun,
         'profil': profil,
       };
+    } on AuthException catch (e) {
+      String message = 'Gagal mendaftar';
+      if (e.message.contains('over_email_send_rate_limit')) {
+        message = 'Terlalu banyak percobaan. Tunggu beberapa saat lalu coba lagi.';
+      } else if (e.message.contains('User already registered')) {
+        message = 'Email sudah terdaftar. Silakan login.';
+      }
+      return {'success': false, 'message': message};
     } catch (e) {
-      return {
-        'success': false,
-        'message': 'Terjadi kesalahan: $e',
-      };
+      return {'success': false, 'message': 'Terjadi kesalahan: $e'};
     }
   }
 
@@ -144,7 +151,6 @@ class AuthService {
     required String fotoKtpPath,
   }) async {
     try {
-      // 1. Register ke Supabase Auth
       final authResponse = await _supabase.auth.signUp(
         email: email,
         password: password,
@@ -154,17 +160,14 @@ class AuthService {
         return {'success': false, 'message': 'Gagal membuat akun'};
       }
 
-      // 2. Insert ke tabel akun
       final akunData = await _supabase.from('akun').insert({
         'email': email,
-        'kata_sandi': password,
         'role': 'admin',
         'status_akun': 'pending',
       }).select().single();
 
       final akun = Akun.fromJson(akunData);
 
-      // 3. Insert ke tabel profil_admin
       final profilData = await _supabase.from('profil_admin').insert({
         'akun_id': akun.idAkun,
         'nama_lengkap': namaLengkap,
@@ -182,11 +185,16 @@ class AuthService {
         'akun': akun,
         'profil': profil,
       };
+    } on AuthException catch (e) {
+      String message = 'Gagal mendaftar';
+      if (e.message.contains('over_email_send_rate_limit')) {
+        message = 'Terlalu banyak percobaan. Tunggu beberapa saat lalu coba lagi.';
+      } else if (e.message.contains('User already registered')) {
+        message = 'Email sudah terdaftar.';
+      }
+      return {'success': false, 'message': message};
     } catch (e) {
-      return {
-        'success': false,
-        'message': 'Terjadi kesalahan: $e',
-      };
+      return {'success': false, 'message': 'Terjadi kesalahan: $e'};
     }
   }
 
@@ -229,27 +237,21 @@ class AuthService {
             .select()
             .eq('akun_id', akun.idAkun)
             .maybeSingle();
-        if (profilData != null) {
-          profil = profilData;
-        }
+        if (profilData != null) profil = profilData;
       } else if (akun.role == 'admin') {
         final profilData = await _supabase
             .from('profil_admin')
             .select()
             .eq('akun_id', akun.idAkun)
             .maybeSingle();
-        if (profilData != null) {
-          profil = profilData;
-        }
+        if (profilData != null) profil = profilData;
       } else if (akun.role == 'owner') {
         final profilData = await _supabase
             .from('profil_owner')
             .select()
             .eq('akun_id', akun.idAkun)
             .maybeSingle();
-        if (profilData != null) {
-          profil = profilData;
-        }
+        if (profilData != null) profil = profilData;
       }
 
       return {
