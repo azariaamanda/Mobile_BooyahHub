@@ -40,10 +40,7 @@ class _RegisterAdminPageState extends State<RegisterAdminPage> {
   String? _ktpPath;
 
   // Metode pembayaran
-  final List<String> _metodeTersedia = [
-    'Bank Transfer',
-    'QRIS',
-  ];
+  final List<String> _metodeTersedia = ['Bank Transfer', 'QRIS'];
   final Set<String> _metodeSelected = {'Bank Transfer'};
 
   String? _qrisPath;
@@ -62,8 +59,16 @@ class _RegisterAdminPageState extends State<RegisterAdminPage> {
 
   // Bank dropdown
   final List<String> _daftarBank = [
-    'BCA', 'BRI', 'BNI', 'Mandiri', 'CIMB Niaga',
-    'Danamon', 'Permata', 'BTN', 'BSI', 'Lainnya'
+    'BCA',
+    'BRI',
+    'BNI',
+    'Mandiri',
+    'CIMB Niaga',
+    'Danamon',
+    'Permata',
+    'BTN',
+    'BSI',
+    'Lainnya',
   ];
   String _selectedBank = 'BCA';
 
@@ -150,10 +155,15 @@ class _RegisterAdminPageState extends State<RegisterAdminPage> {
   void _showSnackBar(String message, {bool isError = false}) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(message, style: AppTextStyles.interBody.copyWith(color: Colors.white)),
+        content: Text(
+          message,
+          style: AppTextStyles.interBody.copyWith(color: Colors.white),
+        ),
         backgroundColor: isError ? AppColors.error : AppColors.success,
         behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppConstants.radiusM)),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppConstants.radiusM),
+        ),
       ),
     );
   }
@@ -215,7 +225,11 @@ class _RegisterAdminPageState extends State<RegisterAdminPage> {
     );
   }
 
-  Widget _sectionCard({required String title, required IconData icon, required Widget child}) {
+  Widget _sectionCard({
+    required String title,
+    required IconData icon,
+    required Widget child,
+  }) {
     return Container(
       decoration: BoxDecoration(
         color: AppColors.backgroundCard,
@@ -291,7 +305,9 @@ class _RegisterAdminPageState extends State<RegisterAdminPage> {
               const SizedBox(height: 8),
               Text(
                 'Bergabunglah dengan ekosistem e-sports profesional terbesar. Mulai kelola turnamen dan clan Anda hari ini.',
-                style: AppTextStyles.interBody.copyWith(color: AppColors.textSecondary),
+                style: AppTextStyles.interBody.copyWith(
+                  color: AppColors.textSecondary,
+                ),
               ),
               const SizedBox(height: AppConstants.paddingL),
 
@@ -307,7 +323,9 @@ class _RegisterAdminPageState extends State<RegisterAdminPage> {
                       controller: _namaController,
                       style: AppTextStyles.interInput,
                       decoration: _inputDecoration(hint: 'Masukkan nama'),
-                      validator: (v) => (v == null || v.trim().isEmpty) ? 'Nama wajib diisi' : null,
+                      validator: (v) => (v == null || v.trim().isEmpty)
+                          ? 'Nama wajib diisi'
+                          : null,
                     ),
                     const SizedBox(height: AppConstants.paddingM),
 
@@ -318,7 +336,8 @@ class _RegisterAdminPageState extends State<RegisterAdminPage> {
                       keyboardType: TextInputType.emailAddress,
                       decoration: _inputDecoration(hint: '@gmail.com'),
                       validator: (v) {
-                        if (v == null || v.trim().isEmpty) return 'Email wajib diisi';
+                        if (v == null || v.trim().isEmpty)
+                          return 'Email wajib diisi';
                         if (!v.contains('@')) return 'Format email tidak valid';
                         return null;
                       },
@@ -331,7 +350,9 @@ class _RegisterAdminPageState extends State<RegisterAdminPage> {
                       style: AppTextStyles.interInput,
                       keyboardType: TextInputType.phone,
                       decoration: _inputDecoration(hint: '+62 812...'),
-                      validator: (v) => (v == null || v.trim().isEmpty) ? 'No. HP wajib diisi' : null,
+                      validator: (v) => (v == null || v.trim().isEmpty)
+                          ? 'No. HP wajib diisi'
+                          : null,
                     ),
                     const SizedBox(height: AppConstants.paddingM),
 
@@ -344,15 +365,20 @@ class _RegisterAdminPageState extends State<RegisterAdminPage> {
                         hint: '••••••••',
                         suffixIcon: IconButton(
                           icon: Icon(
-                            _obscurePassword ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                            _obscurePassword
+                                ? Icons.visibility_off_outlined
+                                : Icons.visibility_outlined,
                             color: AppColors.inputIcon,
                             size: 20,
                           ),
-                          onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                          onPressed: () => setState(
+                            () => _obscurePassword = !_obscurePassword,
+                          ),
                         ),
                       ),
                       validator: (v) {
-                        if (v == null || v.isEmpty) return 'Password wajib diisi';
+                        if (v == null || v.isEmpty)
+                          return 'Password wajib diisi';
                         if (v.length < 6) return 'Password minimal 6 karakter';
                         return null;
                       },
@@ -368,16 +394,22 @@ class _RegisterAdminPageState extends State<RegisterAdminPage> {
                         hint: '••••••••',
                         suffixIcon: IconButton(
                           icon: Icon(
-                            _obscureKonfirmasi ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                            _obscureKonfirmasi
+                                ? Icons.visibility_off_outlined
+                                : Icons.visibility_outlined,
                             color: AppColors.inputIcon,
                             size: 20,
                           ),
-                          onPressed: () => setState(() => _obscureKonfirmasi = !_obscureKonfirmasi),
+                          onPressed: () => setState(
+                            () => _obscureKonfirmasi = !_obscureKonfirmasi,
+                          ),
                         ),
                       ),
                       validator: (v) {
-                        if (v == null || v.isEmpty) return 'Konfirmasi password wajib diisi';
-                        if (v != _passwordController.text) return 'Password tidak cocok';
+                        if (v == null || v.isEmpty)
+                          return 'Konfirmasi password wajib diisi';
+                        if (v != _passwordController.text)
+                          return 'Password tidak cocok';
                         return null;
                       },
                     ),
@@ -391,9 +423,13 @@ class _RegisterAdminPageState extends State<RegisterAdminPage> {
                         height: 100,
                         decoration: BoxDecoration(
                           color: AppColors.backgroundInput,
-                          borderRadius: BorderRadius.circular(AppConstants.radiusM),
+                          borderRadius: BorderRadius.circular(
+                            AppConstants.radiusM,
+                          ),
                           border: Border.all(
-                            color: _logoPath != null ? AppColors.primary : AppColors.primary.withOpacity(0.4),
+                            color: _logoPath != null
+                                ? AppColors.primary
+                                : AppColors.primary.withOpacity(0.4),
                             width: 1.5,
                           ),
                         ),
@@ -401,13 +437,17 @@ class _RegisterAdminPageState extends State<RegisterAdminPage> {
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             Icon(
-                              _logoPath != null ? Icons.check_circle_outline_rounded : Icons.image_outlined,
+                              _logoPath != null
+                                  ? Icons.check_circle_outline_rounded
+                                  : Icons.image_outlined,
                               color: AppColors.primary,
                               size: 28,
                             ),
                             const SizedBox(height: 6),
                             Text(
-                              _logoPath != null ? 'Logo diunggah' : 'UPLOAD LOGO',
+                              _logoPath != null
+                                  ? 'Logo diunggah'
+                                  : 'UPLOAD LOGO',
                               style: AppTextStyles.interLabel.copyWith(
                                 color: AppColors.primary,
                                 fontSize: 11,
@@ -433,12 +473,16 @@ class _RegisterAdminPageState extends State<RegisterAdminPage> {
                   onTap: _pickKTP,
                   child: Container(
                     width: double.infinity,
-                    padding: const EdgeInsets.symmetric(vertical: AppConstants.paddingL),
+                    padding: const EdgeInsets.symmetric(
+                      vertical: AppConstants.paddingL,
+                    ),
                     decoration: BoxDecoration(
                       color: AppColors.backgroundInput,
                       borderRadius: BorderRadius.circular(AppConstants.radiusM),
                       border: Border.all(
-                        color: _ktpPath != null ? AppColors.primary : AppColors.inputBorder,
+                        color: _ktpPath != null
+                            ? AppColors.primary
+                            : AppColors.inputBorder,
                         width: 1,
                       ),
                     ),
@@ -452,15 +496,21 @@ class _RegisterAdminPageState extends State<RegisterAdminPage> {
                             shape: BoxShape.circle,
                           ),
                           child: Icon(
-                            _ktpPath != null ? Icons.check_circle_rounded : Icons.insert_drive_file_outlined,
+                            _ktpPath != null
+                                ? Icons.check_circle_rounded
+                                : Icons.insert_drive_file_outlined,
                             color: AppColors.primary,
                             size: 28,
                           ),
                         ),
                         const SizedBox(height: AppConstants.paddingM),
                         Text(
-                          _ktpPath != null ? 'Foto KTP diunggah' : 'Unggah Foto KTP',
-                          style: AppTextStyles.poppinsTitleSmall.copyWith(fontSize: 15),
+                          _ktpPath != null
+                              ? 'Foto KTP diunggah'
+                              : 'Unggah Foto KTP',
+                          style: AppTextStyles.poppinsTitleSmall.copyWith(
+                            fontSize: 15,
+                          ),
                         ),
                         const SizedBox(height: 8),
                         Text(
@@ -479,11 +529,15 @@ class _RegisterAdminPageState extends State<RegisterAdminPage> {
                           ),
                           decoration: BoxDecoration(
                             color: AppColors.primary,
-                            borderRadius: BorderRadius.circular(AppConstants.radiusM),
+                            borderRadius: BorderRadius.circular(
+                              AppConstants.radiusM,
+                            ),
                           ),
                           child: Text(
                             _ktpPath != null ? 'GANTI FILE' : 'PILIH FILE',
-                            style: AppTextStyles.poppinsButton.copyWith(fontSize: 13),
+                            style: AppTextStyles.poppinsButton.copyWith(
+                              fontSize: 13,
+                            ),
                           ),
                         ),
                       ],
@@ -527,9 +581,13 @@ class _RegisterAdminPageState extends State<RegisterAdminPage> {
                           child: Container(
                             decoration: BoxDecoration(
                               color: AppColors.backgroundInput,
-                              borderRadius: BorderRadius.circular(AppConstants.radiusS),
+                              borderRadius: BorderRadius.circular(
+                                AppConstants.radiusS,
+                              ),
                               border: Border.all(
-                                color: selected ? AppColors.primary : AppColors.inputBorder,
+                                color: selected
+                                    ? AppColors.primary
+                                    : AppColors.inputBorder,
                                 width: selected ? 1.5 : 1,
                               ),
                             ),
@@ -541,22 +599,36 @@ class _RegisterAdminPageState extends State<RegisterAdminPage> {
                                   height: 18,
                                   decoration: BoxDecoration(
                                     shape: BoxShape.circle,
-                                    color: selected ? AppColors.primary : Colors.transparent,
+                                    color: selected
+                                        ? AppColors.primary
+                                        : Colors.transparent,
                                     border: Border.all(
-                                      color: selected ? AppColors.primary : AppColors.inputBorder,
+                                      color: selected
+                                          ? AppColors.primary
+                                          : AppColors.inputBorder,
                                       width: 1.5,
                                     ),
                                   ),
-                                  child: selected ? Icon(Icons.check, size: 11, color: AppColors.background) : null,
+                                  child: selected
+                                      ? Icon(
+                                          Icons.check,
+                                          size: 11,
+                                          color: AppColors.background,
+                                        )
+                                      : null,
                                 ),
                                 const SizedBox(width: 8),
                                 Flexible(
                                   child: Text(
                                     metode,
                                     style: AppTextStyles.interBody.copyWith(
-                                      color: selected ? AppColors.textPrimary : AppColors.textSecondary,
+                                      color: selected
+                                          ? AppColors.textPrimary
+                                          : AppColors.textSecondary,
                                       fontSize: 13,
-                                      fontWeight: selected ? FontWeight.w500 : FontWeight.w400,
+                                      fontWeight: selected
+                                          ? FontWeight.w500
+                                          : FontWeight.w400,
                                     ),
                                   ),
                                 ),
@@ -573,10 +645,13 @@ class _RegisterAdminPageState extends State<RegisterAdminPage> {
                     if (_metodeSelected.contains('Bank Transfer')) ...[
                       _fieldLabel('NAMA BANK'),
                       DropdownButtonFormField<String>(
-                        value: _selectedBank,
+                        initialValue: _selectedBank,
                         dropdownColor: AppColors.backgroundCard,
                         style: AppTextStyles.interInput,
-                        icon: Icon(Icons.keyboard_arrow_down_rounded, color: AppColors.textSecondary),
+                        icon: Icon(
+                          Icons.keyboard_arrow_down_rounded,
+                          color: AppColors.textSecondary,
+                        ),
                         decoration: _inputDecoration(),
                         items: _daftarBank.map((bank) {
                           return DropdownMenuItem(
@@ -592,7 +667,9 @@ class _RegisterAdminPageState extends State<RegisterAdminPage> {
                       TextFormField(
                         controller: _namaPemilikController,
                         style: AppTextStyles.interInput,
-                        decoration: _inputDecoration(hint: 'Sesuai buku tabungan'),
+                        decoration: _inputDecoration(
+                          hint: 'Sesuai buku tabungan',
+                        ),
                       ),
                       const SizedBox(height: AppConstants.paddingM),
 
@@ -615,15 +692,21 @@ class _RegisterAdminPageState extends State<RegisterAdminPage> {
                           height: 120,
                           decoration: BoxDecoration(
                             color: AppColors.backgroundInput,
-                            borderRadius: BorderRadius.circular(AppConstants.radiusM),
+                            borderRadius: BorderRadius.circular(
+                              AppConstants.radiusM,
+                            ),
                             border: Border.all(
-                              color: _qrisPath != null ? AppColors.primary : AppColors.inputBorder,
+                              color: _qrisPath != null
+                                  ? AppColors.primary
+                                  : AppColors.inputBorder,
                               width: _qrisPath != null ? 1.5 : 1,
                             ),
                           ),
                           child: _qrisPath != null
                               ? ClipRRect(
-                                  borderRadius: BorderRadius.circular(AppConstants.radiusM),
+                                  borderRadius: BorderRadius.circular(
+                                    AppConstants.radiusM,
+                                  ),
                                   child: Image.file(
                                     File(_qrisPath!),
                                     fit: BoxFit.cover,
@@ -652,10 +735,11 @@ class _RegisterAdminPageState extends State<RegisterAdminPage> {
                                     const SizedBox(height: 4),
                                     Text(
                                       'Format: JPG, PNG (Max. 2MB)',
-                                      style: AppTextStyles.interCaption.copyWith(
-                                        color: AppColors.textHint,
-                                        fontSize: 10,
-                                      ),
+                                      style: AppTextStyles.interCaption
+                                          .copyWith(
+                                            color: AppColors.textHint,
+                                            fontSize: 10,
+                                          ),
                                     ),
                                   ],
                                 ),
@@ -665,7 +749,6 @@ class _RegisterAdminPageState extends State<RegisterAdminPage> {
                   ],
                 ),
               ),
-              
 
               const SizedBox(height: AppConstants.paddingM),
 
@@ -681,8 +764,13 @@ class _RegisterAdminPageState extends State<RegisterAdminPage> {
                       onChanged: (v) => setState(() => _setujuiSyarat = v!),
                       activeColor: AppColors.primary,
                       checkColor: AppColors.background,
-                      side: BorderSide(color: AppColors.inputBorder, width: 1.5),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+                      side: BorderSide(
+                        color: AppColors.inputBorder,
+                        width: 1.5,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(4),
+                      ),
                     ),
                   ),
                   const SizedBox(width: 10),
@@ -711,7 +799,9 @@ class _RegisterAdminPageState extends State<RegisterAdminPage> {
                               decorationColor: AppColors.primary,
                             ),
                           ),
-                          const TextSpan(text: ' BooyahHub sebagai Penyelenggara resmi.'),
+                          const TextSpan(
+                            text: ' BooyahHub sebagai Penyelenggara resmi.',
+                          ),
                         ],
                       ),
                     ),
@@ -770,7 +860,11 @@ class _RegisterAdminPageState extends State<RegisterAdminPage> {
                             ),
                           ),
                           const SizedBox(width: 8),
-                          Icon(Icons.arrow_forward_rounded, size: 20, color: AppColors.background),
+                          Icon(
+                            Icons.arrow_forward_rounded,
+                            size: 20,
+                            color: AppColors.background,
+                          ),
                         ],
                       ),
               ),

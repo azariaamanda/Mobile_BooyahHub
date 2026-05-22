@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../config/app_color.dart';
-import '../../config/app_constants.dart';
 import '../../config/app_text_styles.dart';
 import '../../data/models/services/auth_service.dart';
 
@@ -43,7 +42,9 @@ class _LoginScreenState extends State<LoginScreen> {
       );
 
       if (result['success'] != true) {
-        setState(() => _errorText = result['message']?.toString() ?? 'Login gagal');
+        setState(
+          () => _errorText = result['message']?.toString() ?? 'Login gagal',
+        );
         return;
       }
 
@@ -88,10 +89,7 @@ class _LoginScreenState extends State<LoginScreen> {
         ),
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(1),
-          child: Container(
-            height: 1,
-            color: Colors.white.withOpacity(0.15),
-          ),
+          child: Container(height: 1, color: Colors.white.withOpacity(0.15)),
         ),
       ),
 
@@ -201,7 +199,8 @@ class _LoginScreenState extends State<LoginScreen> {
                         validator: (value) {
                           final v = value?.trim() ?? '';
                           if (v.isEmpty) return 'Email wajib diisi';
-                          if (!v.contains('@')) return 'Format email tidak valid';
+                          if (!v.contains('@'))
+                            return 'Format email tidak valid';
                           return null;
                         },
                       ),
@@ -222,8 +221,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             ),
                           ),
                           GestureDetector(
-                            onTap: () {
-                            },
+                            onTap: () {},
                             child: Text(
                               'LUPA PASSWORD?',
                               style: AppTextStyles.interCaption.copyWith(
@@ -304,7 +302,8 @@ class _LoginScreenState extends State<LoginScreen> {
                         validator: (value) {
                           final v = value ?? '';
                           if (v.isEmpty) return 'Kata sandi wajib diisi';
-                          if (v.length < 6) return 'Kata sandi minimal 6 karakter';
+                          if (v.length < 6)
+                            return 'Kata sandi minimal 6 karakter';
                           return null;
                         },
                       ),
@@ -373,12 +372,13 @@ class _LoginScreenState extends State<LoginScreen> {
                                   children: [
                                     Text(
                                       'MASUK',
-                                      style: AppTextStyles.poppinsButton.copyWith(
-                                        fontSize: 15,
-                                        fontWeight: FontWeight.w700,
-                                        letterSpacing: 1.2,
-                                        color: Colors.black,
-                                      ),
+                                      style: AppTextStyles.poppinsButton
+                                          .copyWith(
+                                            fontSize: 15,
+                                            fontWeight: FontWeight.w700,
+                                            letterSpacing: 1.2,
+                                            color: Colors.black,
+                                          ),
                                     ),
                                     const SizedBox(width: 8),
                                     const Icon(
