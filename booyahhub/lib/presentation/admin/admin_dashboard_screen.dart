@@ -11,6 +11,7 @@ class AdminDashboardScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return SafeArea(
       child: SingleChildScrollView(
+        primary: false,
         padding: const EdgeInsets.all(AppConstants.paddingM),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -100,42 +101,50 @@ class AdminDashboardScreen extends StatelessWidget {
             // ── Grid Stats 2x2 ──
             Row(
               children: [
-                Expanded(child: _StatCard(
-                  title: 'Booking Hari Ini',
-                  value: '24',
-                  subtitle: 'Total Booking',
-                  badge: '12.5% Vs kemarin',
-                  badgeUp: true,
-                )),
+                Expanded(
+                  child: _StatCard(
+                    title: 'Booking Hari Ini',
+                    value: '24',
+                    subtitle: 'Total Booking',
+                    badge: '12.5% Vs kemarin',
+                    badgeUp: true,
+                  ),
+                ),
                 const SizedBox(width: AppConstants.paddingS),
-                Expanded(child: _StatCard(
-                  title: 'Verifikasi',
-                  value: '12',
-                  subtitle: 'Pembayaran',
-                  badge: 'Menunggu Verifikasi',
-                  badgeUp: null,
-                )),
+                Expanded(
+                  child: _StatCard(
+                    title: 'Verifikasi',
+                    value: '12',
+                    subtitle: 'Pembayaran',
+                    badge: 'Menunggu Verifikasi',
+                    badgeUp: null,
+                  ),
+                ),
               ],
             ),
             const SizedBox(height: AppConstants.paddingS),
             Row(
               children: [
-                Expanded(child: _StatCard(
-                  title: 'Klaim Hadiah',
-                  value: '11',
-                  subtitle: 'Klaim',
-                  badge: 'Menunggu Verifikasi',
-                  badgeUp: null,
-                )),
+                Expanded(
+                  child: _StatCard(
+                    title: 'Klaim Hadiah',
+                    value: '11',
+                    subtitle: 'Klaim',
+                    badge: 'Menunggu Verifikasi',
+                    badgeUp: null,
+                  ),
+                ),
                 const SizedBox(width: AppConstants.paddingS),
-                Expanded(child: _StatCard(
-                  title: 'Sisa Slot',
-                  value: '23',
-                  subtitle: 'Slot Tersisa',
-                  badge: 'Dari 50 Total Slot',
-                  badgeUp: null,
-                  highlightBadge: true,
-                )),
+                Expanded(
+                  child: _StatCard(
+                    title: 'Sisa Slot',
+                    value: '23',
+                    subtitle: 'Slot Tersisa',
+                    badge: 'Dari 50 Total Slot',
+                    badgeUp: null,
+                    highlightBadge: true,
+                  ),
+                ),
               ],
             ),
 
@@ -193,7 +202,11 @@ class _RevenueCard extends StatelessWidget {
           const SizedBox(height: 6),
           Row(
             children: [
-              Icon(Icons.trending_up_rounded, color: AppColors.primary, size: 16),
+              Icon(
+                Icons.trending_up_rounded,
+                color: AppColors.primary,
+                size: 16,
+              ),
               const SizedBox(width: 4),
               Text(
                 '12.5%',
@@ -283,7 +296,9 @@ class _StatCard extends StatelessWidget {
             children: [
               if (badgeUp != null)
                 Icon(
-                  badgeUp! ? Icons.trending_up_rounded : Icons.trending_down_rounded,
+                  badgeUp!
+                      ? Icons.trending_up_rounded
+                      : Icons.trending_down_rounded,
                   color: AppColors.primary,
                   size: 14,
                 ),
@@ -334,10 +349,7 @@ class _TrendChart extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           Expanded(
-            child: CustomPaint(
-              painter: _ChartPainter(),
-              size: Size.infinite,
-            ),
+            child: CustomPaint(painter: _ChartPainter(), size: Size.infinite),
           ),
         ],
       ),
@@ -375,7 +387,9 @@ class _ChartPainter extends CustomPainter {
 
     // Fill gradient under line
     final fillPath = Path()..moveTo(pts.first.dx, chartH);
-    for (final p in pts) fillPath.lineTo(p.dx, p.dy);
+    for (final p in pts) {
+      fillPath.lineTo(p.dx, p.dy);
+    }
     fillPath.lineTo(pts.last.dx, chartH);
     fillPath.close();
 

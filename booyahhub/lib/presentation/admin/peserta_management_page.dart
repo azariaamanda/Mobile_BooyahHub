@@ -24,7 +24,7 @@ class _PesertaManagementPageState extends State<PesertaManagementPage> {
   int _selectedTab = 0;
   static const _tabs = ['Semua', 'Menunggu', 'Konfirmasi', 'Ditolak'];
 
-  List<PesertaVerifikasi> _peserta = List.of(mockPesertaList);
+  final List<PesertaVerifikasi> _peserta = List.of(mockPesertaList);
 
   List<PesertaVerifikasi> get _filtered {
     if (_selectedTab == 0) return _peserta;
@@ -65,6 +65,7 @@ class _PesertaManagementPageState extends State<PesertaManagementPage> {
             child: list.isEmpty
                 ? _buildEmptyState()
                 : ListView.separated(
+                    primary: false,
                     physics: const BouncingScrollPhysics(),
                     padding: const EdgeInsets.fromLTRB(
                       AppConstants.paddingM,
@@ -74,7 +75,7 @@ class _PesertaManagementPageState extends State<PesertaManagementPage> {
                       110,
                     ),
                     itemCount: list.length,
-                    separatorBuilder: (_, __) =>
+                    separatorBuilder: (_, _) =>
                         const SizedBox(height: AppConstants.paddingM),
                     itemBuilder: (_, i) => _PesertaCard(
                       peserta: list[i],
@@ -118,7 +119,7 @@ class _PesertaManagementPageState extends State<PesertaManagementPage> {
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: AppConstants.paddingM),
         itemCount: _tabs.length,
-        separatorBuilder: (_, __) =>
+        separatorBuilder: (_, _) =>
             const SizedBox(width: AppConstants.paddingL),
         itemBuilder: (_, i) {
           final selected = _selectedTab == i;
@@ -131,8 +132,7 @@ class _PesertaManagementPageState extends State<PesertaManagementPage> {
                   _tabs[i],
                   style: AppTextStyles.interBodyMedium.copyWith(
                     color: selected ? AppColors.primary : AppColors.textHint,
-                    fontWeight:
-                        selected ? FontWeight.w600 : FontWeight.w500,
+                    fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
                   ),
                 ),
                 const SizedBox(height: 6),
@@ -159,8 +159,7 @@ class _PesertaManagementPageState extends State<PesertaManagementPage> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.inbox_outlined,
-              size: 56, color: AppColors.textDisabled),
+          Icon(Icons.inbox_outlined, size: 56, color: AppColors.textDisabled),
           const SizedBox(height: AppConstants.paddingM),
           Text(
             'Belum ada peserta',
@@ -201,8 +200,10 @@ class _PesertaCard extends StatelessWidget {
               Row(
                 children: [
                   Expanded(
-                    child: Text(peserta.namaTim,
-                        style: AppTextStyles.poppinsTitleSmall),
+                    child: Text(
+                      peserta.namaTim,
+                      style: AppTextStyles.poppinsTitleSmall,
+                    ),
                   ),
                   StatusBadge(status: peserta.status),
                 ],
@@ -210,19 +211,22 @@ class _PesertaCard extends StatelessWidget {
               const SizedBox(height: AppConstants.paddingXS),
               Row(
                 children: [
-                  Icon(Icons.shield_outlined,
-                      size: 14, color: AppColors.primary),
+                  Icon(
+                    Icons.shield_outlined,
+                    size: 14,
+                    color: AppColors.primary,
+                  ),
                   const SizedBox(width: 4),
                   Text(
                     'Capt: ${peserta.namaKapten}',
-                    style: AppTextStyles.interCaption
-                        .copyWith(color: AppColors.textSecondary),
+                    style: AppTextStyles.interCaption.copyWith(
+                      color: AppColors.textSecondary,
+                    ),
                   ),
                 ],
               ),
               const Padding(
-                padding:
-                    EdgeInsets.symmetric(vertical: AppConstants.paddingM),
+                padding: EdgeInsets.symmetric(vertical: AppConstants.paddingM),
                 child: Divider(height: 1, color: AppColors.divider),
               ),
               Row(
@@ -247,8 +251,9 @@ class _PesertaCard extends StatelessWidget {
 
   Widget _miniInfo(String label, String value, {bool alignEnd = false}) {
     return Column(
-      crossAxisAlignment:
-          alignEnd ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+      crossAxisAlignment: alignEnd
+          ? CrossAxisAlignment.end
+          : CrossAxisAlignment.start,
       children: [
         Text(
           label,
@@ -261,8 +266,9 @@ class _PesertaCard extends StatelessWidget {
         Text(
           value,
           textAlign: alignEnd ? TextAlign.end : TextAlign.start,
-          style: AppTextStyles.interBodyMedium
-              .copyWith(color: AppColors.textPrimary),
+          style: AppTextStyles.interBodyMedium.copyWith(
+            color: AppColors.textPrimary,
+          ),
         ),
       ],
     );
