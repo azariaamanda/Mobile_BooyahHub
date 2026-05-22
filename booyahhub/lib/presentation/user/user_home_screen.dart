@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+// IMPORT SEMUA CONFIG ASLI TIM LU
 import '../../config/app_color.dart';
 import '../../config/app_constants.dart';
 import '../../config/app_image_helper.dart';
@@ -77,7 +78,7 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
                 ),
                 const SizedBox(height: AppConstants.paddingL),
 
-                // BANNER REKOMENDASI
+                // ================= 1. BANNER REKOMENDASI =================
                 FutureBuilder<List<Map<String, dynamic>>>(
                   future: SupabaseClientHelper.client.from('scrim').select().limit(1),
                   builder: (context, snapshot) {
@@ -92,7 +93,7 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
                       width: double.infinity,
                       height: 180,
                       decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(AppConstants.radiusL),
+                        borderRadius: BorderRadius.circular(AppConstants.radiusL), // Memakai config radius
                         image: DecorationImage(
                           image: NetworkImage(bannerImageUrl),
                           fit: BoxFit.cover,
@@ -115,7 +116,7 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: AppConstants.paddingS, vertical: AppConstants.paddingXS),
                               decoration: BoxDecoration(
-                                color: AppColors.primary,
+                                color: AppColors.primary, // Memakai Emas Utama
                                 borderRadius: BorderRadius.circular(AppConstants.radiusXL),
                               ),
                               child: Text(
@@ -126,11 +127,11 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
                             const SizedBox(height: AppConstants.paddingXS),
                             Text(
                               bannerScrim['nama_scrim'] ?? '',
-                              style: AppTextStyles.poppinsTitle,
+                              style: AppTextStyles.poppinsTitle, // Memakai font standard
                             ),
                             Text(
                               'Total Hadiah: Rp. ${totalHadiah.toStringAsFixed(0)}',
-                              style: AppTextStyles.interCaption,
+                              style: AppTextStyles.interCaption, // Memakai font standard Abu-abu hint
                             ),
                           ],
                         ),
@@ -223,7 +224,7 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
                 ),
                 const SizedBox(height: AppConstants.paddingM),
 
-                // GRID SCRIM
+                // ================= 4. GRID DATA SCRIM =================
                 FutureBuilder<List<Map<String, dynamic>>>(
                   future: fetchScrimData(),
                   builder: (context, snapshot) {
@@ -267,7 +268,7 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
                           prize: 'Rp. ${hadiah.toStringAsFixed(0)}',
                           fee: biaya == 0 ? 'Free' : 'Rp. ${biaya.toStringAsFixed(0)}',
                           slotsInfo: '0/$maksPeserta terisi',
-                          posterImage: AppImageHelper.posterByIdScrim(scrim['id_scrim']),
+                          posterImage: AppImageHelper.posterByIdScrim(scrim['id_scrim']), // Memakai asset link murni helper tim lu
                           primaryYellow: AppColors.primary,
                         );
                       },
