@@ -7,13 +7,14 @@ import '../presentation/owner/owner_dashboard_screen.dart';
 import '../presentation/owner/admin_verification_page.dart';
 import '../presentation/owner/financial_report_page.dart';
 import '../presentation/owner/prize_approval_page.dart';
+import '../presentation/admin/admin_main_navigator.dart';
 import '../presentation/admin/admin_dashboard_screen.dart';
 import '../presentation/admin/create_scrim_page.dart';
 import '../presentation/admin/setup_session_page.dart';
 import '../presentation/admin/validate_payment_page.dart';
 import '../presentation/admin/input_score_page.dart';
 import '../presentation/admin/admin_claim_list_page.dart';
-import '../presentation/admin/payment_config_page.dart';
+import '../presentation/admin/setting_page.dart';
 import '../presentation/user/user_home_screen.dart';
 import '../presentation/user/scrim_detail_page.dart';
 import '../presentation/user/booking_form_page.dart';
@@ -77,7 +78,7 @@ class AppRouter {
       GoRoute(
         path: '/admin/dashboard',
         name: 'admin_dashboard',
-        builder: (context, state) => const AdminDashboardScreen(),
+        builder: (context, state) => const AdminMainNavigator(), // <-- Pakai AdminMainNavigator
       ),
       GoRoute(
         path: '/admin/scrim/buat',

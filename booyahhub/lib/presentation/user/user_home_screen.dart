@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-// IMPORT SEMUA CONFIG ASLI TIM LU
 import '../../config/app_color.dart';
 import '../../config/app_constants.dart';
 import '../../config/app_image_helper.dart';
@@ -7,6 +6,7 @@ import '../../config/app_text_styles.dart';
 import '../../config/supabase_client.dart';
 import 'user_widgets/team_profile_header.dart';
 import 'user_widgets/scrim_item_card.dart';
+
 
 class UserHomeScreen extends StatefulWidget {
   const UserHomeScreen({super.key});
@@ -17,8 +17,15 @@ class UserHomeScreen extends StatefulWidget {
 
 class _UserHomeScreenState extends State<UserHomeScreen> {
   int _selectedModeId = 0;
+  String _selectedSort = 'terbaru';
 
-  // Menggunakan SupabaseClientHelper.client buatan tim lu
+  final List<Map<String, String>> _sortOptions = [
+    {'value': 'semua', 'label': 'Semua'},
+    {'value': 'terpopuler', 'label': 'Terpopuler'},
+    {'value': 'terlama', 'label': 'Terlama'},
+    {'value': 'terbaru', 'label': 'Terkini'},
+  ];
+
   Future<List<Map<String, dynamic>>> fetchModes() async {
     final response = await SupabaseClientHelper.client
         .from('master_mode_pertandingan')
@@ -27,24 +34,40 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
     return List<Map<String, dynamic>>.from(response);
   }
 
-  // Menggunakan SupabaseClientHelper.client buatan tim lu
   Future<List<Map<String, dynamic>>> fetchScrimData() async {
-    var query = SupabaseClientHelper.client.from('scrim').select();
+    dynamic query = SupabaseClientHelper.client.from('scrim').select();
+
     if (_selectedModeId != 0) {
       query = query.eq('id_mode', _selectedModeId);
     }
-    final response = await query.order('id_scrim', ascending: true);
+
+    switch (_selectedSort) {
+      case 'terbaru':
+        query = query.order('dibuat_pada', ascending: false);
+        break;
+      case 'terlama':
+        query = query.order('dibuat_pada', ascending: true);
+        break;
+      case 'terpopuler':
+        query = query.order('total_hadiah', ascending: false);
+        break;
+      case 'semua':
+      default:
+        query = query.order('id_scrim', ascending: false);
+        break;
+    }
+
+    final response = await query;
     return List<Map<String, dynamic>>.from(response);
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      // Background scaffold otomatis mengikuti AppTheme bawaan (AppColors.background)
       body: SafeArea(
         child: SingleChildScrollView(
           child: Padding(
-            padding: const EdgeInsets.all(AppConstants.paddingM), // Memakai config padding
+            padding: const EdgeInsets.all(AppConstants.paddingM),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -54,7 +77,7 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
                 ),
                 const SizedBox(height: AppConstants.paddingL),
 
-                // ================= 1. BANNER REKOMENDASI =================
+                // BANNER REKOMENDASI
                 FutureBuilder<List<Map<String, dynamic>>>(
                   future: SupabaseClientHelper.client.from('scrim').select().limit(1),
                   builder: (context, snapshot) {
@@ -69,7 +92,7 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
                       width: double.infinity,
                       height: 180,
                       decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(AppConstants.radiusL), // Memakai config radius
+                        borderRadius: BorderRadius.circular(AppConstants.radiusL),
                         image: DecorationImage(
                           image: NetworkImage(bannerImageUrl),
                           fit: BoxFit.cover,
@@ -92,7 +115,7 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: AppConstants.paddingS, vertical: AppConstants.paddingXS),
                               decoration: BoxDecoration(
-                                color: AppColors.primary, // Memakai Emas Utama
+                                color: AppColors.primary,
                                 borderRadius: BorderRadius.circular(AppConstants.radiusXL),
                               ),
                               child: Text(
@@ -103,11 +126,11 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
                             const SizedBox(height: AppConstants.paddingXS),
                             Text(
                               bannerScrim['nama_scrim'] ?? '',
-                              style: AppTextStyles.poppinsTitle, // Memakai font standard
+                              style: AppTextStyles.poppinsTitle,
                             ),
                             Text(
                               'Total Hadiah: Rp. ${totalHadiah.toStringAsFixed(0)}',
-                              style: AppTextStyles.interCaption, // Memakai font standard Abu-abu hint
+                              style: AppTextStyles.interCaption,
                             ),
                           ],
                         ),
@@ -116,7 +139,7 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
                   },
                 ),
                 const SizedBox(height: AppConstants.paddingM),
-                
+
                 // Indikator Titik Slider
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -132,9 +155,9 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
                 ),
                 const SizedBox(height: AppConstants.paddingL),
 
-                // ================= 2. JUDUL SECTION (SCRIM TERKINI) =================
+                // JUDUL SECTION
                 Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween, // FIX ERROR .between
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Row(
                       children: [
@@ -142,7 +165,7 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
                         const SizedBox(width: AppConstants.paddingS),
                         Text(
                           'Scrim Terkini',
-                          style: AppTextStyles.poppinsSectionTitle, // Memakai font section title asli
+                          style: AppTextStyles.poppinsSectionTitle,
                         ),
                       ],
                     ),
@@ -150,64 +173,57 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
                       onPressed: () {},
                       child: Row(
                         children: [
-                          Text('Lihat Lainnya', style: AppTextStyles.interLink), // Menggunakan InterLink
-                          const Icon(Icons.arrow_forward_ios, size: 12, color: AppColors.primary),
+                          Text('Lihat Lainnya', style: AppTextStyles.interLink),
+                          Icon(Icons.arrow_forward_ios, size: 12, color: AppColors.primary),
                         ],
                       ),
                     )
                   ],
-                ),
+                ), // <-- PERBAIKAN: TUTUP KURUNG INI
 
-                // ================= 3. FILTER KATEGORI (CHIP STYLE) =================
-                FutureBuilder<List<Map<String, dynamic>>>(
-                  future: fetchModes(),
-                  builder: (context, snapshot) {
-                    if (!snapshot.hasData) return const SizedBox(height: 35);
-                    
-                    final modes = [
-                      {'id_mode': 0, 'nama_mode': 'Semua'},
-                      ...snapshot.data!
-                    ];
+                const SizedBox(height: AppConstants.paddingS),
 
-                    return SizedBox(
-                      height: 35,
-                      child: ListView.builder(
-                        scrollDirection: Axis.horizontal,
-                        itemCount: modes.length,
-                        itemBuilder: (context, index) {
-                          final mode = modes[index];
-                          final isSelected = mode['id_mode'] == _selectedModeId;
-                          
-                          return GestureDetector(
-                            onTap: () {
-                              setState(() {
-                                _selectedModeId = mode['id_mode'] as int;
-                              });
-                            },
-                            child: Container(
-                              margin: const EdgeInsets.only(right: AppConstants.paddingS),
-                              padding: const EdgeInsets.symmetric(horizontal: AppConstants.paddingM),
-                              alignment: Alignment.center,
-                              decoration: BoxDecoration(
-                                // Memakai manajemen warna chip milik tim lu
-                                color: isSelected ? AppColors.chipActive : Colors.transparent,
-                                borderRadius: BorderRadius.circular(AppConstants.radiusXL),
-                                border: Border.all(color: isSelected ? AppColors.primary : AppColors.inputBorder),
-                              ),
-                              child: Text(
-                                mode['nama_mode'].toString(),
-                                style: isSelected ? AppTextStyles.goldHighlight : AppTextStyles.interBodyMedium,
-                              ),
-                            ),
-                          );
+                // FILTER SORT
+                SizedBox(
+                  height: 35,
+                  child: ListView.builder(
+                    scrollDirection: Axis.horizontal,
+                    itemCount: _sortOptions.length,
+                    itemBuilder: (context, index) {
+                      final sort = _sortOptions[index];
+                      final isSelected = _selectedSort == sort['value'];
+
+                      return GestureDetector(
+                        onTap: () {
+                          setState(() {
+                            _selectedSort = sort['value']!;
+                          });
                         },
-                      ),
-                    );
-                  },
+                        child: Container(
+                          margin: const EdgeInsets.only(right: AppConstants.paddingS),
+                          padding: const EdgeInsets.symmetric(horizontal: AppConstants.paddingM),
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(
+                            color: isSelected ? AppColors.chipActive : Colors.transparent,
+                            borderRadius: BorderRadius.circular(AppConstants.radiusXL),
+                            border: Border.all(
+                              color: isSelected ? AppColors.primary : AppColors.inputBorder,
+                            ),
+                          ),
+                          child: Text(
+                            sort['label']!,
+                            style: isSelected
+                                ? AppTextStyles.goldHighlight
+                                : AppTextStyles.interBodyMedium,
+                          ),
+                        ),
+                      );
+                    },
+                  ),
                 ),
                 const SizedBox(height: AppConstants.paddingM),
 
-                // ================= 4. GRID DATA SCRIM =================
+                // GRID SCRIM
                 FutureBuilder<List<Map<String, dynamic>>>(
                   future: fetchScrimData(),
                   builder: (context, snapshot) {
@@ -219,7 +235,7 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
                         ),
                       );
                     }
-                    
+
                     if (snapshot.hasError || !snapshot.hasData || snapshot.data!.isEmpty) {
                       return Center(
                         child: Text('Gagal memuat data scrim atau data kosong.', style: AppTextStyles.interBody),
@@ -240,7 +256,7 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
                       ),
                       itemBuilder: (context, index) {
                         final scrim = listScrim[index];
-                        
+
                         final double biaya = double.tryParse(scrim['biaya_pendaftaran'].toString()) ?? 0;
                         final double hadiah = double.tryParse(scrim['total_hadiah'].toString()) ?? 0;
                         final int maksPeserta = scrim['maks_peserta'] ?? 16;
@@ -251,7 +267,7 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
                           prize: 'Rp. ${hadiah.toStringAsFixed(0)}',
                           fee: biaya == 0 ? 'Free' : 'Rp. ${biaya.toStringAsFixed(0)}',
                           slotsInfo: '0/$maksPeserta terisi',
-                          posterImage: AppImageHelper.posterByIdScrim(scrim['id_scrim']), // Memakai asset link murni helper tim lu
+                          posterImage: AppImageHelper.posterByIdScrim(scrim['id_scrim']),
                           primaryYellow: AppColors.primary,
                         );
                       },
