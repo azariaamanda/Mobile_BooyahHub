@@ -26,9 +26,14 @@ class AppRouter {
   AppRouter._();
 
   static final GoRouter router = GoRouter(
-    initialLocation: '/login',
+    initialLocation: '/splash',
     routes: [
       // Auth
+      GoRoute(
+        path: '/splash',
+        name: 'splash',
+        builder: (context, state) => const SplashScreen(),
+      ),
       GoRoute(
         path: '/login',
         name: 'login',
