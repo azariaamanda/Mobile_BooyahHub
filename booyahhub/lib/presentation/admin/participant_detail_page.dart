@@ -9,7 +9,7 @@ import '../../config/app_color.dart';
 import '../../config/app_constants.dart';
 import '../../config/app_text_styles.dart';
 import '../../data/models/peserta_verifikasi_model.dart';
-import 'validate_payment_page.dart' show StatusBadge;
+import 'peserta_management_page.dart' show StatusBadge;
 
 class ParticipantDetailPage extends StatefulWidget {
   final PesertaVerifikasi peserta;
