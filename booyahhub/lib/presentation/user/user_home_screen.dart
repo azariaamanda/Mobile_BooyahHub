@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart'; // IMPORT GO_ROUTER
+
 // IMPORT SEMUA CONFIG ASLI TIM LU
 import '../../config/app_color.dart';
 import '../../config/app_constants.dart';
@@ -7,7 +9,6 @@ import '../../config/app_text_styles.dart';
 import '../../config/supabase_client.dart';
 import 'user_widgets/team_profile_header.dart';
 import 'user_widgets/scrim_item_card.dart';
-
 
 class UserHomeScreen extends StatefulWidget {
   const UserHomeScreen({super.key});
@@ -89,51 +90,62 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
                     final double totalHadiah = double.tryParse(bannerScrim['total_hadiah'].toString()) ?? 0;
                     final bannerImageUrl = AppImageHelper.posterByIdScrim(bannerScrim['id_scrim']);
 
-                    return Container(
-                      width: double.infinity,
-                      height: 180,
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(AppConstants.radiusL), // Memakai config radius
-                        image: DecorationImage(
-                          image: NetworkImage(bannerImageUrl),
-                          fit: BoxFit.cover,
-                        ),
-                      ),
+                    return GestureDetector(
+                      onTap: () {
+                        // Navigasi ke detail scrim ketika banner diklik
+                        context.pushNamed(
+                          'detail_scrim',
+                          pathParameters: {
+                            'idScrim': bannerScrim['id_scrim'].toString(),
+                          },
+                        );
+                      },
                       child: Container(
+                        width: double.infinity,
+                        height: 180,
                         decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(AppConstants.radiusL),
-                          gradient: LinearGradient(
-                            begin: Alignment.bottomCenter,
-                            end: Alignment.topCenter,
-                            colors: [AppColors.black.withOpacity(0.8), Colors.transparent],
+                          image: DecorationImage(
+                            image: NetworkImage(bannerImageUrl),
+                            fit: BoxFit.cover,
                           ),
                         ),
-                        padding: const EdgeInsets.all(AppConstants.paddingM),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisAlignment: MainAxisAlignment.end,
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: AppConstants.paddingS, vertical: AppConstants.paddingXS),
-                              decoration: BoxDecoration(
-                                color: AppColors.primary, // Memakai Emas Utama
-                                borderRadius: BorderRadius.circular(AppConstants.radiusXL),
+                        child: Container(
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(AppConstants.radiusL),
+                            gradient: LinearGradient(
+                              begin: Alignment.bottomCenter,
+                              end: Alignment.topCenter,
+                              colors: [AppColors.black.withOpacity(0.8), Colors.transparent],
+                            ),
+                          ),
+                          padding: const EdgeInsets.all(AppConstants.paddingM),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisAlignment: MainAxisAlignment.end,
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: AppConstants.paddingS, vertical: AppConstants.paddingXS),
+                                decoration: BoxDecoration(
+                                  color: AppColors.primary,
+                                  borderRadius: BorderRadius.circular(AppConstants.radiusXL),
+                                ),
+                                child: Text(
+                                  'Rekomendasi Scrim',
+                                  style: AppTextStyles.interStatus.copyWith(color: AppColors.buttonText),
+                                ),
                               ),
-                              child: Text(
-                                'Rekomendasi Scrim',
-                                style: AppTextStyles.interStatus.copyWith(color: AppColors.buttonText),
+                              const SizedBox(height: AppConstants.paddingXS),
+                              Text(
+                                bannerScrim['nama_scrim'] ?? '',
+                                style: AppTextStyles.poppinsTitle,
                               ),
-                            ),
-                            const SizedBox(height: AppConstants.paddingXS),
-                            Text(
-                              bannerScrim['nama_scrim'] ?? '',
-                              style: AppTextStyles.poppinsTitle, // Memakai font standard
-                            ),
-                            Text(
-                              'Total Hadiah: Rp. ${totalHadiah.toStringAsFixed(0)}',
-                              style: AppTextStyles.interCaption, // Memakai font standard Abu-abu hint
-                            ),
-                          ],
+                              Text(
+                                'Total Hadiah: Rp. ${totalHadiah.toStringAsFixed(0)}',
+                                style: AppTextStyles.interCaption,
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                     );
@@ -180,7 +192,7 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
                       ),
                     )
                   ],
-                ), // <-- PERBAIKAN: TUTUP KURUNG INI
+                ),
 
                 const SizedBox(height: AppConstants.paddingS),
 
@@ -262,14 +274,25 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
                         final double hadiah = double.tryParse(scrim['total_hadiah'].toString()) ?? 0;
                         final int maksPeserta = scrim['maks_peserta'] ?? 16;
 
-                        return ScrimItemCard(
-                          idScrim: scrim['id_scrim'],
-                          title: scrim['nama_scrim'] ?? 'No Title',
-                          prize: 'Rp. ${hadiah.toStringAsFixed(0)}',
-                          fee: biaya == 0 ? 'Free' : 'Rp. ${biaya.toStringAsFixed(0)}',
-                          slotsInfo: '0/$maksPeserta terisi',
-                          posterImage: AppImageHelper.posterByIdScrim(scrim['id_scrim']), // Memakai asset link murni helper tim lu
-                          primaryYellow: AppColors.primary,
+                        // BUNGKUS DENGAN GESTUREDETECTOR UNTUK NAVIGASI
+                        return GestureDetector(
+                          onTap: () {
+                            context.pushNamed(
+                              'detail_scrim',
+                              pathParameters: {
+                                'idScrim': scrim['id_scrim'].toString(),
+                              },
+                            );
+                          },
+                          child: ScrimItemCard(
+                            idScrim: scrim['id_scrim'],
+                            title: scrim['nama_scrim'] ?? 'No Title',
+                            prize: 'Rp. ${hadiah.toStringAsFixed(0)}',
+                            fee: biaya == 0 ? 'Free' : 'Rp. ${biaya.toStringAsFixed(0)}',
+                            slotsInfo: '0/$maksPeserta terisi',
+                            posterImage: AppImageHelper.posterByIdScrim(scrim['id_scrim']),
+                            primaryYellow: AppColors.primary,
+                          ),
                         );
                       },
                     );
