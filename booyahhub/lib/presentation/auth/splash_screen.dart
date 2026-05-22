@@ -26,7 +26,7 @@ class _SplashScreenState extends State<SplashScreen>
     super.initState();
 
     // 2 detik splash lalu ke login.
-    _timer = Timer(const Duration(seconds: 2), () {
+    _timer = Timer(const Duration(seconds: 5), () {
       if (_didNavigate) return;
       _didNavigate = true;
       // Gunakan GoRouter path yang sudah ada.
