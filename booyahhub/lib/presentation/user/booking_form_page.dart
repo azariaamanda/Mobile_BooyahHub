@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../config/app_color.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class BookingFormPage extends StatefulWidget {
   final int sesiId;
@@ -37,14 +38,67 @@ class _BookingFormPageState extends State<BookingFormPage> {
     super.dispose();
   }
 
-  void _submitData() {
-    if (_formKey.currentState!.validate()) {
-      // TODO: Integrasikan ke Supabase pendaftaran_tim menggunakan widget.sesiId
+  // 1. Pastikan tambah kata 'async' di fungsi ini bray
+void _submitData() async {
+  if (_formKey.currentState!.validate()) {
+    try {
+      // 1. Munculkan loading indicator
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(
+          child: CircularProgressIndicator(color: AppColors.primary),
+        ),
+      );
+
+      final supabase = Supabase.instance.client;
+
+      // 2. LANGSUNG INSERT SATU KALI KE pendaftaran_tim
+      final response = await supabase
+    .from('pendaftaran_tim')
+    .insert({
+      'id_sesi': 1,
+      'id_tim': 1,
+      'nama_kapten': _namaKaptenController.text,
+      'whatsapp_kapten': _whatsappController.text,
+      'id_player_1': _idPlayer1Controller.text,
+      'id_player_2': _idPlayer2Controller.text,
+      'id_player_3': _idPlayer3Controller.text,
+      'id_player_4': _idPlayer4Controller.text,
       
-      // Setelah sukses, arahkan ke halaman checkout pembayaran
-      context.push('/user/payment/123');
+      // ◄ TAMBAHKAN BARIS INI BRAY! 
+      // Sesuaikan value teks-nya dengan value yang ada di ENUM Supabase lu (misal: 'transfer', 'bca', dll)
+      'metode_pembayaran_daftar': 'bank_transfer', 
+    })
+    .select('id_pendaftaran')
+    .single();
+
+      // Tutup loading dialog
+      if (!mounted) return;
+      Navigator.of(context).pop();
+
+      // Ambil nilai ID pendaftaran asli hasil generate database
+      final int idBaruDariSupabase = response['id_pendaftaran'];
+
+      // WAJIB TEMBAK KE PATH SINKRON DENGAN ROUTER LU BRAY
+      if (!mounted) return;
+      context.push('/user/payment/$idBaruDariSupabase');
+
+    } catch (error) {
+      // Tutup loading dialog jika terjadi kegagalan
+      if (!mounted) return;
+      Navigator.of(context).pop();
+
+      // Tampilkan pesan eror lengkap
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Gagal menyimpan pendaftaran: $error'),
+          backgroundColor: AppColors.error,
+        ),
+      );
     }
   }
+}
 
   @override
   Widget build(BuildContext context) {
