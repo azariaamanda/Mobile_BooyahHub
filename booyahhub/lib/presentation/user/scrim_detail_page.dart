@@ -150,35 +150,36 @@ class _ScrimDetailPageState extends State<ScrimDetailPage> {
               const SizedBox(height: 40),
 
               // ================= 5. TOMBOL BOOKING SEKARANG =================
-              SizedBox(
-                width: double.infinity,
-                height: 50,
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary, 
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(AppConstants.radiusL),
-                    ),
-                  ),
-                  onPressed: () {
-                    context.pushNamed(
-                      'booking',
-                      pathParameters: {
-                        'idSesi': widget.scrimId.toString(), 
-                      },
-                    );
-                  },
-                  child: Text(
-                    'Booking Sekarang',
-                    style: AppTextStyles.poppinsButton.copyWith(
-                      color: AppColors.buttonText,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(height: AppConstants.paddingL),
+              // ================= TOMBOL BOOKING SEKARANG =================
+SizedBox(
+  width: double.infinity,
+  height: 50,
+  child: ElevatedButton(
+    style: ElevatedButton.styleFrom(
+      backgroundColor: AppColors.primary, 
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(AppConstants.radiusL),
+      ),
+    ),
+    onPressed: () {
+      // Disesuaikan persis dengan GoRoute yang udah lu bikin
+      context.pushNamed(
+        'booking_scrim', // <--- Sesuai dengan name di GoRoute lu
+        pathParameters: {
+          'idScrim': widget.scrimId.toString(), // <--- Sesuai dengan :idScrim di path lu
+        },
+      );
+    },
+    child: Text(
+      'Booking Sekarang',
+      style: AppTextStyles.poppinsButton.copyWith(
+        color: AppColors.buttonText,
+        fontWeight: FontWeight.bold,
+        fontSize: 16,
+      ),
+    ),
+  ),
+),
             ],
           ),
         ),
