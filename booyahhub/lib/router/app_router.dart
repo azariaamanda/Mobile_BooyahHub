@@ -13,9 +13,10 @@ import '../presentation/admin/setup_session_page.dart';
 import '../presentation/admin/validate_payment_page.dart';
 import '../presentation/admin/input_score_page.dart';
 import '../presentation/admin/admin_claim_list_page.dart';
-import '../presentation/admin/setting_page.dart';
+import '../presentation/admin/setting_page.dart'; // Tetap diimport jika dipakai di tempat lain
 import '../presentation/user/user_home_screen.dart';
 import '../presentation/user/scrim_detail_page.dart';
+import '../presentation/user/booking_scrim_page.dart'; // ◄ 1. IMPORT YANG HILANG SUDAH DIKEMBALIKAN
 import '../presentation/user/booking_form_page.dart';
 import '../presentation/user/payment_checkout_page.dart';
 import '../presentation/user/leaderboard_page.dart';
@@ -29,7 +30,7 @@ class AppRouter {
   static final GoRouter router = GoRouter(
     initialLocation: '/splash',
     routes: [
-      // Auth
+      // ─── AUTH ──────────────────────────────────────────────────
       GoRoute(
         path: '/splash',
         name: 'splash',
@@ -51,7 +52,7 @@ class AppRouter {
         builder: (context, state) => const RegisterAdminPage(),
       ),
 
-      // Owner
+      // ─── OWNER ─────────────────────────────────────────────────
       GoRoute(
         path: '/owner/dashboard',
         name: 'owner_dashboard',
@@ -73,12 +74,11 @@ class AppRouter {
         builder: (context, state) => const PrizeApprovalPage(),
       ),
 
-      // Admin
+      // ─── ADMIN ─────────────────────────────────────────────────
       GoRoute(
         path: '/admin/dashboard',
         name: 'admin_dashboard',
-        builder: (context, state) =>
-            const AdminMainNavigator(), // <-- Pakai AdminMainNavigator
+        builder: (context, state) => const AdminMainNavigator(),
       ),
       GoRoute(
         path: '/admin/scrim/buat',
@@ -114,10 +114,11 @@ class AppRouter {
       GoRoute(
         path: '/admin/payment-config',
         name: 'payment_config',
-        builder: (context, state) => const PaymentConfigPage(),
+        // Jika PaymentConfigPage belum dibuat/berbeda nama, arahkan sementara ke SettingPage agar tidak eror compile
+        builder: (context, state) => const PaymentConfigPage(), 
       ),
 
-      // User
+      // ─── USER (PELANGGAN) ──────────────────────────────────────
       GoRoute(
         path: '/user/home',
         name: 'user_home',
@@ -136,6 +137,15 @@ class AppRouter {
           return ScrimDetailPage(scrimId: idScrim);
         },
       ),
+      // ◄ 2. RUTE BARU KALENDER PILIHAN SLOT JAM YANG SEMPAT HILANG
+      GoRoute(
+        path: '/user/booking-scrim/:idScrim',
+        name: 'booking_scrim',
+        builder: (context, state) {
+          final idScrim = int.parse(state.pathParameters['idScrim']!);
+          return BookingScrimPage(scrimId: idScrim);
+        },
+      ),
       GoRoute(
         path: '/user/booking/:idSesi',
         name: 'booking',
@@ -148,9 +158,7 @@ class AppRouter {
         path: '/user/payment/:idPendaftaran',
         name: 'payment',
         builder: (context, state) {
-          final idPendaftaran = int.parse(
-            state.pathParameters['idPendaftaran']!,
-          );
+          final idPendaftaran = int.parse(state.pathParameters['idPendaftaran']!);
           return PaymentCheckoutPage(pendaftaranId: idPendaftaran);
         },
       ),
@@ -171,9 +179,7 @@ class AppRouter {
         path: '/user/klaim/:idPendaftaran',
         name: 'klaim',
         builder: (context, state) {
-          final idPendaftaran = int.parse(
-            state.pathParameters['idPendaftaran']!,
-          );
+          final idPendaftaran = int.parse(state.pathParameters['idPendaftaran']!);
           return ClaimPrizePage(pendaftaranId: idPendaftaran);
         },
       ),
