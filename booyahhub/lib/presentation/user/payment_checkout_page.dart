@@ -23,7 +23,6 @@ class _PaymentCheckoutPageState extends State<PaymentCheckoutPage> {
 
   Future<Map<String, dynamic>> _fetchDataPendaftaran() async {
     try {
-      // PRINT UNTUK MEMASTIKAN ID YANG DIKIRIM MASUK
       print('Mencari id_pendaftaran: ${widget.pendaftaranId}');
 
       final data = await Supabase.instance.client
@@ -35,7 +34,7 @@ class _PaymentCheckoutPageState extends State<PaymentCheckoutPage> {
       print('Data berhasil didapat: $data');
       return data;
     } catch (e) {
-      print('EROR DI SUPABASE PAYMENT: $e'); // ◄ CEK DI DEBUG CONSOLE LU BRAY KALO MUNCUL INI
+      print('EROR DI SUPABASE PAYMENT: $e');
       throw Exception(e);
     }
   }
@@ -71,7 +70,6 @@ class _PaymentCheckoutPageState extends State<PaymentCheckoutPage> {
         ),
         centerTitle: false,
       ),
-      // ─── FUTUREBUILDER LANGSUNG JADI BODY UTAMA ───
       body: FutureBuilder<Map<String, dynamic>>(
         future: _pendaftaranData,
         builder: (context, snapshot) {
@@ -112,7 +110,6 @@ class _PaymentCheckoutPageState extends State<PaymentCheckoutPage> {
 
           final pendaftaran = snapshot.data!;
 
-          // SCROLLVIEW PINDAH KE SINI BIAR GA MERUSAK UKURAN LAYOUT
           return SafeArea(
             child: SingleChildScrollView(
               padding: const EdgeInsets.all(16.0),
@@ -136,201 +133,204 @@ class _PaymentCheckoutPageState extends State<PaymentCheckoutPage> {
                             color: AppColors.textPrimary,
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      _buildRowDetail('Scrim', 'Scrim By Kelompok 2'),
-                      _buildRowDetail('ID Daftar', '#${pendaftaran['id_pendaftaran']}'),
-                      _buildRowDetail('Kapten', '${pendaftaran['nama_kapten']}'),
-                      _buildRowDetail('WhatsApp', '${pendaftaran['whatsapp_kapten']}'),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 8),
-                        child: Divider(color: AppColors.divider, thickness: 1),
-                      ),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: const [
-                          Text(
-                            'Total',
-                            style: TextStyle(
-                              color: AppColors.textSecondary,
-                              fontSize: 14,
-                            ),
                           ),
-                          Text(
-                            'Rp 3.000',
-                            style: TextStyle(
-                              color: AppColors.textGold,
-                              fontSize: 24,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 16),
-
-                // ─── KARTU 2: INFO TRANSFER ─────────────────────────────
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: AppColors.backgroundCard,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: AppColors.divider, width: 1),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Info Transfer',
-                        style: TextStyle(
-                          color: AppColors.textPrimary,
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
                         ),
-                      ),
-                      const SizedBox(height: 8),
-                      const Text(
-                        'Bank BCA',
-                        style: TextStyle(
-                          color: AppColors.textPrimary,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
+                        const SizedBox(height: 12),
+                        _buildRowDetail('Scrim', 'Scrim By Kelompok 2'),
+                        _buildRowDetail('ID Daftar', '#${pendaftaran['id_pendaftaran']}'),
+                        _buildRowDetail('Kapten', '${pendaftaran['nama_kapten']}'),
+                        _buildRowDetail('WhatsApp', '${pendaftaran['whatsapp_kapten']}'),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 8),
+                          child: Divider(color: AppColors.divider, thickness: 1),
                         ),
-                      ),
-                      const Text(
-                        'BooyahHub Official',
-                        style: TextStyle(
-                          color: AppColors.textSecondary,
-                          fontSize: 12,
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                        decoration: BoxDecoration(
-                          color: AppColors.backgroundInput,
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Row(
+                        Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            const Text(
-                              '0022000A1A26',
+                          children: const [
+                            Text(
+                              'Total',
                               style: TextStyle(
-                                color: AppColors.textPrimary,
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                                letterSpacing: 1,
+                                color: AppColors.textSecondary,
+                                fontSize: 14,
                               ),
                             ),
-                            SizedBox(
-                              height: 36,
-                              child: ElevatedButton(
-                                onPressed: () {},
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: AppColors.buttonPrimary,
-                                  foregroundColor: AppColors.buttonText,
-                                  elevation: 0,
-                                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                ),
-                                child: const Text(
-                                  'Salin',
-                                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
-                                ),
+                            Text(
+                              'Rp 3.000',
+                              style: TextStyle(
+                                color: AppColors.textGold,
+                                fontSize: 24,
+                                fontWeight: FontWeight.bold,
                               ),
                             ),
                           ],
                         ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 16),
-
-                // ─── KARTU 3: UNGGAH BUKTI TRANSFER ───────────────────────
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 16),
-                  decoration: BoxDecoration(
-                    color: AppColors.backgroundCard,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(
-                      color: AppColors.buttonPrimary.withOpacity(0.4),
-                      width: 1.5,
+                      ],
                     ),
                   ),
-                  child: InkWell(
-                    onTap: () {},
+                  const SizedBox(height: 16),
+
+                  // ─── KARTU 2: INFO TRANSFER ─────────────────────────────
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: AppColors.backgroundCard,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: AppColors.divider, width: 1),
+                    ),
                     child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: AppColors.buttonPrimary,
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: const Icon(
-                            Icons.file_upload_outlined,
-                            color: AppColors.buttonText,
-                            size: 28,
+                        const Text(
+                          'Info Transfer',
+                          style: TextStyle(
+                            color: AppColors.textPrimary,
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
                           ),
                         ),
-                        const SizedBox(height: 16),
+                        const SizedBox(height: 8),
                         const Text(
-                          'Ketuk untuk Unggah Bukti Transfer',
-                          textAlign: TextAlign.center,
+                          'Bank BCA',
                           style: TextStyle(
                             color: AppColors.textPrimary,
                             fontSize: 14,
-                            fontWeight: FontWeight.w500,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        const Text(
+                          'BooyahHub Official',
+                          style: TextStyle(
+                            color: AppColors.textSecondary,
+                            fontSize: 12,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: AppColors.backgroundInput,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              const Expanded(
+                                child: Text(
+                                  '0022000A1A26',
+                                  style: TextStyle(
+                                    color: AppColors.textPrimary,
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                    letterSpacing: 1,
+                                  ),
+                                ),
+                              ),
+                              SizedBox(
+                                height: 36,
+                                width: 80, // ◄ FIX: COK KITA KUNCI BIAR GA INFINITE WIDTH
+                                child: ElevatedButton(
+                                  onPressed: () {},
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: AppColors.buttonPrimary,
+                                    foregroundColor: AppColors.buttonText,
+                                    elevation: 0,
+                                    padding: EdgeInsets.zero,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                  ),
+                                  child: const Text(
+                                    'Salin',
+                                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       ],
                     ),
                   ),
-                ),
-                const SizedBox(height: 40),
+                  const SizedBox(height: 16),
 
-                // ─── TOMBOL UTAMA: KIRIM ──────────────────────────────────
-                SizedBox(
-                  width: double.infinity,
-                  height: 52,
-                  child: ElevatedButton(
-                    onPressed: _kirimBuktiPembayaran,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.buttonPrimary,
-                      foregroundColor: AppColors.buttonText,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
+                  // ─── KARTU 3: UNGGAH BUKTI TRANSFER ───────────────────────
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 16),
+                    decoration: BoxDecoration(
+                      color: AppColors.backgroundCard,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: AppColors.buttonPrimary.withOpacity(0.4),
+                        width: 1.5,
                       ),
-                      elevation: 0,
                     ),
-                    child: const Text(
-                      'Kirim',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
+                    child: InkWell(
+                      onTap: () {},
+                      child: Column(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: AppColors.buttonPrimary,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: const Icon(
+                              Icons.file_upload_outlined,
+                              color: AppColors.buttonText,
+                              size: 28,
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          const Text(
+                            'Ketuk untuk Unggah Bukti Transfer',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              color: AppColors.textPrimary,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ),
-                ),
-                const SizedBox(height: 16),
-              ],
+                  const SizedBox(height: 40),
+
+                  // ─── TOMBOL UTAMA: KIRIM ──────────────────────────────────
+                  SizedBox(
+                    width: double.infinity,
+                    height: 52,
+                    child: ElevatedButton(
+                      onPressed: _kirimBuktiPembayaran,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.buttonPrimary,
+                        foregroundColor: AppColors.buttonText,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        elevation: 0,
+                      ),
+                      child: const Text(
+                        'Kirim',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                ],
+              ),
             ),
-          ),
-        );
-      },
-    ),
-  );
-}
+          );
+        },
+      ),
+    );
+  }
 
   Widget _buildRowDetail(String label, String value) {
     return Padding(
