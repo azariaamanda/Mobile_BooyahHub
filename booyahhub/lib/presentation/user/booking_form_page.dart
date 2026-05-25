@@ -26,6 +26,16 @@ class _BookingFormPageState extends State<BookingFormPage> {
   final _idPlayer3Controller = TextEditingController();
   final _idPlayer4Controller = TextEditingController();
 
+  // State untuk menyimpan metode pembayaran yang dipilih user
+  String? _selectedPaymentMethod;
+
+  // Daftar opsi metode pembayaran (sesuaikan dengan isi ENUM database lu bray)
+  final List<Map<String, String>> _paymentOptions = [
+    {'value': 'bank_transfer', 'label': 'Transfer Bank (BCA)'},
+    {'value': 'qris', 'label': 'QRIS Otomatis'},
+    {'value': 'ewallet', 'label': 'E-Wallet (Dana/OVO)'},
+  ];
+
   @override
   void dispose() {
     _namaTimController.dispose();
@@ -38,67 +48,64 @@ class _BookingFormPageState extends State<BookingFormPage> {
     super.dispose();
   }
 
-  // 1. Pastikan tambah kata 'async' di fungsi ini bray
-void _submitData() async {
-  if (_formKey.currentState!.validate()) {
-    try {
-      // 1. Munculkan loading indicator
-      showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (context) => const Center(
-          child: CircularProgressIndicator(color: AppColors.primary),
-        ),
-      );
+  void _submitData() async {
+    if (_formKey.currentState!.validate()) {
+      try {
+        // Munculkan loading indicator
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (context) => const Center(
+            child: CircularProgressIndicator(color: AppColors.primary),
+          ),
+        );
 
-      final supabase = Supabase.instance.client;
+        final supabase = Supabase.instance.client;
 
-      // 2. LANGSUNG INSERT SATU KALI KE pendaftaran_tim
-      final response = await supabase
-    .from('pendaftaran_tim')
-    .insert({
-      'id_sesi': 1,
-      'id_tim': 1,
-      'nama_kapten': _namaKaptenController.text,
-      'whatsapp_kapten': _whatsappController.text,
-      'id_player_1': _idPlayer1Controller.text,
-      'id_player_2': _idPlayer2Controller.text,
-      'id_player_3': _idPlayer3Controller.text,
-      'id_player_4': _idPlayer4Controller.text,
-      
-      // ◄ TAMBAHKAN BARIS INI BRAY! 
-      // Sesuaikan value teks-nya dengan value yang ada di ENUM Supabase lu (misal: 'transfer', 'bca', dll)
-      'metode_pembayaran_daftar': 'bank_transfer', 
-    })
-    .select('id_pendaftaran')
-    .single();
+        // INSERT DATA KE pendaftaran_tim
+        final response = await supabase
+            .from('pendaftaran_tim')
+            .insert({
+              'id_sesi': widget.sesiId, // Menggunakan parameter asli yang dilempar ke halaman
+              'id_tim': 1, // Sesuaikan dengan logika id_tim pengguna lu bray
+              'nama_kapten': _namaKaptenController.text,
+              'whatsapp_kapten': _whatsappController.text,
+              'id_player_1': _idPlayer1Controller.text,
+              'id_player_2': _idPlayer2Controller.text,
+              'id_player_3': _idPlayer3Controller.text,
+              'id_player_4': _idPlayer4Controller.text,
+              // Mengambil value dinamis dari pilihan user di UI
+              'metode_pembayaran_daftar': _selectedPaymentMethod, 
+            })
+            .select('id_pendaftaran')
+            .single();
 
-      // Tutup loading dialog
-      if (!mounted) return;
-      Navigator.of(context).pop();
+        // Tutup loading dialog
+        if (!mounted) return;
+        Navigator.of(context).pop();
 
-      // Ambil nilai ID pendaftaran asli hasil generate database
-      final int idBaruDariSupabase = response['id_pendaftaran'];
+        // Ambil nilai ID pendaftaran asli hasil generate database
+        final int idBaruDariSupabase = response['id_pendaftaran'];
 
-      // WAJIB TEMBAK KE PATH SINKRON DENGAN ROUTER LU BRAY
-      if (!mounted) return;
-      context.push('/user/payment/$idBaruDariSupabase');
+        // Navigasi ke halaman payment checkout bawa ID baru
+        if (!mounted) return;
+        context.push('/user/payment/$idBaruDariSupabase', extra: idBaruDariSupabase);
 
-    } catch (error) {
-      // Tutup loading dialog jika terjadi kegagalan
-      if (!mounted) return;
-      Navigator.of(context).pop();
+      } catch (error) {
+        // Tutup loading dialog jika terjadi kegagalan
+        if (!mounted) return;
+        Navigator.of(context).pop();
 
-      // Tampilkan pesan eror lengkap
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Gagal menyimpan pendaftaran: $error'),
-          backgroundColor: AppColors.error,
-        ),
-      );
+        // Tampilkan pesan eror lengkap
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Gagal menyimpan pendaftaran: $error'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
     }
   }
-}
 
   @override
   Widget build(BuildContext context) {
@@ -143,7 +150,7 @@ void _submitData() async {
                     const SizedBox(width: 12),
                     Expanded(
                       child: Text(
-                        'Slot dipilih: 7 April, 08.00 - 09.00',
+                        'Slot dipilih: Sesi ID ${widget.sesiId}',
                         style: TextStyle(
                           color: AppColors.textPrimary.withOpacity(0.9),
                           fontSize: 14,
@@ -193,6 +200,84 @@ void _submitData() async {
                   const SizedBox(height: 16),
                   _buildFieldLabel('ID Player 4'),
                   _buildInputField(controller: _idPlayer4Controller, hint: 'Masukkan ID Player'),
+                ],
+              ),
+              const SizedBox(height: 24),
+
+              // ─── Section 3: METODE PEMBAYARAN ───────────────────────
+              _buildSectionTitle('METODE PEMBAYARAN'),
+              const SizedBox(height: 8),
+              _buildYellowCard(
+                children: [
+                  _buildFieldLabel('Pilih Metode Pembayaran'),
+                  DropdownButtonFormField<String>(
+                  value: _selectedPaymentMethod,
+                  dropdownColor: AppColors.backgroundCard, // Pop-up list pake background gelap lu bray
+                  icon: const Icon(Icons.arrow_drop_down, color: Color(0xFF1A2B38)), // Icon disamain sama warna label biar kontras
+                  
+                  // 1. INI KUNCINYA BRAY! Ngatur tampilan teks SETELAH dipilih (di dalam kotak putih)
+                  selectedItemBuilder: (BuildContext context) {
+                    return _paymentOptions.map<Widget>((option) {
+                      return Container(
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          option['label']!,
+                          style: const TextStyle(
+                            color: Colors.black87, // Teks jadi hitam/gelap pas udah kepilih di kotak putih!
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      );
+                    }).toList();
+                  },
+                  
+                  // 2. Ini tampilan PAS POP-UP LIST DIKLIK/MUNCUL (di luar kotak putih)
+                  items: _paymentOptions.map((option) {
+                    return DropdownMenuItem<String>(
+                      value: option['value'],
+                      child: Text(
+                        option['label']!,
+                        style: const TextStyle(
+                          color: AppColors.textPrimary, // Tetep putih biar kontras di background gelap list-nya
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    );
+                  }).toList(),
+                  onChanged: (value) {
+                    setState(() {
+                      _selectedPaymentMethod = value;
+                    });
+                  },
+                  decoration: InputDecoration(
+                    hintText: 'Pilih Metode',
+                    hintStyle: TextStyle(color: Colors.grey.shade500, fontSize: 14),
+                    filled: true,
+                    fillColor: const Color(0xFFF3F3F3), // Kotak input tetep putih bersih serasi ama field atas
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide.none,
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide.none,
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(color: Color(0xFF020C15), width: 1.5),
+                    ),
+                    errorStyle: const TextStyle(color: Color(0xFF8B1A00), fontWeight: FontWeight.bold),
+                  ),
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Silakan pilih metode pembayaran bray';
+                    }
+                    return null;
+                  },
+                )
                 ],
               ),
               const SizedBox(height: 32),
