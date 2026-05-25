@@ -27,7 +27,19 @@ class _PaymentCheckoutPageState extends State<PaymentCheckoutPage> {
 
       final data = await Supabase.instance.client
           .from('pendaftaran_tim')
-          .select('id_pendaftaran, nama_kapten, whatsapp_kapten')
+          .select('''
+            id_pendaftaran, 
+            nama_kapten, 
+            whatsapp_kapten,
+            metode_pembayaran_daftar,
+            sesi_scrim (
+              nama_sesi,
+              scrim (
+                nama_scrim,
+                biaya_pendaftaran
+              )
+            )
+          ''')
           .eq('id_pendaftaran', widget.pendaftaranId)
           .single();
       
@@ -36,6 +48,34 @@ class _PaymentCheckoutPageState extends State<PaymentCheckoutPage> {
     } catch (e) {
       print('EROR DI SUPABASE PAYMENT: $e');
       throw Exception(e);
+    }
+  }
+
+  // Helper pemformatan uang Rupiah
+  String _formatRupiah(dynamic nominal) {
+    if (nominal == null) return 'Rp 0';
+    int value;
+    if (nominal is int) {
+      value = nominal;
+    } else if (nominal is double) {
+      value = nominal.toInt();
+    } else {
+      value = double.parse(nominal.toString()).toInt();
+    }
+    return 'Rp ${value.toString().replaceAllMapped(RegExp(r'\B(?=(\d{3})+(?!\d))'), (match) => '.')}';
+  }
+
+  // Helper untuk mengubah value enum DB jadi text rapi di UI Ringkasan
+  String _getPaymentLabel(String? value) {
+    switch (value) {
+      case 'bank_transfer':
+        return 'Transfer Bank (BCA)';
+      case 'qris':
+        return 'QRIS Otomatis';
+      case 'ewallet':
+        return 'E-Wallet (Dana/OVO)';
+      default:
+        return value ?? 'Belum Dipilih';
     }
   }
 
@@ -109,6 +149,36 @@ class _PaymentCheckoutPageState extends State<PaymentCheckoutPage> {
           }
 
           final pendaftaran = snapshot.data!;
+          
+          final sesiScrim = pendaftaran['sesi_scrim'] as Map<String, dynamic>?;
+          final scrim = sesiScrim?['scrim'] as Map<String, dynamic>?;
+
+          final String namaScrimDinamis = scrim?['nama_scrim'] ?? 'Scrim By Kelompok 2';
+          final String namaSesiDinamis = sesiScrim?['nama_sesi'] != null ? ' (${sesiScrim?['nama_sesi']})' : '';
+          final dynamic biayaDinamis = scrim?['biaya_pendaftaran'];
+          
+          // Ambil value metode pembayaran dari DB bray
+          final String metodePembayaran = pendaftaran['metode_pembayaran_daftar'] ?? '';
+
+          // Logika Penentuan Konten Info Transfer Dinamis bray
+          String infoTitle = 'Info Transfer';
+          String namaMetode = 'Bank BCA';
+          String nomorTujuan = '0022000A1A26';
+          String atasNama = 'BooyahHub Official';
+          bool isQris = false;
+
+          if (metodePembayaran == 'qris') {
+            infoTitle = 'Scan QRIS';
+            namaMetode = 'QRIS All Payment';
+            nomorTujuan = 'LINK_QRIS_BOOYAHHUB'; 
+            atasNama = 'Nanti bisa lu ganti gambar QR Code bray';
+            isQris = true;
+          } else if (metodePembayaran == 'ewallet') {
+            infoTitle = 'Info E-Wallet';
+            namaMetode = 'Dana';
+            nomorTujuan = '081234567890';
+            atasNama = 'A/N Admin BooyahHub';
+          }
 
           return SafeArea(
             child: SingleChildScrollView(
@@ -136,18 +206,19 @@ class _PaymentCheckoutPageState extends State<PaymentCheckoutPage> {
                           ),
                         ),
                         const SizedBox(height: 12),
-                        _buildRowDetail('Scrim', 'Scrim By Kelompok 2'),
+                        _buildRowDetail('Scrim', '$namaScrimDinamis$namaSesiDinamis'),
                         _buildRowDetail('ID Daftar', '#${pendaftaran['id_pendaftaran']}'),
                         _buildRowDetail('Kapten', '${pendaftaran['nama_kapten']}'),
                         _buildRowDetail('WhatsApp', '${pendaftaran['whatsapp_kapten']}'),
+                        _buildRowDetail('Metode', _getPaymentLabel(metodePembayaran)),
                         Padding(
                           padding: const EdgeInsets.symmetric(vertical: 8),
                           child: Divider(color: AppColors.divider, thickness: 1),
                         ),
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: const [
-                            Text(
+                          children: [
+                            const Text(
                               'Total',
                               style: TextStyle(
                                 color: AppColors.textSecondary,
@@ -155,8 +226,8 @@ class _PaymentCheckoutPageState extends State<PaymentCheckoutPage> {
                               ),
                             ),
                             Text(
-                              'Rp 3.000',
-                              style: TextStyle(
+                              _formatRupiah(biayaDinamis),
+                              style: const TextStyle(
                                 color: AppColors.textGold,
                                 fontSize: 24,
                                 fontWeight: FontWeight.bold,
@@ -169,7 +240,7 @@ class _PaymentCheckoutPageState extends State<PaymentCheckoutPage> {
                   ),
                   const SizedBox(height: 16),
 
-                  // ─── KARTU 2: INFO TRANSFER ─────────────────────────────
+                  // ─── KARTU 2: INFO TRANSFER (SEKARANG DINAMIS) ────────────
                   Container(
                     width: double.infinity,
                     padding: const EdgeInsets.all(16),
@@ -181,75 +252,100 @@ class _PaymentCheckoutPageState extends State<PaymentCheckoutPage> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
-                          'Info Transfer',
-                          style: TextStyle(
+                        Text(
+                          infoTitle,
+                          style: const TextStyle(
                             color: AppColors.textPrimary,
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
                         const SizedBox(height: 8),
-                        const Text(
-                          'Bank BCA',
-                          style: TextStyle(
+                        Text(
+                          namaMetode,
+                          style: const TextStyle(
                             color: AppColors.textPrimary,
                             fontSize: 14,
                             fontWeight: FontWeight.w600,
                           ),
                         ),
-                        const Text(
-                          'BooyahHub Official',
-                          style: TextStyle(
+                        Text(
+                          atasNama,
+                          style: const TextStyle(
                             color: AppColors.textSecondary,
                             fontSize: 12,
                           ),
                         ),
                         const SizedBox(height: 12),
-                        Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                          decoration: BoxDecoration(
-                            color: AppColors.backgroundInput,
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              const Expanded(
-                                child: Text(
-                                  '0022000A1A26',
-                                  style: TextStyle(
-                                    color: AppColors.textPrimary,
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
-                                    letterSpacing: 1,
-                                  ),
-                                ),
-                              ),
-                              SizedBox(
-                                height: 36,
-                                width: 80, // ◄ FIX: COK KITA KUNCI BIAR GA INFINITE WIDTH
-                                child: ElevatedButton(
-                                  onPressed: () {},
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: AppColors.buttonPrimary,
-                                    foregroundColor: AppColors.buttonText,
-                                    elevation: 0,
-                                    padding: EdgeInsets.zero,
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(8),
+                        
+                        // Kalau pilih QRIS, bisa tampilin placeholder/gambar QR bray
+                        if (isQris)
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: const Column(
+                              children: [
+                                Icon(Icons.qr_code_2, size: 150, color: Colors.black),
+                                SizedBox(height: 4),
+                                Text(
+                                  'Silahkan Scan QRIS Diatas',
+                                  style: TextStyle(color: Colors.black54, fontSize: 12, fontWeight: FontWeight.bold),
+                                )
+                              ],
+                            ),
+                          )
+                        else
+                          // Selain QRIS (BCA/E-wallet), tampilin row nomer rekening + tombol salin bray
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            decoration: BoxDecoration(
+                              color: AppColors.backgroundInput,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    nomorTujuan,
+                                    style: const TextStyle(
+                                      color: AppColors.textPrimary,
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
+                                      letterSpacing: 1,
                                     ),
                                   ),
-                                  child: const Text(
-                                    'Salin',
-                                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                                ),
+                                SizedBox(
+                                  height: 36,
+                                  width: 80,
+                                  child: ElevatedButton(
+                                    onPressed: () {
+                                      // Opsional: Bisa dipasang Clipboard.setData buat fungsi salin bray
+                                    },
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: AppColors.buttonPrimary,
+                                      foregroundColor: AppColors.buttonText,
+                                      elevation: 0,
+                                      padding: EdgeInsets.zero,
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                    ),
+                                    child: const Text(
+                                      'Salin',
+                                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                                    ),
                                   ),
                                 ),
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
-                        ),
                       ],
                     ),
                   ),
