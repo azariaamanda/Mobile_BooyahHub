@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../config/app_color.dart';
+import 'package:image_picker/image_picker.dart';
+import 'dart:io';
 
 class PaymentCheckoutPage extends StatefulWidget {
   final int pendaftaranId;
@@ -14,6 +16,7 @@ class PaymentCheckoutPage extends StatefulWidget {
 
 class _PaymentCheckoutPageState extends State<PaymentCheckoutPage> {
   late Future<Map<String, dynamic>> _pendaftaranData;
+  File? _buktiFile;
 
   @override
   void initState() {
@@ -364,7 +367,15 @@ class _PaymentCheckoutPageState extends State<PaymentCheckoutPage> {
                       ),
                     ),
                     child: InkWell(
-                      onTap: () {},
+                      onTap: () async {
+                         final ImagePicker picker = ImagePicker();
+                         final XFile? image = await picker.pickImage(source: ImageSource.gallery);
+                         if (image != null) {
+                           setState(() {
+                             _buktiFile = File(image.path);
+                           });
+                         }
+                       },
                       child: Column(
                         children: [
                           Container(
@@ -389,6 +400,14 @@ class _PaymentCheckoutPageState extends State<PaymentCheckoutPage> {
                               fontWeight: FontWeight.w500,
                             ),
                           ),
+                          if (_buktiFile != null) ...[
+                           const SizedBox(height: 12),
+                           Image.file(
+                             _buktiFile!,
+                             height: 150,
+                             fit: BoxFit.cover,
+                           ),
+                         ],
                         ],
                       ),
                     ),
@@ -400,7 +419,18 @@ class _PaymentCheckoutPageState extends State<PaymentCheckoutPage> {
                     width: double.infinity,
                     height: 52,
                     child: ElevatedButton(
-                      onPressed: _kirimBuktiPembayaran,
+                      onPressed: () {
+                         if (_buktiFile == null) {
+                           ScaffoldMessenger.of(context).showSnackBar(
+                             const SnackBar(
+                               content: Text('Silakan unggah bukti transfer terlebih dahulu.'),
+                               backgroundColor: AppColors.error,
+                             ),
+                           );
+                           return;
+                         }
+                         _kirimBuktiPembayaran();
+                       },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.buttonPrimary,
                         foregroundColor: AppColors.buttonText,
