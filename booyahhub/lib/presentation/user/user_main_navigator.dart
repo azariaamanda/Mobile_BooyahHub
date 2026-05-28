@@ -3,6 +3,7 @@ import '../../config/app_color.dart';
 import '../../config/app_constants.dart';
 import '../../config/app_text_styles.dart';
 import 'user_home_screen.dart'; // Import halaman beranda lu
+import 'scrim_page.dart';
 
 class UserMainNavigator extends StatefulWidget {
   const UserMainNavigator({super.key});
@@ -17,7 +18,7 @@ class _UserMainNavigatorState extends State<UserMainNavigator> {
   // DAFTAR HALAMAN YANG AKAN DIKONTROL OLEH BOTTOM NAV BAR
   final List<Widget> _pages = [
     const UserHomeScreen(), // Index 0: Halaman Beranda yang lu buat tadi
-    const Center(child: Text('Halaman Scrim', style: TextStyle(color: Colors.white))),  // Index 1 (Ganti dengan class aslinya nanti)
+    const ScrimPage(),  // Index 1 (Ganti dengan class aslinya nanti)
     const Center(child: Text('Halaman Riwayat', style: TextStyle(color: Colors.white))),// Index 2 (Ganti dengan class aslinya nanti)
     const Center(child: Text('Halaman Profil', style: TextStyle(color: Colors.white))), // Index 3 (Ganti dengan class aslinya nanti)
   ];
