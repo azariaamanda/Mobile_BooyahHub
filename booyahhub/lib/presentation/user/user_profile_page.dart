@@ -2,8 +2,18 @@ import 'package:flutter/material.dart';
 import '../../config/app_color.dart';
 import '../../config/app_text_styles.dart';
 
-class UserProfilePage extends StatelessWidget {
+import 'user_edit_profile_page.dart';
+
+class UserProfilePage extends StatefulWidget {
   const UserProfilePage({super.key});
+
+  @override
+  State<UserProfilePage> createState() => _UserProfilePageState();
+}
+
+class _UserProfilePageState extends State<UserProfilePage> {
+  String _name = 'Evos Shadow';
+  String _email = 'RaffiJulian@gmail.com';
 
   @override
   Widget build(BuildContext context) {
@@ -43,7 +53,7 @@ class UserProfilePage extends StatelessWidget {
               const SizedBox(height: 16),
               // Name
               Text(
-                'Evos Shadow',
+                _name,
                 style: AppTextStyles.poppinsHeadline.copyWith(
                   color: AppColors.textPrimary,
                   fontSize: 22,
@@ -52,7 +62,7 @@ class UserProfilePage extends StatelessWidget {
               const SizedBox(height: 4),
               // Email
               Text(
-                'RaffiJulian@gmail.com',
+                _email,
                 style: AppTextStyles.interBody.copyWith(
                   color: AppColors.textSecondary,
                 ),
@@ -75,7 +85,23 @@ class UserProfilePage extends StatelessWidget {
               _buildCardMenu(
                 icon: Icons.person_outline,
                 title: 'Edit Profil',
-                onTap: () {},
+                onTap: () async {
+                  final result = await Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (context) => UserEditProfilePage(
+                        initialName: _name,
+                        initialEmail: _email,
+                      ),
+                    ),
+                  );
+
+                  if (result != null && result is Map<String, String>) {
+                    setState(() {
+                      _name = result['name'] ?? _name;
+                      _email = result['email'] ?? _email;
+                    });
+                  }
+                },
               ),
               const SizedBox(height: 12),
               _buildCardMenu(
