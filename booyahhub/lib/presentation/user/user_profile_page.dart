@@ -8,17 +8,17 @@ class UserProfilePage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FA), // Slightly off-white background to match the photo
+      backgroundColor: AppColors.background,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black),
+          icon: const Icon(Icons.arrow_back, color: AppColors.textPrimary),
           onPressed: () => Navigator.of(context).pop(),
         ),
         title: Text(
           'Profil',
-          style: AppTextStyles.poppinsTitle.copyWith(color: Colors.black),
+          style: AppTextStyles.poppinsTitle.copyWith(color: AppColors.textPrimary),
         ),
         centerTitle: false,
       ),
@@ -33,7 +33,7 @@ class UserProfilePage extends StatelessWidget {
               Container(
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  border: Border.all(color: Colors.grey.withOpacity(0.2), width: 2),
+                  border: Border.all(color: AppColors.primary, width: 2),
                 ),
                 child: const CircleAvatar(
                   radius: 50,
@@ -45,7 +45,7 @@ class UserProfilePage extends StatelessWidget {
               Text(
                 'Evos Shadow',
                 style: AppTextStyles.poppinsHeadline.copyWith(
-                  color: Colors.black,
+                  color: AppColors.textPrimary,
                   fontSize: 22,
                 ),
               ),
@@ -54,7 +54,7 @@ class UserProfilePage extends StatelessWidget {
               Text(
                 'RaffiJulian@gmail.com',
                 style: AppTextStyles.interBody.copyWith(
-                  color: Colors.grey[600],
+                  color: AppColors.textSecondary,
                 ),
               ),
               const SizedBox(height: 32),
@@ -66,7 +66,7 @@ class UserProfilePage extends StatelessWidget {
                   'PENGATURAN AKUN',
                   style: AppTextStyles.interCaption.copyWith(
                     fontWeight: FontWeight.w700,
-                    color: Colors.grey[500],
+                    color: AppColors.textSecondary,
                     letterSpacing: 1.2,
                   ),
                 ),
@@ -99,7 +99,7 @@ class UserProfilePage extends StatelessWidget {
                   'DUKUNGAN DAN HUKUM',
                   style: AppTextStyles.interCaption.copyWith(
                     fontWeight: FontWeight.w700,
-                    color: Colors.grey[500],
+                    color: AppColors.textSecondary,
                     letterSpacing: 1.2,
                   ),
                 ),
@@ -114,9 +114,9 @@ class UserProfilePage extends StatelessWidget {
               _buildCardMenu(
                 icon: Icons.logout,
                 title: 'Logout',
-                textColor: Colors.redAccent,
-                iconColor: Colors.redAccent,
-                iconBackgroundColor: Colors.redAccent.withOpacity(0.1),
+                textColor: AppColors.error,
+                iconColor: AppColors.error,
+                iconBackgroundColor: AppColors.error.withOpacity(0.1),
                 onTap: () {},
               ),
               
@@ -131,7 +131,7 @@ class UserProfilePage extends StatelessWidget {
                   borderRadius: BorderRadius.circular(16),
                   boxShadow: [
                     BoxShadow(
-                      color: AppColors.primary.withOpacity(0.3),
+                      color: AppColors.primary.withOpacity(0.1),
                       blurRadius: 15,
                       offset: const Offset(0, 5),
                     )
@@ -146,7 +146,7 @@ class UserProfilePage extends StatelessWidget {
                           Text(
                             'MEMBER ELIT',
                             style: AppTextStyles.poppinsTitleSmall.copyWith(
-                              color: Colors.black,
+                              color: AppColors.black,
                               fontWeight: FontWeight.w800,
                               letterSpacing: 0.5,
                             ),
@@ -155,14 +155,14 @@ class UserProfilePage extends StatelessWidget {
                           Text(
                             'Valid sampai Des 2025',
                             style: AppTextStyles.interCaption.copyWith(
-                              color: Colors.black87,
+                              color: AppColors.black,
                             ),
                           ),
                           const SizedBox(height: 12),
                           ElevatedButton(
                             onPressed: () {},
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.black,
+                              backgroundColor: AppColors.black,
                               elevation: 0,
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(20),
@@ -176,7 +176,7 @@ class UserProfilePage extends StatelessWidget {
                             child: Text(
                               'PERBARUI MEMBERSHIP',
                               style: AppTextStyles.interCaption.copyWith(
-                                color: Colors.white,
+                                color: AppColors.white,
                                 fontWeight: FontWeight.bold,
                                 fontSize: 9,
                                 letterSpacing: 0.5,
@@ -215,35 +215,29 @@ class UserProfilePage extends StatelessWidget {
   }) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.backgroundCard,
         borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.03),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
+        border: Border.all(color: AppColors.inputBorder, width: 1),
       ),
       child: ListTile(
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
         leading: Container(
           padding: const EdgeInsets.all(10),
           decoration: BoxDecoration(
-            color: iconBackgroundColor ?? Colors.grey.withOpacity(0.1),
+            color: iconBackgroundColor ?? AppColors.surfaceVariant,
             borderRadius: BorderRadius.circular(12),
           ),
-          child: Icon(icon, color: iconColor ?? Colors.black87, size: 22),
+          child: Icon(icon, color: iconColor ?? AppColors.textPrimary, size: 22),
         ),
         title: Text(
           title,
           style: AppTextStyles.poppinsTitleSmall.copyWith(
-            color: textColor ?? Colors.black87,
+            color: textColor ?? AppColors.textPrimary,
             fontSize: 15,
             fontWeight: FontWeight.w600,
           ),
         ),
-        trailing: const Icon(Icons.arrow_forward_ios, size: 14, color: Colors.grey),
+        trailing: const Icon(Icons.arrow_forward_ios, size: 14, color: AppColors.textSecondary),
         onTap: onTap,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       ),
