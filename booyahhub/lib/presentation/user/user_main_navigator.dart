@@ -5,6 +5,7 @@ import '../../config/app_text_styles.dart';
 import 'user_home_screen.dart'; // Import halaman beranda lu
 import 'scrim_page.dart';
 import 'history_scrim_page.dart';
+import 'user_profile_page.dart';
 
 class UserMainNavigator extends StatefulWidget {
   const UserMainNavigator({super.key});
@@ -21,7 +22,7 @@ class _UserMainNavigatorState extends State<UserMainNavigator> {
     const UserHomeScreen(), // Index 0: Halaman Beranda yang lu buat tadi
     const ScrimPage(),  // Index 1 (Ganti dengan class aslinya nanti)
     const HistoryScrimPage(),// Index 2 (Ganti dengan class aslinya nanti)
-    const Center(child: Text('Halaman Profil', style: TextStyle(color: Colors.white))), // Index 3 (Ganti dengan class aslinya nanti)
+    const UserProfilePage(), // Index 3 (Ganti dengan class aslinya nanti)
   ];
 
   @override

@@ -1,0 +1,252 @@
+import 'package:flutter/material.dart';
+import '../../config/app_color.dart';
+import '../../config/app_text_styles.dart';
+
+class UserProfilePage extends StatelessWidget {
+  const UserProfilePage({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFFF8F9FA), // Slightly off-white background to match the photo
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.black),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+        title: Text(
+          'Profil',
+          style: AppTextStyles.poppinsTitle.copyWith(color: Colors.black),
+        ),
+        centerTitle: false,
+      ),
+      body: SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              const SizedBox(height: 20),
+              // Profile Picture
+              Container(
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.grey.withOpacity(0.2), width: 2),
+                ),
+                child: const CircleAvatar(
+                  radius: 50,
+                  backgroundImage: NetworkImage('https://i.pravatar.cc/300'), // Placeholder
+                ),
+              ),
+              const SizedBox(height: 16),
+              // Name
+              Text(
+                'Evos Shadow',
+                style: AppTextStyles.poppinsHeadline.copyWith(
+                  color: Colors.black,
+                  fontSize: 22,
+                ),
+              ),
+              const SizedBox(height: 4),
+              // Email
+              Text(
+                'RaffiJulian@gmail.com',
+                style: AppTextStyles.interBody.copyWith(
+                  color: Colors.grey[600],
+                ),
+              ),
+              const SizedBox(height: 32),
+              
+              // Section 1: Pengaturan Akun
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  'PENGATURAN AKUN',
+                  style: AppTextStyles.interCaption.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: Colors.grey[500],
+                    letterSpacing: 1.2,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              _buildCardMenu(
+                icon: Icons.person_outline,
+                title: 'Edit Profil',
+                onTap: () {},
+              ),
+              const SizedBox(height: 12),
+              _buildCardMenu(
+                icon: Icons.lock_outline,
+                title: 'Ubah Password',
+                onTap: () {},
+              ),
+              const SizedBox(height: 12),
+              _buildCardMenu(
+                icon: Icons.notifications_none,
+                title: 'Pengaturan Notifikasi',
+                onTap: () {},
+              ),
+              
+              const SizedBox(height: 24),
+              
+              // Section 2: Dukungan dan Hukum
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  'DUKUNGAN DAN HUKUM',
+                  style: AppTextStyles.interCaption.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: Colors.grey[500],
+                    letterSpacing: 1.2,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              _buildCardMenu(
+                icon: Icons.help_outline,
+                title: 'Bantuan dan Dukungan',
+                onTap: () {},
+              ),
+              const SizedBox(height: 12),
+              _buildCardMenu(
+                icon: Icons.logout,
+                title: 'Logout',
+                textColor: Colors.redAccent,
+                iconColor: Colors.redAccent,
+                iconBackgroundColor: Colors.redAccent.withOpacity(0.1),
+                onTap: () {},
+              ),
+              
+              const SizedBox(height: 32),
+              
+              // Member Elit Card
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: AppColors.primary,
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppColors.primary.withOpacity(0.3),
+                      blurRadius: 15,
+                      offset: const Offset(0, 5),
+                    )
+                  ]
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'MEMBER ELIT',
+                            style: AppTextStyles.poppinsTitleSmall.copyWith(
+                              color: Colors.black,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            'Valid sampai Des 2025',
+                            style: AppTextStyles.interCaption.copyWith(
+                              color: Colors.black87,
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          ElevatedButton(
+                            onPressed: () {},
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.black,
+                              elevation: 0,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 10,
+                              ),
+                              minimumSize: Size.zero,
+                            ),
+                            child: Text(
+                              'PERBARUI MEMBERSHIP',
+                              style: AppTextStyles.interCaption.copyWith(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 9,
+                                letterSpacing: 0.5,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const Padding(
+                      padding: EdgeInsets.only(right: 8.0),
+                      child: Icon(
+                        Icons.workspace_premium, // Similar to the badge icon in the design
+                        size: 64,
+                        color: Colors.white60,
+                      ),
+                    )
+                  ],
+                ),
+              ),
+              const SizedBox(height: 40),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCardMenu({
+    required IconData icon,
+    required String title,
+    required VoidCallback onTap,
+    Color? textColor,
+    Color? iconColor,
+    Color? iconBackgroundColor,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.03),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: ListTile(
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+        leading: Container(
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: iconBackgroundColor ?? Colors.grey.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Icon(icon, color: iconColor ?? Colors.black87, size: 22),
+        ),
+        title: Text(
+          title,
+          style: AppTextStyles.poppinsTitleSmall.copyWith(
+            color: textColor ?? Colors.black87,
+            fontSize: 15,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        trailing: const Icon(Icons.arrow_forward_ios, size: 14, color: Colors.grey),
+        onTap: onTap,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      ),
+    );
+  }
+}
