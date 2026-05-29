@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import '../../config/app_color.dart';
 import '../../config/app_text_styles.dart';
 
@@ -143,7 +144,33 @@ class _UserProfilePageState extends State<UserProfilePage> {
                 textColor: AppColors.error,
                 iconColor: AppColors.error,
                 iconBackgroundColor: AppColors.error.withOpacity(0.1),
-                onTap: () {},
+                onTap: () {
+                  showDialog(
+                    context: context,
+                    builder: (BuildContext context) {
+                      return AlertDialog(
+                        backgroundColor: AppColors.backgroundCard,
+                        title: Text('Konfirmasi Logout', style: AppTextStyles.poppinsTitle),
+                        content: Text('Apakah Anda yakin ingin keluar?', style: AppTextStyles.interBody),
+                        actions: [
+                          TextButton(
+                            onPressed: () {
+                              Navigator.of(context).pop(); // Close dialog
+                            },
+                            child: Text('Tidak', style: AppTextStyles.interBody),
+                          ),
+                          TextButton(
+                            onPressed: () {
+                              Navigator.of(context).pop(); // Close dialog
+                              context.go('/login'); // Navigate to login
+                            },
+                            child: Text('Ya', style: AppTextStyles.interLink.copyWith(color: AppColors.error)),
+                          ),
+                        ],
+                      );
+                    },
+                  );
+                },
               ),
               
               const SizedBox(height: 32),
