@@ -9,14 +9,24 @@ import '../presentation/owner/financial_report_page.dart';
 import '../presentation/owner/prize_approval_page.dart';
 import '../presentation/admin/admin_main_navigator.dart';
 import '../presentation/admin/create_scrim_page.dart';
+import '../presentation/admin/detail_scrim_page.dart';
+import '../presentation/admin/edit_scrim_page.dart';
+import '../presentation/admin/edit_profile_page.dart';
+import '../presentation/admin/scrim_sessions_page.dart';
+import '../presentation/admin/scrim_points_page.dart';
+import '../presentation/admin/scrim_leaderboard_page.dart';
+import '../presentation/admin/add_session_page.dart';
+import '../presentation/admin/edit_session_page.dart';
+import '../presentation/admin/admin_notification_page.dart';
+import '../presentation/admin/peserta_management_page.dart';
 import '../presentation/admin/setup_session_page.dart';
 import '../presentation/admin/validate_payment_page.dart';
 import '../presentation/admin/input_score_page.dart';
 import '../presentation/admin/admin_claim_list_page.dart';
-import '../presentation/admin/setting_page.dart'; // Tetap diimport jika dipakai di tempat lain
+import '../presentation/admin/admin_profile_page.dart';
 import '../presentation/user/user_home_screen.dart';
 import '../presentation/user/scrim_detail_page.dart';
-import '../presentation/user/booking_scrim_page.dart'; // ◄ 1. IMPORT YANG HILANG SUDAH DIKEMBALIKAN
+import '../presentation/user/booking_scrim_page.dart';
 import '../presentation/user/booking_form_page.dart';
 import '../presentation/user/payment_checkout_page.dart';
 import '../presentation/user/leaderboard_page.dart';
@@ -86,6 +96,64 @@ class AppRouter {
         builder: (context, state) => const CreateScrimPage(),
       ),
       GoRoute(
+        path: '/admin/scrim/detail/:id',
+        name: 'detail_scrim_admin',
+        builder: (context, state) {
+          final id = int.parse(state.pathParameters['id']!);
+          return DetailScrimPage(scrimId: id);
+        },
+      ),
+      GoRoute(
+        path: '/admin/scrim/edit/:id',
+        name: 'edit_scrim',
+        builder: (context, state) {
+          final id = int.parse(state.pathParameters['id']!);
+          return EditScrimPage(scrimId: id);
+        },
+      ),
+      // ==================== ROUTE TAMBAHAN ====================
+      GoRoute(
+        path: '/admin/scrim/:id/sessions',
+        name: 'scrim_sessions',
+        builder: (context, state) {
+          final id = int.parse(state.pathParameters['id']!);
+          return ScrimSessionsPage(scrimId: id);
+        },
+      ),
+      GoRoute(
+        path: '/admin/scrim/:id/points',
+        name: 'scrim_points',
+        builder: (context, state) {
+          final id = int.parse(state.pathParameters['id']!);
+          return ScrimPointsPage(scrimId: id);
+        },
+      ),
+      GoRoute(
+        path: '/admin/scrim/:id/leaderboard',
+        name: 'scrim_leaderboard',
+        builder: (context, state) {
+          final id = int.parse(state.pathParameters['id']!);
+          return ScrimLeaderboardPage(scrimId: id);
+        },
+      ),
+      GoRoute(
+        path: '/admin/sesi/tambah/:scrimId',
+        name: 'add_session',
+        builder: (context, state) {
+          final scrimId = int.parse(state.pathParameters['scrimId']!);
+          return AddSessionPage(scrimId: scrimId);
+        },
+      ),
+      GoRoute(
+        path: '/admin/sesi/edit/:sesiId',
+        name: 'edit_session',
+        builder: (context, state) {
+          final sesiId = int.parse(state.pathParameters['sesiId']!);
+          return EditSessionPage(sesiId: sesiId);
+        },
+      ),
+      // ========================================================
+      GoRoute(
         path: '/admin/scrim/:idScrim/sesi',
         name: 'atur_sesi',
         builder: (context, state) {
@@ -112,10 +180,19 @@ class AppRouter {
         builder: (context, state) => const AdminClaimListPage(),
       ),
       GoRoute(
-        path: '/admin/payment-config',
-        name: 'payment_config',
-        // Jika PaymentConfigPage belum dibuat/berbeda nama, arahkan sementara ke SettingPage agar tidak eror compile
-        builder: (context, state) => const PaymentConfigPage(), 
+        path: '/admin/profile/edit',
+        name: 'edit_profile',
+        builder: (context, state) => const EditProfilePage(),
+      ),
+      GoRoute(
+        path: '/admin/profile/notifikasi',
+        name: 'admin_notifikasi',
+        builder: (context, state) => const AdminNotificationPage(),
+      ),
+      GoRoute(
+        path: '/admin/peserta',
+        name: 'peserta',
+        builder: (context, state) => const PesertaManagementPage(),
       ),
 
       // ─── USER (PELANGGAN) ──────────────────────────────────────
@@ -137,7 +214,6 @@ class AppRouter {
           return ScrimDetailPage(scrimId: idScrim);
         },
       ),
-      // ◄ 2. RUTE BARU KALENDER PILIHAN SLOT JAM YANG SEMPAT HILANG
       GoRoute(
         path: '/user/booking-scrim/:idScrim',
         name: 'booking_scrim',
