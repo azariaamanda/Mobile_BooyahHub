@@ -3,11 +3,11 @@ import '../../config/app_color.dart';
 import '../../config/app_constants.dart';
 import '../../config/app_text_styles.dart';
 import 'admin_dashboard_screen.dart';
-import 'create_scrim_page.dart';
+import 'admin_scrim_page.dart';
 import 'admin_claim_list_page.dart';
-import 'setting_page.dart';
-// TODO: buat halaman peserta
-import 'peserta_management_page.dart';  // <-- BUAT NANTI
+import 'admin_profile_page.dart';
+
+import 'peserta_management_page.dart';
 
 class AdminMainNavigator extends StatefulWidget {
   const AdminMainNavigator({super.key});
@@ -21,19 +21,19 @@ class _AdminMainNavigatorState extends State<AdminMainNavigator> {
 
   // DAFTAR HALAMAN UNTUK ADMIN (5 HALAMAN)
   final List<Widget> _pages = [
-    const AdminDashboardScreen(),     // Index 0: Dashboard
-    const CreateScrimPage(),          // Index 1: Buat Scrim
-    const PesertaManagementPage(),    // Index 2: Peserta (baru)
-    const AdminClaimListPage(),       // Index 3: Klaim
-    const PaymentConfigPage(),        // Index 4: Pengaturan
+    const AdminDashboardScreen(),
+    const AdminScrimPage(),
+    const PesertaManagementPage(),
+    const AdminClaimListPage(),
+    const AdminProfilePage(),
   ];
 
   final List<Map<String, dynamic>> _menuItems = [
-    {'icon': Icons.dashboard, 'label': 'Dashboard'},
-    {'icon': Icons.add_circle_outline, 'label': 'Buat Scrim'},
-    {'icon': Icons.people_outline, 'label': 'Peserta'},        // <-- TAMBAH INI
-    {'icon': Icons.assignment_turned_in, 'label': 'Klaim'},
-    {'icon': Icons.settings_outlined, 'label': 'Pengaturan'},
+    {'icon': Icons.dashboard_outlined, 'label': 'Dashboard'},
+    {'icon': Icons.add_circle_outline, 'label': 'Scrim'},
+    {'icon': Icons.people_outline, 'label': 'Peserta'},
+    {'icon': Icons.assignment_turned_in_outlined, 'label': 'Klaim'},
+    {'icon': Icons.settings_outlined, 'label': 'Profil'},
   ];
 
   @override
