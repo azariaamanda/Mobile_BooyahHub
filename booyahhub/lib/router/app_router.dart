@@ -31,6 +31,7 @@ import '../presentation/user/booking_form_page.dart';
 import '../presentation/user/payment_checkout_page.dart';
 import '../presentation/user/leaderboard_page.dart';
 import '../presentation/user/history_scrim_page.dart';
+import '../presentation/user/history_detail_scrim_page.dart';
 import '../presentation/user/claim_prize_page.dart';
 import '../presentation/user/user_main_navigator.dart';
 
@@ -250,6 +251,11 @@ class AppRouter {
         path: '/user/history',
         name: 'history',
         builder: (context, state) => const HistoryScrimPage(),
+      ),
+      GoRoute(
+        path: '/user/history-detail',
+        name: 'history_detail',
+        builder: (context, state) => const HistoryDetailScrimPage(),
       ),
       GoRoute(
         path: '/user/klaim/:idPendaftaran',
