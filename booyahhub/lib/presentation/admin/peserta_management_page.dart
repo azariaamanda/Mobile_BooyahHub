@@ -92,19 +92,28 @@ class _PesertaManagementPageState extends State<PesertaManagementPage> {
   Widget _buildHeader() {
     return Padding(
       padding: const EdgeInsets.fromLTRB(
-        AppConstants.paddingM,
-        AppConstants.paddingL,
-        AppConstants.paddingM,
-        AppConstants.paddingM,
+        AppConstants.paddingM,  // 16
+        AppConstants.paddingM,  // 16
+        AppConstants.paddingM,  // 16
+        AppConstants.paddingS,  // 8
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Row(
         children: [
-          Text('Manajemen Peserta', style: AppTextStyles.poppinsHeadline),
-          const SizedBox(height: AppConstants.paddingXS),
-          Text(
-            'Kelola peserta & verifikasi pembayaran',
-            style: AppTextStyles.interBody,
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Manajemen Peserta',
+                  style: AppTextStyles.poppinsHeadline,
+                ),
+                const SizedBox(height: AppConstants.paddingXS),
+                Text(
+                  'Kelola peserta & verifikasi pembayaran',
+                  style: AppTextStyles.interBody,
+                ),
+              ],
+            ),
           ),
         ],
       ),
@@ -113,42 +122,40 @@ class _PesertaManagementPageState extends State<PesertaManagementPage> {
 
   // ===================== TAB BAR =====================
   Widget _buildTabBar() {
-    return SizedBox(
-      height: 38,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: AppConstants.paddingM),
-        itemCount: _tabs.length,
-        separatorBuilder: (_, _) =>
-            const SizedBox(width: AppConstants.paddingL),
-        itemBuilder: (_, i) {
+    return Container(
+      height: 60,
+      margin: const EdgeInsets.symmetric(horizontal: AppConstants.paddingM),
+      child: Row(
+        children: List.generate(_tabs.length, (i) {
           final selected = _selectedTab == i;
-          return GestureDetector(
-            onTap: () => setState(() => _selectedTab = i),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  _tabs[i],
-                  style: AppTextStyles.interBodyMedium.copyWith(
-                    color: selected ? AppColors.primary : AppColors.textHint,
-                    fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
+          return Expanded(
+            child: GestureDetector(
+              onTap: () => setState(() => _selectedTab = i),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    _tabs[i],
+                    style: AppTextStyles.interBodyMedium.copyWith(
+                      color: selected ? AppColors.primary : AppColors.textHint,
+                      fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 6),
-                AnimatedContainer(
-                  duration: AppConstants.animationDuration,
-                  height: 3,
-                  width: selected ? 22 : 0,
-                  decoration: BoxDecoration(
-                    color: AppColors.primary,
-                    borderRadius: BorderRadius.circular(2),
+                  const SizedBox(height: 6),
+                  AnimatedContainer(
+                    duration: AppConstants.animationDuration,
+                    height: 3,
+                    width: selected ? 22 : 0,
+                    decoration: BoxDecoration(
+                      color: AppColors.primary,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           );
-        },
+        }),
       ),
     );
   }
