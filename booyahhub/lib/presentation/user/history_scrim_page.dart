@@ -129,7 +129,11 @@ class _HistoryScrimPageState extends State<HistoryScrimPage> {
                           final bool isCancelled = history['status'] == 'dibatalkan';
                           final bool isJuara1 = history['badge_text'] == 'JUARA 1';
 
-                          return Container(
+                          return GestureDetector(
+                            onTap: () {
+                              context.push('/user/history-detail');
+                            },
+                            child: Container(
                             margin: const EdgeInsets.only(bottom: AppConstants.paddingM),
                             decoration: BoxDecoration(
                               color: AppColors.backgroundCard,
@@ -272,6 +276,7 @@ class _HistoryScrimPageState extends State<HistoryScrimPage> {
                                 ]
                               ],
                             ),
+                          ),
                           );
                         },
                       ),
