@@ -50,7 +50,7 @@ class AdminDashboardScreen extends StatelessWidget {
                       ),
                     ),
                     Text(
-                      'Azaria Amanda',
+                      'Anugerah',
                       style: AppTextStyles.poppinsTitleSmall.copyWith(
                         fontSize: 18,
                         fontWeight: FontWeight.w700,
