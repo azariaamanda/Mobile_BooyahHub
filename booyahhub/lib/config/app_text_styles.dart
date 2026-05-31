@@ -137,4 +137,10 @@ class AppTextStyles {
     fontWeight: FontWeight.w500,
     color: AppColors.error,
   );
+
+  static TextStyle poppinsMoneySmall = GoogleFonts.poppins(
+    fontSize: 14,
+    fontWeight: FontWeight.w600,
+    color: AppColors.textPrimary,
+  );
 }
