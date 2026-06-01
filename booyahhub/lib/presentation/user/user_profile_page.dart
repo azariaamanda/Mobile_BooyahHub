@@ -4,6 +4,7 @@ import '../../config/app_color.dart';
 import '../../config/app_text_styles.dart';
 
 import 'user_edit_profile_page.dart';
+import 'claim_prize_page.dart';
 
 class UserProfilePage extends StatefulWidget {
   const UserProfilePage({super.key});
@@ -102,6 +103,18 @@ class _UserProfilePageState extends State<UserProfilePage> {
                       _email = result['email'] ?? _email;
                     });
                   }
+                },
+              ),
+              const SizedBox(height: 12),
+              _buildCardMenu(
+                icon: Icons.card_giftcard,
+                title: 'Klaim Hadiah',
+                onTap: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (context) => const ClaimPrizePage(),
+                    ),
+                  );
                 },
               ),
               const SizedBox(height: 12),
