@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../config/app_color.dart';
 import '../../config/app_text_styles.dart';
+import 'request_claim_prize_page.dart';
 
 class ClaimPrizePage extends StatelessWidget {
   final int? pendaftaranId;
@@ -58,7 +59,17 @@ class ClaimPrizePage extends StatelessWidget {
                   width: double.infinity,
                   margin: const EdgeInsets.only(top: 24),
                   child: ElevatedButton(
-                    onPressed: () {},
+                    onPressed: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (context) => const RequestClaimPrizePage(
+                            title: 'Scrim Ganteng',
+                            rank: 'Juara 1',
+                            totalPrize: 'Rp 250.000',
+                          ),
+                        ),
+                      );
+                    },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.primary,
                       padding: const EdgeInsets.symmetric(vertical: 16),
