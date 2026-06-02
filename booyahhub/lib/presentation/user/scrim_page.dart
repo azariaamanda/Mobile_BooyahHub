@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+
 import '../../config/app_color.dart';
 import '../../config/app_constants.dart';
-import '../../config/app_image_helper.dart';
 import '../../config/app_text_styles.dart';
 import '../../config/supabase_client.dart';
 import 'user_widgets/scrim_item_card.dart';
@@ -19,22 +20,34 @@ class _ScrimPageState extends State<ScrimPage> {
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
 
+  final _supabase = Supabase.instance.client;
+
   final List<Map<String, String>> _sortOptions = [
     {'value': 'terpopuler', 'label': 'Terpopuler'},
     {'value': 'terbaru', 'label': 'Terkini'},
     {'value': 'semua', 'label': 'Semua'},
   ];
 
+  String? _getPosterUrl(String? path) {
+    if (path == null || path.trim().isEmpty) return null;
+
+    if (path.startsWith('http')) {
+      return path;
+    }
+
+    final fixedPath = path.startsWith('posters/') ? path : 'posters/$path';
+
+    return _supabase.storage.from('posters').getPublicUrl(fixedPath);
+  }
+
   Future<List<Map<String, dynamic>>> fetchAllScrims() async {
     try {
       dynamic query = SupabaseClientHelper.client.from('scrim').select();
 
-      // Logika pencarian berdasarkan nama scrim bray
       if (_searchQuery.isNotEmpty) {
         query = query.ilike('nama_scrim', '%$_searchQuery%');
       }
 
-      // Logika filter sorting sesuai gambar
       switch (_selectedSort) {
         case 'terpopuler':
           query = query.order('total_hadiah', ascending: false);
@@ -51,16 +64,20 @@ class _ScrimPageState extends State<ScrimPage> {
       final response = await query;
       return List<Map<String, dynamic>>.from(response);
     } catch (e) {
-      print('EROR FETCH SCRIM PAGE: $e');
+      debugPrint('EROR FETCH SCRIM PAGE: $e');
       return [];
     }
   }
 
   String _formatRupiah(dynamic value) {
     if (value == null) return 'Rp 0';
-    // Solusi ampuh pencegah FormatException desimal .0 bray
+
     final double nominal = double.tryParse(value.toString()) ?? 0;
-    return 'Rp ${nominal.toInt().toString().replaceAllMapped(RegExp(r'\B(?=(\d{3})+(?!\d))'), (match) => '.')}';
+
+    return 'Rp ${nominal.toInt().toString().replaceAllMapped(
+          RegExp(r'\B(?=(\d{3})+(?!\d))'),
+          (match) => '.',
+        )}';
   }
 
   @override
@@ -77,7 +94,7 @@ class _ScrimPageState extends State<ScrimPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // ─── 1. BAR PENCARIAN (SEARCH BAR) ──────────────────────────────
+            // ─── SEARCH BAR ──────────────────────────────
             Padding(
               padding: const EdgeInsets.all(AppConstants.paddingM),
               child: Container(
@@ -85,12 +102,21 @@ class _ScrimPageState extends State<ScrimPage> {
                 decoration: BoxDecoration(
                   color: AppColors.backgroundCard,
                   borderRadius: BorderRadius.circular(AppConstants.radiusXL),
-                  border: Border.all(color: AppColors.inputBorder, width: 1),
+                  border: Border.all(
+                    color: AppColors.inputBorder,
+                    width: 1,
+                  ),
                 ),
-                padding: const EdgeInsets.symmetric(horizontal: AppConstants.paddingM),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppConstants.paddingM,
+                ),
                 child: Row(
                   children: [
-                    Icon(Icons.search, color: AppColors.textDisabled, size: 20),
+                    const Icon(
+                      Icons.search,
+                      color: AppColors.textDisabled,
+                      size: 20,
+                    ),
                     const SizedBox(width: AppConstants.paddingS),
                     Expanded(
                       child: TextField(
@@ -100,10 +126,16 @@ class _ScrimPageState extends State<ScrimPage> {
                             _searchQuery = value;
                           });
                         },
-                        style: const TextStyle(color: AppColors.textPrimary, fontSize: 14),
+                        style: const TextStyle(
+                          color: AppColors.textPrimary,
+                          fontSize: 14,
+                        ),
                         decoration: const InputDecoration(
                           hintText: 'Cari turnamen atau scrim...',
-                          hintStyle: TextStyle(color: AppColors.textDisabled, fontSize: 14),
+                          hintStyle: TextStyle(
+                            color: AppColors.textDisabled,
+                            fontSize: 14,
+                          ),
                           border: InputBorder.none,
                           isDense: true,
                         ),
@@ -117,19 +149,25 @@ class _ScrimPageState extends State<ScrimPage> {
                             _searchQuery = '';
                           });
                         },
-                        child: Icon(Icons.clear, color: AppColors.textDisabled, size: 18),
+                        child: const Icon(
+                          Icons.clear,
+                          color: AppColors.textDisabled,
+                          size: 18,
+                        ),
                       ),
                   ],
                 ),
               ),
             ),
 
-            // ─── 2. BARIS CHIP FILTER (HORIZONTAL SCROLL) ───────────────────
+            // ─── FILTER CHIP ──────────────────────────────
             SizedBox(
               height: 38,
               child: ListView.builder(
                 scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: AppConstants.paddingM),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppConstants.paddingM,
+                ),
                 itemCount: _sortOptions.length,
                 itemBuilder: (context, index) {
                   final option = _sortOptions[index];
@@ -142,22 +180,34 @@ class _ScrimPageState extends State<ScrimPage> {
                       });
                     },
                     child: Container(
-                      margin: const EdgeInsets.only(right: AppConstants.paddingS),
-                      padding: const EdgeInsets.symmetric(horizontal: AppConstants.paddingL),
+                      margin: const EdgeInsets.only(
+                        right: AppConstants.paddingS,
+                      ),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: AppConstants.paddingL,
+                      ),
                       alignment: Alignment.center,
                       decoration: BoxDecoration(
-                        color: isSelected ? AppColors.primary : Colors.transparent,
-                        borderRadius: BorderRadius.circular(AppConstants.radiusXL),
+                        color: isSelected
+                            ? AppColors.primary
+                            : Colors.transparent,
+                        borderRadius:
+                            BorderRadius.circular(AppConstants.radiusXL),
                         border: Border.all(
-                          color: isSelected ? AppColors.primary : AppColors.inputBorder,
+                          color: isSelected
+                              ? AppColors.primary
+                              : AppColors.inputBorder,
                           width: 1.2,
                         ),
                       ),
                       child: Text(
                         option['label']!,
                         style: TextStyle(
-                          color: isSelected ? AppColors.buttonText : AppColors.textSecondary,
-                          fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                          color: isSelected
+                              ? AppColors.buttonText
+                              : AppColors.textSecondary,
+                          fontWeight:
+                              isSelected ? FontWeight.bold : FontWeight.normal,
                           fontSize: 13,
                         ),
                       ),
@@ -166,20 +216,25 @@ class _ScrimPageState extends State<ScrimPage> {
                 },
               ),
             ),
+
             const SizedBox(height: AppConstants.paddingM),
 
-            // ─── 3. GRID CONTENT 2 KOLOM (DENGAN FUTUREBUILDER) ─────────────
+            // ─── GRID SCRIM ──────────────────────────────
             Expanded(
               child: FutureBuilder<List<Map<String, dynamic>>>(
                 future: fetchAllScrims(),
                 builder: (context, snapshot) {
                   if (snapshot.connectionState == ConnectionState.waiting) {
                     return const Center(
-                      child: CircularProgressIndicator(color: AppColors.primary),
+                      child: CircularProgressIndicator(
+                        color: AppColors.primary,
+                      ),
                     );
                   }
 
-                  if (snapshot.hasError || !snapshot.hasData || snapshot.data!.isEmpty) {
+                  if (snapshot.hasError ||
+                      !snapshot.hasData ||
+                      snapshot.data!.isEmpty) {
                     return Center(
                       child: Text(
                         'Tidak ada scrim ditemukan bray.',
@@ -191,20 +246,37 @@ class _ScrimPageState extends State<ScrimPage> {
                   final listScrim = snapshot.data!;
 
                   return GridView.builder(
-                    padding: const EdgeInsets.symmetric(horizontal: AppConstants.paddingM),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppConstants.paddingM,
+                    ),
                     itemCount: listScrim.length,
-                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    gridDelegate:
+                        const SliverGridDelegateWithFixedCrossAxisCount(
                       crossAxisCount: 2,
                       crossAxisSpacing: 12,
                       mainAxisSpacing: 12,
-                      childAspectRatio: 0.73, // Disesuaikan biar proporsi pas bray
+                      childAspectRatio: 0.73,
                     ),
                     itemBuilder: (context, index) {
                       final scrim = listScrim[index];
 
-                      final double biaya = double.tryParse(scrim['biaya_pendaftaran'].toString()) ?? 0;
-                      final double hadiah = double.tryParse(scrim['total_hadiah'].toString()) ?? 0;
+                      final double biaya =
+                          double.tryParse(
+                                scrim['biaya_pendaftaran'].toString(),
+                              ) ??
+                              0;
+
+                      final double hadiah =
+                          double.tryParse(
+                                scrim['total_hadiah'].toString(),
+                              ) ??
+                              0;
+
                       final int maksPeserta = scrim['maks_peserta'] ?? 16;
+
+                      final String? posterUrl = _getPosterUrl(
+                        scrim['poster'] as String?,
+                      );
 
                       return GestureDetector(
                         onTap: () {
@@ -221,7 +293,7 @@ class _ScrimPageState extends State<ScrimPage> {
                           prize: _formatRupiah(hadiah),
                           fee: biaya == 0 ? 'Free' : _formatRupiah(biaya),
                           slotsInfo: '0/$maksPeserta terisi',
-                          posterImage: AppImageHelper.posterByIdScrim(scrim['id_scrim']),
+                          posterImage: posterUrl ?? '',
                           primaryYellow: AppColors.primary,
                         ),
                       );
