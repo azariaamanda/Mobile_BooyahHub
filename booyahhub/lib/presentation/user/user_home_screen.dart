@@ -30,6 +30,26 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
     {'value': 'terbaru', 'label': 'Terkini'},
   ];
 
+  // ─── FUNGSI AMBIL DATA PROFIL DARI DATABASE ───
+  Future<Map<String, dynamic>?> fetchUserData() async {
+    try {
+      final currentUser = _supabase.auth.currentUser;
+      if (currentUser == null || currentUser.email == null) return null;
+
+      // Ambil data profil_pengguna dengan melakukan join via akun menggunakan filter email user yang login
+      final response = await _supabase
+          .from('profil_pengguna')
+          .select('nama_tim, foto_profil, akun!inner(email)')
+          .eq('akun.email', currentUser.email!)
+          .maybeSingle();
+
+      return response;
+    } catch (e) {
+      debugPrint('Error fetching user profile: $e');
+      return null;
+    }
+  }
+
   // LOGIKA GAMBAR SAMA SEPERTI DETAIL SCRIM PAGE (Disesuaikan dengan folder dalam bucket)
   String? _getPosterUrl(String? path, dynamic idScrim) {
     if (path == null || path.isEmpty) {
@@ -245,9 +265,29 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const TeamProfileHeader(
-                  namaTim: "Azaria Amanda",
-                  fotoProfilName: "azariaamanda@gmail.com",
+                // ─── SEKARANG DIBUNGKUS FUTUREBUILDER BIAR DINAMIS ───
+                FutureBuilder<Map<String, dynamic>?>(
+                  future: fetchUserData(),
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return const TeamProfileHeader(
+                        namaTim: "Memuat...",
+                        fotoProfilName: "loading...",
+                      );
+                    }
+
+                    final userData = snapshot.data;
+                    final String namaTim = userData?['nama_tim'] ?? "No Team Name";
+                    
+                    // Mengambil email dari hasil inner join relation 'akun'
+                    final Map<String, dynamic>? akunData = userData?['akun'] as Map<String, dynamic>?;
+                    final String emailUser = akunData?['email'] ?? "No Email";
+
+                    return TeamProfileHeader(
+                      namaTim: namaTim,
+                      fotoProfilName: emailUser,
+                    );
+                  },
                 ),
                 const SizedBox(height: AppConstants.paddingL),
 
@@ -347,7 +387,6 @@ class _HomeBannerSliderState extends State<HomeBannerSlider> {
             itemBuilder: (context, index) {
               final bannerScrim = widget.banners[index];
               
-              // Memanggil fungsi penanganan gambar dinamis yang dipasang dari widget utama
               final String bannerImageUrl = widget.getPosterUrl(
                 bannerScrim['poster'] as String?, 
                 bannerScrim['id_scrim'],
