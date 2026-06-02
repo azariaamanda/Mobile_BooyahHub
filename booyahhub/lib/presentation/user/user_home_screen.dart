@@ -5,7 +5,6 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../config/app_color.dart';
 import '../../config/app_constants.dart';
-import '../../config/app_image_helper.dart';
 import '../../config/app_text_styles.dart';
 import '../../config/supabase_client.dart';
 import 'user_widgets/team_profile_header.dart';
@@ -30,15 +29,17 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
     {'value': 'terbaru', 'label': 'Terkini'},
   ];
 
-  // LOGIKA GAMBAR SAMA SEPERTI DETAIL SCRIM PAGE (Disesuaikan dengan folder dalam bucket)
-  String? _getPosterUrl(String? path, dynamic idScrim) {
-    if (path == null || path.isEmpty) {
-      return AppImageHelper.posterByIdScrim(idScrim);
-    }
+  // LOGIKA GAMBAR SIMPEL:
+  // DB isi "foto.jpg" -> dibaca jadi "posters/foto.jpg"
+  // DB isi "posters/foto.jpg" -> langsung dipakai
+  // DB isi URL lengkap -> langsung dipakai
+  // DB kosong -> return null
+  String? _getPosterUrl(String? path) {
+    if (path == null || path.trim().isEmpty) return null;
     if (path.startsWith('http')) return path;
 
-    // Menangani struktur bucket posters -> folder posters -> file gambar
     final fullPath = path.startsWith('posters/') ? path : 'posters/$path';
+
     return _supabase.storage.from('posters').getPublicUrl(fullPath);
   }
 
@@ -198,12 +199,14 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
           itemBuilder: (context, index) {
             final scrim = listScrim[index];
 
-            final double biaya = double.tryParse(scrim['biaya_pendaftaran'].toString()) ?? 0;
-            final double hadiah = double.tryParse(scrim['total_hadiah'].toString()) ?? 0;
+            final double biaya =
+                double.tryParse(scrim['biaya_pendaftaran'].toString()) ?? 0;
+            final double hadiah =
+                double.tryParse(scrim['total_hadiah'].toString()) ?? 0;
             final int maksPeserta = scrim['maks_peserta'] ?? 16;
 
-            // Memanggil fungsi penanganan gambar dinamis
-            final String posterUrl = _getPosterUrl(scrim['poster'] as String?, scrim['id_scrim'])!;
+            final String posterUrl =
+                _getPosterUrl(scrim['poster'] as String?) ?? '';
 
             return GestureDetector(
               onTap: () {
@@ -220,7 +223,7 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
                 prize: _formatRupiah(hadiah),
                 fee: biaya == 0 ? 'Free' : _formatRupiah(biaya),
                 slotsInfo: '0/$maksPeserta terisi',
-                posterImage: posterUrl, 
+                posterImage: posterUrl,
                 primaryYellow: AppColors.primary,
               ),
             );
@@ -238,6 +241,7 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppColors.background,
       body: SafeArea(
         child: SingleChildScrollView(
           child: Padding(
@@ -257,6 +261,7 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
                     if (!snapshot.hasData || snapshot.data!.isEmpty) {
                       return const SizedBox(height: 180);
                     }
+
                     return HomeBannerSlider(
                       banners: snapshot.data!,
                       getPosterUrl: _getPosterUrl,
@@ -282,11 +287,11 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
 // ─── WIDGET MANDIRI BANNER SLIDER ───
 class HomeBannerSlider extends StatefulWidget {
   final List<Map<String, dynamic>> banners;
-  final String? Function(String?, dynamic) getPosterUrl;
-  
+  final String? Function(String?) getPosterUrl;
+
   const HomeBannerSlider({
-    super.key, 
-    required this.banners, 
+    super.key,
+    required this.banners,
     required this.getPosterUrl,
   });
 
@@ -302,10 +307,12 @@ class _HomeBannerSliderState extends State<HomeBannerSlider> {
   @override
   void initState() {
     super.initState();
+
     _bannerTimer = Timer.periodic(
       const Duration(seconds: 7),
       (_) {
         if (!_bannerController.hasClients) return;
+        if (widget.banners.length <= 1) return;
 
         final nextPage = (_currentBanner + 1) % widget.banners.length;
 
@@ -346,12 +353,9 @@ class _HomeBannerSliderState extends State<HomeBannerSlider> {
             },
             itemBuilder: (context, index) {
               final bannerScrim = widget.banners[index];
-              
-              // Memanggil fungsi penanganan gambar dinamis yang dipasang dari widget utama
-              final String bannerImageUrl = widget.getPosterUrl(
-                bannerScrim['poster'] as String?, 
-                bannerScrim['id_scrim'],
-              )!;
+
+              final String bannerImageUrl =
+                  widget.getPosterUrl(bannerScrim['poster'] as String?) ?? '';
 
               return GestureDetector(
                 onTap: () {
@@ -395,7 +399,9 @@ class _HomeBannerSliderState extends State<HomeBannerSlider> {
                           ),
                           decoration: BoxDecoration(
                             color: AppColors.primary,
-                            borderRadius: BorderRadius.circular(AppConstants.radiusXL),
+                            borderRadius: BorderRadius.circular(
+                              AppConstants.radiusXL,
+                            ),
                           ),
                           child: Text(
                             'Rekomendasi Scrim',
