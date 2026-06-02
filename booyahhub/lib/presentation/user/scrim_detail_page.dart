@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:supabase_flutter/supabase_flutter.dart'; // Tambahkan import Supabase
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../config/app_color.dart';
 import '../../config/app_constants.dart';
 import '../../config/app_image_helper.dart';
@@ -19,7 +19,7 @@ class ScrimDetailPage extends StatefulWidget {
 class _ScrimDetailPageState extends State<ScrimDetailPage> {
   Map<String, dynamic>? _scrimData;
   bool _isLoading = true;
-  final _supabase = Supabase.instance.client; // Inisialisasi client untuk storage
+  final _supabase = Supabase.instance.client;
 
   @override
   void initState() {
@@ -27,7 +27,6 @@ class _ScrimDetailPageState extends State<ScrimDetailPage> {
     _loadScrimData();
   }
 
-  // Menggunakan query awal lu yang super aman dan lancar
   Future<void> _loadScrimData() async {
     try {
       final response = await SupabaseClientHelper.client
@@ -46,16 +45,14 @@ class _ScrimDetailPageState extends State<ScrimDetailPage> {
         SnackBar(content: Text('Gagal memuat detail scrim: $e')),
       );
     }
-  }
+  } // <--- Kurung penutup method _loadScrimData (Cuma satu sekarang!)
 
-  // LOGIKA PENGAMBILAN GAMBAR DINAMIS (Sama seperti halaman home & admin detail)
   String _getPosterUrl(String? path, int idScrim) {
     if (path == null || path.isEmpty) {
       return AppImageHelper.posterByIdScrim(idScrim);
     }
     if (path.startsWith('http')) return path;
 
-    // Menangani struktur bucket posters -> folder posters -> file gambar
     final fullPath = path.startsWith('posters/') ? path : 'posters/$path';
     return _supabase.storage.from('posters').getPublicUrl(fullPath);
   }
@@ -77,18 +74,13 @@ class _ScrimDetailPageState extends State<ScrimDetailPage> {
       );
     }
 
-    // Ambil data nominal dari database sesuai kode awal lu
     final double biaya = double.tryParse(_scrimData!['biaya_pendaftaran'].toString()) ?? 0;
     final double hadiah = double.tryParse(_scrimData!['total_hadiah'].toString()) ?? 0;
     final int maksPeserta = _scrimData!['maks_peserta'] ?? 12;
     
-    // SEKARANG MENGGUNAKAN LOGIKA URL DINAMIS BARU
     final String posterUrl = _getPosterUrl(_scrimData!['poster'] as String?, widget.scrimId);
-
-    // Ambil string syarat_ketentuan dari database
     final String syaratText = _scrimData!['syarat_ketentuan'] ?? 'Tidak ada syarat khusus.';
 
-    // Format teks untuk box info emas sesuai mockup
     final String txtBiaya = biaya == 0 ? 'Free' : '${(biaya / 1000).toStringAsFixed(0)}k/tim';
     final String txtHadiah = '${(hadiah / 1000).toStringAsFixed(0)}k';
 
@@ -140,7 +132,7 @@ class _ScrimDetailPageState extends State<ScrimDetailPage> {
                 children: [
                   _buildGoldInfoCard('Kapasitas', '$maksPeserta Tim'),
                   const SizedBox(width: 8),
-                  _buildGoldInfoCard('Sisa Slot', '$maksPeserta Tim'), // Kembali ke format awal lu yang aman
+                  _buildGoldInfoCard('Sisa Slot', '$maksPeserta Tim'),
                   const SizedBox(width: 8),
                   _buildGoldInfoCard('Biaya', txtBiaya),
                   const SizedBox(width: 8),
@@ -149,7 +141,7 @@ class _ScrimDetailPageState extends State<ScrimDetailPage> {
               ),
               const SizedBox(height: AppConstants.paddingL),
 
-              // ================= 4. TEXT SYARAT & KETENTUAN (MURNI TANPA DESKRIPSI) =================
+              // ================= 4. TEXT SYARAT & KETENTUAN =================
               Text(
                 'Syarat & Ketentuan', 
                 style: AppTextStyles.poppinsSectionTitle.copyWith(color: Colors.white, fontSize: 16),
@@ -163,47 +155,53 @@ class _ScrimDetailPageState extends State<ScrimDetailPage> {
                   fontSize: 13,
                 ),
               ),
-              const SizedBox(height: 40),
-
-              // ================= 5. TOMBOL BOOKING SEKARANG =================
-              SizedBox(
-                width: double.infinity,
-                height: 50,
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary, 
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(AppConstants.radiusL),
-                    ),
-                  ),
-                  onPressed: () {
-                    // Disesuaikan persis dengan GoRoute yang udah lu bikin
-                    context.pushNamed(
-                      'booking_scrim', // <--- Sesuai dengan name di GoRoute lu
-                      pathParameters: {
-                        'idScrim': widget.scrimId.toString(), // <--- Sesuai dengan :idScrim di path lu
-                      },
-                    );
-                  },
-                  child: Text(
-                    'Booking Sekarang',
-                    style: AppTextStyles.poppinsButton.copyWith(
-                      color: AppColors.buttonText,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
-                    ),
-                  ),
+              const SizedBox(height: AppConstants.paddingXL), 
+            ],
+          ),
+        ),
+      ),
+      
+      // ================= 5. TOMBOL STICKY DI BAWAH (SUDAH DI-FIX) =================
+      bottomNavigationBar: SafeArea(
+        child: Container(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppConstants.paddingM,
+            vertical: AppConstants.paddingS,
+          ),
+          color: AppColors.background, // FIX: Menggunakan color, bukan backgroundColor
+          child: SizedBox(
+            width: double.infinity,
+            height: 50,
+            child: ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary, 
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(AppConstants.radiusL),
                 ),
               ),
-              const SizedBox(height: AppConstants.paddingM),
-            ],
+              onPressed: () {
+                context.pushNamed(
+                  'booking_scrim',
+                  pathParameters: {
+                    'idScrim': widget.scrimId.toString(),
+                  },
+                );
+              },
+              child: Text(
+                'Booking Sekarang',
+                style: AppTextStyles.poppinsButton.copyWith(
+                  color: AppColors.buttonText,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                ),
+              ),
+            ),
           ),
         ),
       ),
     );
   }
 
-  // WIDGET UNTUK MEMBUAT KOTAK EMAS INDIVIDU
   Widget _buildGoldInfoCard(String label, String value) {
     return Expanded(
       child: Container(
