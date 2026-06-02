@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../config/app_color.dart';
 import '../../config/app_constants.dart';
 import '../../config/app_text_styles.dart';
+import '../user/request_claim_prize_page.dart';
 
 class HistoryDetailScrimPage extends StatelessWidget {
   const HistoryDetailScrimPage({super.key});
@@ -517,8 +518,16 @@ class HistoryDetailScrimPage extends StatelessWidget {
       height: AppConstants.buttonHeight,
       child: ElevatedButton(
         onPressed: () {
-          context.push('/user/klaim/${data['id_pendaftaran']}');
-        },
+  Navigator.of(context).push(
+    MaterialPageRoute(
+      builder: (context) => RequestClaimPrizePage(
+        title: 'Scrim Ganteng',
+        rank: 'JUARA 1',
+        totalPrize: 'Rp 150.000',
+      ),
+    ),
+  );
+},
         style: ElevatedButton.styleFrom(
           backgroundColor: AppColors.primary,
           foregroundColor: AppColors.buttonText,
