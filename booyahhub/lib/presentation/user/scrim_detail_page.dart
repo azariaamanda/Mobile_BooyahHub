@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:supabase_flutter/supabase_flutter.dart'; // Tambahkan import Supabase
 import '../../config/app_color.dart';
 import '../../config/app_constants.dart';
 import '../../config/app_image_helper.dart';
@@ -18,6 +19,7 @@ class ScrimDetailPage extends StatefulWidget {
 class _ScrimDetailPageState extends State<ScrimDetailPage> {
   Map<String, dynamic>? _scrimData;
   bool _isLoading = true;
+  final _supabase = Supabase.instance.client; // Inisialisasi client untuk storage
 
   @override
   void initState() {
@@ -46,6 +48,18 @@ class _ScrimDetailPageState extends State<ScrimDetailPage> {
     }
   }
 
+  // LOGIKA PENGAMBILAN GAMBAR DINAMIS (Sama seperti halaman home & admin detail)
+  String _getPosterUrl(String? path, int idScrim) {
+    if (path == null || path.isEmpty) {
+      return AppImageHelper.posterByIdScrim(idScrim);
+    }
+    if (path.startsWith('http')) return path;
+
+    // Menangani struktur bucket posters -> folder posters -> file gambar
+    final fullPath = path.startsWith('posters/') ? path : 'posters/$path';
+    return _supabase.storage.from('posters').getPublicUrl(fullPath);
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
@@ -67,7 +81,9 @@ class _ScrimDetailPageState extends State<ScrimDetailPage> {
     final double biaya = double.tryParse(_scrimData!['biaya_pendaftaran'].toString()) ?? 0;
     final double hadiah = double.tryParse(_scrimData!['total_hadiah'].toString()) ?? 0;
     final int maksPeserta = _scrimData!['maks_peserta'] ?? 12;
-    final String posterUrl = AppImageHelper.posterByIdScrim(widget.scrimId);
+    
+    // SEKARANG MENGGUNAKAN LOGIKA URL DINAMIS BARU
+    final String posterUrl = _getPosterUrl(_scrimData!['poster'] as String?, widget.scrimId);
 
     // Ambil string syarat_ketentuan dari database
     final String syaratText = _scrimData!['syarat_ketentuan'] ?? 'Tidak ada syarat khusus.';
@@ -150,36 +166,36 @@ class _ScrimDetailPageState extends State<ScrimDetailPage> {
               const SizedBox(height: 40),
 
               // ================= 5. TOMBOL BOOKING SEKARANG =================
-              // ================= TOMBOL BOOKING SEKARANG =================
-SizedBox(
-  width: double.infinity,
-  height: 50,
-  child: ElevatedButton(
-    style: ElevatedButton.styleFrom(
-      backgroundColor: AppColors.primary, 
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(AppConstants.radiusL),
-      ),
-    ),
-    onPressed: () {
-      // Disesuaikan persis dengan GoRoute yang udah lu bikin
-      context.pushNamed(
-        'booking_scrim', // <--- Sesuai dengan name di GoRoute lu
-        pathParameters: {
-          'idScrim': widget.scrimId.toString(), // <--- Sesuai dengan :idScrim di path lu
-        },
-      );
-    },
-    child: Text(
-      'Booking Sekarang',
-      style: AppTextStyles.poppinsButton.copyWith(
-        color: AppColors.buttonText,
-        fontWeight: FontWeight.bold,
-        fontSize: 16,
-      ),
-    ),
-  ),
-),
+              SizedBox(
+                width: double.infinity,
+                height: 50,
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary, 
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(AppConstants.radiusL),
+                    ),
+                  ),
+                  onPressed: () {
+                    // Disesuaikan persis dengan GoRoute yang udah lu bikin
+                    context.pushNamed(
+                      'booking_scrim', // <--- Sesuai dengan name di GoRoute lu
+                      pathParameters: {
+                        'idScrim': widget.scrimId.toString(), // <--- Sesuai dengan :idScrim di path lu
+                      },
+                    );
+                  },
+                  child: Text(
+                    'Booking Sekarang',
+                    style: AppTextStyles.poppinsButton.copyWith(
+                      color: AppColors.buttonText,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: AppConstants.paddingM),
             ],
           ),
         ),
