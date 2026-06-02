@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../config/app_color.dart';
 import '../../config/app_constants.dart';
@@ -20,6 +21,7 @@ class UserHomeScreen extends StatefulWidget {
 class _UserHomeScreenState extends State<UserHomeScreen> {
   int _selectedModeId = 0;
   String _selectedSort = 'terbaru';
+  final _supabase = Supabase.instance.client;
 
   final List<Map<String, String>> _sortOptions = [
     {'value': 'semua', 'label': 'Semua'},
@@ -28,7 +30,17 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
     {'value': 'terbaru', 'label': 'Terkini'},
   ];
 
-  // FIX: Kita buang variabel late di initState biar gak crash pas apps baru nyala bray
+  // LOGIKA GAMBAR SAMA SEPERTI DETAIL SCRIM PAGE (Disesuaikan dengan folder dalam bucket)
+  String? _getPosterUrl(String? path, dynamic idScrim) {
+    if (path == null || path.isEmpty) {
+      return AppImageHelper.posterByIdScrim(idScrim);
+    }
+    if (path.startsWith('http')) return path;
+
+    // Menangani struktur bucket posters -> folder posters -> file gambar
+    final fullPath = path.startsWith('posters/') ? path : 'posters/$path';
+    return _supabase.storage.from('posters').getPublicUrl(fullPath);
+  }
 
   Future<List<Map<String, dynamic>>> fetchModes() async {
     final response = await SupabaseClientHelper.client
@@ -121,7 +133,6 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
             onTap: () {
               setState(() {
                 _selectedSort = sort['value']!;
-                // Pas filter diklik, halaman bakal nge-trigger fetchScrimData otomatis bray
               });
             },
             child: Container(
@@ -152,7 +163,7 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
 
   Widget _buildScrimGrid() {
     return FutureBuilder<List<Map<String, dynamic>>>(
-      future: fetchScrimData(), // Langsung panggil fungsinya di sini bray, aman dari late error
+      future: fetchScrimData(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(
@@ -191,6 +202,9 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
             final double hadiah = double.tryParse(scrim['total_hadiah'].toString()) ?? 0;
             final int maksPeserta = scrim['maks_peserta'] ?? 16;
 
+            // Memanggil fungsi penanganan gambar dinamis
+            final String posterUrl = _getPosterUrl(scrim['poster'] as String?, scrim['id_scrim'])!;
+
             return GestureDetector(
               onTap: () {
                 context.pushNamed(
@@ -206,7 +220,7 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
                 prize: _formatRupiah(hadiah),
                 fee: biaya == 0 ? 'Free' : _formatRupiah(biaya),
                 slotsInfo: '0/$maksPeserta terisi',
-                posterImage: AppImageHelper.posterByIdScrim(scrim['id_scrim']),
+                posterImage: posterUrl, 
                 primaryYellow: AppColors.primary,
               ),
             );
@@ -237,14 +251,16 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
                 ),
                 const SizedBox(height: AppConstants.paddingL),
 
-                // FIX: Panggil fetchBanner langsung di dalam FutureBuilder bray
                 FutureBuilder<List<Map<String, dynamic>>>(
                   future: fetchBannerScrimData(),
                   builder: (context, snapshot) {
                     if (!snapshot.hasData || snapshot.data!.isEmpty) {
                       return const SizedBox(height: 180);
                     }
-                    return HomeBannerSlider(banners: snapshot.data!);
+                    return HomeBannerSlider(
+                      banners: snapshot.data!,
+                      getPosterUrl: _getPosterUrl,
+                    );
                   },
                 ),
 
@@ -263,10 +279,16 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
   }
 }
 
-// ─── WIDGET MANDIRI BANNER SLIDER (TETAP TERPISAH AGAR TIDAK REFRESH) ───
+// ─── WIDGET MANDIRI BANNER SLIDER ───
 class HomeBannerSlider extends StatefulWidget {
   final List<Map<String, dynamic>> banners;
-  const HomeBannerSlider({super.key, required this.banners});
+  final String? Function(String?, dynamic) getPosterUrl;
+  
+  const HomeBannerSlider({
+    super.key, 
+    required this.banners, 
+    required this.getPosterUrl,
+  });
 
   @override
   State<HomeBannerSlider> createState() => _HomeBannerSliderState();
@@ -318,14 +340,18 @@ class _HomeBannerSliderState extends State<HomeBannerSlider> {
             controller: _bannerController,
             itemCount: widget.banners.length,
             onPageChanged: (index) {
-              // setState di sini AMAN bray, cuma ngeremart area HomeBannerSlider doang!
               setState(() {
                 _currentBanner = index;
               });
             },
             itemBuilder: (context, index) {
               final bannerScrim = widget.banners[index];
-              final bannerImageUrl = AppImageHelper.posterByIdScrim(bannerScrim['id_scrim']);
+              
+              // Memanggil fungsi penanganan gambar dinamis yang dipasang dari widget utama
+              final String bannerImageUrl = widget.getPosterUrl(
+                bannerScrim['poster'] as String?, 
+                bannerScrim['id_scrim'],
+              )!;
 
               return GestureDetector(
                 onTap: () {
