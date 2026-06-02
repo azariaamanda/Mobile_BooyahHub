@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:supabase_flutter/supabase_flutter.dart'; // Tambahkan import Supabase
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../config/app_color.dart';
 import '../../config/app_constants.dart';
 import '../../config/app_image_helper.dart';
@@ -19,7 +19,7 @@ class _ScrimPageState extends State<ScrimPage> {
   String _selectedSort = 'terpopuler';
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
-  final _supabase = Supabase.instance.client; // Inisialisasi client untuk storage
+  final _supabase = Supabase.instance.client;
 
   final List<Map<String, String>> _sortOptions = [
     {'value': 'terpopuler', 'label': 'Terpopuler'},
@@ -31,12 +31,10 @@ class _ScrimPageState extends State<ScrimPage> {
     try {
       dynamic query = SupabaseClientHelper.client.from('scrim').select();
 
-      // Logika pencarian berdasarkan nama scrim bray
       if (_searchQuery.isNotEmpty) {
         query = query.ilike('nama_scrim', '%$_searchQuery%');
       }
 
-      // Logika filter sorting sesuai gambar
       switch (_selectedSort) {
         case 'terpopuler':
           query = query.order('total_hadiah', ascending: false);
@@ -58,21 +56,18 @@ class _ScrimPageState extends State<ScrimPage> {
     }
   }
 
-  // LOGIKA PENGAMBILAN GAMBAR DINAMIS (Sama seperti halaman home & detail)
   String _getPosterUrl(String? path, int idScrim) {
     if (path == null || path.isEmpty) {
       return AppImageHelper.posterByIdScrim(idScrim);
     }
     if (path.startsWith('http')) return path;
 
-    // Menangani struktur bucket posters -> folder posters -> file gambar
     final fullPath = path.startsWith('posters/') ? path : 'posters/$path';
     return _supabase.storage.from('posters').getPublicUrl(fullPath);
   }
 
   String _formatRupiah(dynamic value) {
     if (value == null) return 'Rp 0';
-    // Solusi ampuh pencegah FormatException desimal .0 bray
     final double nominal = double.tryParse(value.toString()) ?? 0;
     return 'Rp ${nominal.toInt().toString().replaceAllMapped(RegExp(r'\B(?=(\d{3})+(?!\d))'), (match) => '.')}';
   }
@@ -91,7 +86,7 @@ class _ScrimPageState extends State<ScrimPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // ─── 1. BAR PENCARIAN (SEARCH BAR) ──────────────────────────────
+            // ─── 1. BAR PENCARIAN (SEARCH BAR - FIXED SINGLE BOX) ───────────────────
             Padding(
               padding: const EdgeInsets.all(AppConstants.paddingM),
               child: Container(
@@ -101,39 +96,38 @@ class _ScrimPageState extends State<ScrimPage> {
                   borderRadius: BorderRadius.circular(AppConstants.radiusXL),
                   border: Border.all(color: AppColors.inputBorder, width: 1),
                 ),
-                padding: const EdgeInsets.symmetric(horizontal: AppConstants.paddingM),
-                child: Row(
-                  children: [
-                    Icon(Icons.search, color: AppColors.textDisabled, size: 20),
-                    const SizedBox(width: AppConstants.paddingS),
-                    Expanded(
-                      child: TextField(
-                        controller: _searchController,
-                        onChanged: (value) {
-                          setState(() {
-                            _searchQuery = value;
-                          });
-                        },
-                        style: const TextStyle(color: AppColors.textPrimary, fontSize: 14),
-                        decoration: const InputDecoration(
-                          hintText: 'Cari turnamen atau scrim...',
-                          hintStyle: TextStyle(color: AppColors.textDisabled, fontSize: 14),
-                          border: InputBorder.none,
-                          isDense: true,
-                        ),
-                      ),
-                    ),
-                    if (_searchQuery.isNotEmpty)
-                      GestureDetector(
-                        onTap: () {
-                          setState(() {
-                            _searchController.clear();
-                            _searchQuery = '';
-                          });
-                        },
-                        child: Icon(Icons.clear, color: AppColors.textDisabled, size: 18),
-                      ),
-                  ],
+                // Mengatur alignment konten di dalam box agar pas di tengah secara vertikal
+                alignment: Alignment.center,
+                child: TextField(
+                  controller: _searchController,
+                  onChanged: (value) {
+                    setState(() {
+                      _searchQuery = value;
+                    });
+                  },
+                  style: const TextStyle(color: AppColors.textPrimary, fontSize: 14),
+                  decoration: InputDecoration(
+                    hintText: 'Cari turnamen atau scrim...',
+                    hintStyle: const TextStyle(color: AppColors.textDisabled, fontSize: 14),
+                    border: InputBorder.none, // Mematikan border bawaan TextField agar tidak double box
+                    focusedBorder: InputBorder.none,
+                    enabledBorder: InputBorder.none,
+                    errorBorder: InputBorder.none,
+                    disabledBorder: InputBorder.none,
+                    prefixIcon: const Icon(Icons.search, color: AppColors.textDisabled, size: 20),
+                    // Menampilkan tombol "X" bersih di kanan hanya saat user mengetik sesuatu
+                    suffixIcon: _searchQuery.isNotEmpty
+                        ? IconButton(
+                            icon: const Icon(Icons.clear, color: AppColors.textDisabled, size: 18),
+                            onPressed: () {
+                              setState(() {
+                                _searchController.clear();
+                                _searchQuery = '';
+                              });
+                            },
+                          )
+                        : null,
+                  ),
                 ),
               ),
             ),
@@ -211,7 +205,7 @@ class _ScrimPageState extends State<ScrimPage> {
                       crossAxisCount: 2,
                       crossAxisSpacing: 12,
                       mainAxisSpacing: 12,
-                      childAspectRatio: 0.73, // Disesuaikan biar proporsi pas bray
+                      childAspectRatio: 0.73,
                     ),
                     itemBuilder: (context, index) {
                       final scrim = listScrim[index];
@@ -220,7 +214,6 @@ class _ScrimPageState extends State<ScrimPage> {
                       final double hadiah = double.tryParse(scrim['total_hadiah'].toString()) ?? 0;
                       final int maksPeserta = scrim['maks_peserta'] ?? 16;
 
-                      // Memanggil fungsi penanganan gambar dinamis baru bray
                       final String posterUrl = _getPosterUrl(scrim['poster'] as String?, scrim['id_scrim']);
 
                       return GestureDetector(
@@ -238,7 +231,7 @@ class _ScrimPageState extends State<ScrimPage> {
                           prize: _formatRupiah(hadiah),
                           fee: biaya == 0 ? 'Free' : _formatRupiah(biaya),
                           slotsInfo: '0/$maksPeserta terisi',
-                          posterImage: posterUrl, // Diganti dengan path URL dinamis Supabase
+                          posterImage: posterUrl,
                           primaryYellow: AppColors.primary,
                         ),
                       );
