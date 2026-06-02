@@ -34,6 +34,9 @@ import '../presentation/user/history_scrim_page.dart';
 import '../presentation/user/history_detail_scrim_page.dart';
 import '../presentation/user/claim_prize_page.dart';
 import '../presentation/user/user_main_navigator.dart';
+import '../presentation/user/user_premium_page.dart';
+import '../presentation/user/user_claim_rewards_page.dart';
+import '../presentation/user/user_notification_page.dart';
 
 class AppRouter {
   AppRouter._();
@@ -235,7 +238,9 @@ class AppRouter {
         path: '/user/payment/:idPendaftaran',
         name: 'payment',
         builder: (context, state) {
-          final idPendaftaran = int.parse(state.pathParameters['idPendaftaran']!);
+          final idPendaftaran = int.parse(
+            state.pathParameters['idPendaftaran']!,
+          );
           return PaymentCheckoutPage(pendaftaranId: idPendaftaran);
         },
       ),
@@ -261,9 +266,26 @@ class AppRouter {
         path: '/user/klaim/:idPendaftaran',
         name: 'klaim',
         builder: (context, state) {
-          final idPendaftaran = int.parse(state.pathParameters['idPendaftaran']!);
+          final idPendaftaran = int.parse(
+            state.pathParameters['idPendaftaran']!,
+          );
           return ClaimPrizePage(pendaftaranId: idPendaftaran);
         },
+      ),
+      GoRoute(
+        path: '/user/premium',
+        name: 'premium',
+        builder: (context, state) => const UserPremiumPage(),
+      ),
+      GoRoute(
+        path: '/user/klaim-hadiah',
+        name: 'klaim_hadiah',
+        builder: (context, state) => const UserClaimRewardsPage(),
+      ),
+      GoRoute(
+        path: '/user/notifikasi',
+        name: 'notifikasi',
+        builder: (context, state) => const UserNotificationPage(),
       ),
     ],
   );

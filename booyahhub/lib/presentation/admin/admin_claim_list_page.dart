@@ -272,20 +272,21 @@ class AdminClaimListPage extends StatelessWidget {
     const ringkasan = _mockRingkasan;
     const klaimList = _mockKlaimAktif;
 
-    return SafeArea(
-      bottom: false,
-      child: CustomScrollView(
-        primary: false,
-        physics: const BouncingScrollPhysics(),
-        slivers: [
-          SliverToBoxAdapter(child: _header()),
-          SliverPadding(
-            padding: const EdgeInsets.fromLTRB(
-              AppConstants.paddingM,
-              AppConstants.paddingS,
-              AppConstants.paddingM,
-              110,
-            ),
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      body: SafeArea(
+        bottom: false,
+        child: CustomScrollView(
+          physics: const BouncingScrollPhysics(),
+          slivers: [
+            SliverToBoxAdapter(child: _header()),
+            SliverPadding(
+              padding: const EdgeInsets.fromLTRB(
+                AppConstants.paddingM,
+                AppConstants.paddingS,
+                AppConstants.paddingM,
+                110,
+              ),
             sliver: SliverList(
               delegate: SliverChildListDelegate([
                 const _TotalPendapatanCard(ringkasan: ringkasan),
@@ -338,6 +339,7 @@ class AdminClaimListPage extends StatelessWidget {
           ),
         ],
       ),
+    ),
     );
   }
 
