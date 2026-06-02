@@ -199,8 +199,9 @@ class _LoginScreenState extends State<LoginScreen> {
                         validator: (value) {
                           final v = value?.trim() ?? '';
                           if (v.isEmpty) return 'Email wajib diisi';
-                          if (!v.contains('@'))
+                          if (!v.contains('@')) {
                             return 'Format email tidak valid';
+                          }
                           return null;
                         },
                       ),
@@ -302,8 +303,9 @@ class _LoginScreenState extends State<LoginScreen> {
                         validator: (value) {
                           final v = value ?? '';
                           if (v.isEmpty) return 'Kata sandi wajib diisi';
-                          if (v.length < 6)
+                          if (v.length < 6) {
                             return 'Kata sandi minimal 6 karakter';
+                          }
                           return null;
                         },
                       ),

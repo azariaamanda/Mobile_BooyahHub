@@ -336,8 +336,9 @@ class _RegisterAdminPageState extends State<RegisterAdminPage> {
                       keyboardType: TextInputType.emailAddress,
                       decoration: _inputDecoration(hint: '@gmail.com'),
                       validator: (v) {
-                        if (v == null || v.trim().isEmpty)
+                        if (v == null || v.trim().isEmpty) {
                           return 'Email wajib diisi';
+                        }
                         if (!v.contains('@')) return 'Format email tidak valid';
                         return null;
                       },
@@ -377,8 +378,9 @@ class _RegisterAdminPageState extends State<RegisterAdminPage> {
                         ),
                       ),
                       validator: (v) {
-                        if (v == null || v.isEmpty)
+                        if (v == null || v.isEmpty) {
                           return 'Password wajib diisi';
+                        }
                         if (v.length < 6) return 'Password minimal 6 karakter';
                         return null;
                       },
@@ -406,10 +408,12 @@ class _RegisterAdminPageState extends State<RegisterAdminPage> {
                         ),
                       ),
                       validator: (v) {
-                        if (v == null || v.isEmpty)
+                        if (v == null || v.isEmpty) {
                           return 'Konfirmasi password wajib diisi';
-                        if (v != _passwordController.text)
+                        }
+                        if (v != _passwordController.text) {
                           return 'Password tidak cocok';
+                        }
                         return null;
                       },
                     ),

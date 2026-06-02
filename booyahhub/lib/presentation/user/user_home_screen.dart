@@ -19,7 +19,7 @@ class UserHomeScreen extends StatefulWidget {
 }
 
 class _UserHomeScreenState extends State<UserHomeScreen> {
-  int _selectedModeId = 0;
+  final int _selectedModeId = 0;
   String _selectedSort = 'terbaru';
   final _supabase = Supabase.instance.client;
 
