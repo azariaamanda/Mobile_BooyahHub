@@ -8,6 +8,7 @@ import '../presentation/owner/admin_verification_page.dart';
 import '../presentation/owner/financial_report_page.dart';
 import '../presentation/owner/prize_approval_page.dart';
 import '../presentation/admin/admin_main_navigator.dart';
+import '../presentation/admin/admin_scrim_page.dart';
 import '../presentation/admin/create_scrim_page.dart';
 import '../presentation/admin/detail_scrim_page.dart';
 import '../presentation/admin/edit_scrim_page.dart';
@@ -23,6 +24,8 @@ import '../presentation/admin/peserta_management_page.dart';
 import '../presentation/admin/setup_session_page.dart';
 import '../presentation/admin/validate_payment_page.dart';
 import '../presentation/admin/input_score_page.dart';
+import '../presentation/admin/admin_claim_list_page.dart';
+import '../presentation/admin/admin_profile_page.dart';
 import '../presentation/user/user_home_screen.dart';
 import '../presentation/user/scrim_detail_page.dart';
 import '../presentation/user/booking_scrim_page.dart';
@@ -99,6 +102,12 @@ class AppRouter {
         name: 'admin_dashboard',
         builder: (context, state) => const AdminMainNavigator(),
       ),
+      // TAMBAHKAN ROUTE UNTUK LIST SCRIM (PENTING!)
+      GoRoute(
+        path: '/admin/scrim',
+        name: 'admin_scrim',
+        builder: (context, state) => const AdminScrimPage(),
+      ),
       GoRoute(
         path: '/admin/scrim/buat',
         name: 'buat_scrim',
@@ -128,10 +137,6 @@ class AppRouter {
           return ScrimSessionsPage(scrimId: id);
         },
       ),
-      // ==================== ROUTE DIHAPUS ====================
-      // Route /admin/scrim/:id/points dan /admin/scrim/:id/leaderboard
-      // SUDAH DIHAPUS karena sekarang pakai DetailSessionPage
-      // ========================================================
       GoRoute(
         path: '/admin/sesi/detail/:id',
         name: 'detail_session',
@@ -176,6 +181,11 @@ class AppRouter {
           final idSesi = int.parse(state.pathParameters['idSesi']!);
           return InputScorePage(sesiId: idSesi);
         },
+      ),
+      GoRoute(
+        path: '/admin/klaim',
+        name: 'admin_klaim',
+        builder: (context, state) => const AdminClaimListPage(),
       ),
       GoRoute(
         path: '/admin/profile/edit',
@@ -282,8 +292,6 @@ class AppRouter {
         name: 'notifikasi',
         builder: (context, state) => const UserNotificationPage(),
       ),
-
-      // ─── FINANCIAL (KEUANGAN) ──────────────────────────────────
       GoRoute(
         path: '/user/financial',
         name: 'financial',
