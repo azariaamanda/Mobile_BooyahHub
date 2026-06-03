@@ -15,6 +15,7 @@ import '../presentation/admin/edit_profile_page.dart';
 import '../presentation/admin/scrim_sessions_page.dart';
 import '../presentation/admin/scrim_points_page.dart';
 import '../presentation/admin/scrim_leaderboard_page.dart';
+import '../presentation/admin/detail_session_page.dart';
 import '../presentation/admin/add_session_page.dart';
 import '../presentation/admin/edit_session_page.dart';
 import '../presentation/admin/admin_notification_page.dart';
@@ -115,7 +116,6 @@ class AppRouter {
           return EditScrimPage(scrimId: id);
         },
       ),
-      // ==================== ROUTE TAMBAHAN ====================
       GoRoute(
         path: '/admin/scrim/:id/sessions',
         name: 'scrim_sessions',
@@ -124,20 +124,16 @@ class AppRouter {
           return ScrimSessionsPage(scrimId: id);
         },
       ),
+      // ==================== ROUTE DIHAPUS ====================
+      // Route /admin/scrim/:id/points dan /admin/scrim/:id/leaderboard
+      // SUDAH DIHAPUS karena sekarang pakai DetailSessionPage
+      // ========================================================
       GoRoute(
-        path: '/admin/scrim/:id/points',
-        name: 'scrim_points',
+        path: '/admin/sesi/detail/:id',
+        name: 'detail_session',
         builder: (context, state) {
-          final id = int.parse(state.pathParameters['id']!);
-          return ScrimPointsPage(scrimId: id);
-        },
-      ),
-      GoRoute(
-        path: '/admin/scrim/:id/leaderboard',
-        name: 'scrim_leaderboard',
-        builder: (context, state) {
-          final id = int.parse(state.pathParameters['id']!);
-          return ScrimLeaderboardPage(scrimId: id);
+          final sesiId = int.parse(state.pathParameters['id']!);
+          return DetailSessionPage(sesiId: sesiId);
         },
       ),
       GoRoute(
@@ -156,7 +152,6 @@ class AppRouter {
           return EditSessionPage(sesiId: sesiId);
         },
       ),
-      // ========================================================
       GoRoute(
         path: '/admin/scrim/:idScrim/sesi',
         name: 'atur_sesi',
@@ -238,9 +233,7 @@ class AppRouter {
         path: '/user/payment/:idPendaftaran',
         name: 'payment',
         builder: (context, state) {
-          final idPendaftaran = int.parse(
-            state.pathParameters['idPendaftaran']!,
-          );
+          final idPendaftaran = int.parse(state.pathParameters['idPendaftaran']!);
           return PaymentCheckoutPage(pendaftaranId: idPendaftaran);
         },
       ),
@@ -266,9 +259,7 @@ class AppRouter {
         path: '/user/klaim/:idPendaftaran',
         name: 'klaim',
         builder: (context, state) {
-          final idPendaftaran = int.parse(
-            state.pathParameters['idPendaftaran']!,
-          );
+          final idPendaftaran = int.parse(state.pathParameters['idPendaftaran']!);
           return ClaimPrizePage(pendaftaranId: idPendaftaran);
         },
       ),
