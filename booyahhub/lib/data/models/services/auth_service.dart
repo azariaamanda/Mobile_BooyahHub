@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../config/supabase_client.dart';
 import '../akun_model.dart';
@@ -280,6 +281,7 @@ class AuthService {
     String? newName,
     String? oldPassword,
     String? newPassword,
+    File? newFotoProfil,
   }) async {
     try {
       if (!isLoggedIn) return {'success': false, 'message': 'Belum login'};
@@ -299,19 +301,48 @@ class AuthService {
         await _supabase.auth.updateUser(UserAttributes(password: newPassword));
       }
 
-      // 2. Update Nama Profil
-      if (newName != null && newName.isNotEmpty) {
+      // 2. Upload Foto Profil jika ada
+      String? publicUrl;
+      String? publicUrlClean;
+      if (newFotoProfil != null) {
+        final ext = newFotoProfil.path.split('.').last;
+        final path = 'pengguna/${currentUser!.id}/avatar.$ext';
+        
+        // Upload foto dengan upsert=true agar menimpa foto lama
+        await _supabase.storage.from('foto_profil').upload(
+          path,
+          newFotoProfil,
+          fileOptions: const FileOptions(upsert: true),
+        );
+        publicUrlClean = _supabase.storage.from('foto_profil').getPublicUrl(path);
+        // URL bersih untuk disimpan ke database
+        publicUrl = publicUrlClean;
+      }
+
+      // 3. Update Nama Profil (dan Foto jika ada)
+      if ((newName != null && newName.isNotEmpty) || publicUrl != null) {
         final akunData = await _supabase.from('akun').select().eq('email', email).single();
         final role = akunData['role'];
         final akunId = akunData['id_akun'];
+        
+        final Map<String, dynamic> updateData = {};
+        if (newName != null && newName.isNotEmpty) {
+          if (role == 'pengguna') updateData['nama_tim'] = newName;
+          if (role == 'admin') updateData['nama_lengkap'] = newName;
+          if (role == 'owner') updateData['nama_owner'] = newName;
+        }
+        if (publicUrl != null) {
+          updateData['foto_profil'] = publicUrl;
+        }
 
-        if (role == 'pengguna') {
-          await _supabase.from('profil_pengguna').update({'nama_tim': newName}).eq('akun_id', akunId);
-        } else if (role == 'admin') {
-          await _supabase.from('profil_admin').update({'nama_lengkap': newName}).eq('akun_id', akunId);
-        } else if (role == 'owner') {
-          // Asumsi field nama owner (sesuaikan jika berbeda)
-          await _supabase.from('profil_owner').update({'nama_owner': newName}).eq('akun_id', akunId);
+        if (updateData.isNotEmpty) {
+          if (role == 'pengguna') {
+            await _supabase.from('profil_pengguna').update(updateData).eq('akun_id', akunId);
+          } else if (role == 'admin') {
+            await _supabase.from('profil_admin').update(updateData).eq('akun_id', akunId);
+          } else if (role == 'owner') {
+            await _supabase.from('profil_owner').update(updateData).eq('akun_id', akunId);
+          }
         }
       }
 
