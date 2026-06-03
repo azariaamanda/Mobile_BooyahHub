@@ -86,7 +86,10 @@ class _EditProfilePageState extends State<EditProfilePage> {
           .eq('akun_id', _akun!['id_akun']);
 
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Profil berhasil diperbarui'), backgroundColor: AppColors.success),
+        SnackBar(
+          content: Text('Profil berhasil diperbarui'),
+          backgroundColor: AppColors.success,
+        ),
       );
       context.pop();
     } catch (e) {
@@ -118,8 +121,13 @@ class _EditProfilePageState extends State<EditProfilePage> {
               OutlinedButton(
                 style: OutlinedButton.styleFrom(
                   side: BorderSide(color: AppColors.divider),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 6,
+                  ),
                   minimumSize: const Size(90, 32),
                 ),
                 onPressed: () => Navigator.pop(ctx, false),
@@ -129,12 +137,22 @@ class _EditProfilePageState extends State<EditProfilePage> {
               ElevatedButton(
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.error,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 6,
+                  ),
                   minimumSize: const Size(90, 32),
                 ),
                 onPressed: () => Navigator.pop(ctx, true),
-                child: Text('Logout', style: AppTextStyles.poppinsButton.copyWith(color: Colors.white)),
+                child: Text(
+                  'Logout',
+                  style: AppTextStyles.poppinsButton.copyWith(
+                    color: Colors.white,
+                  ),
+                ),
               ),
             ],
           ),
@@ -153,7 +171,9 @@ class _EditProfilePageState extends State<EditProfilePage> {
     if (_isLoading) {
       return Scaffold(
         backgroundColor: AppColors.background,
-        body: const Center(child: CircularProgressIndicator(color: AppColors.primary)),
+        body: const Center(
+          child: CircularProgressIndicator(color: AppColors.primary),
+        ),
       );
     }
 
@@ -164,7 +184,10 @@ class _EditProfilePageState extends State<EditProfilePage> {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: Text('Profil', style: AppTextStyles.poppinsTitle .copyWith(color: AppColors.primary)),
+        title: Text(
+          'Profil',
+          style: AppTextStyles.poppinsTitle.copyWith(color: AppColors.primary),
+        ),
         backgroundColor: AppColors.background,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios, color: AppColors.primary),
@@ -189,15 +212,21 @@ class _EditProfilePageState extends State<EditProfilePage> {
                               width: 100,
                               height: 100,
                               fit: BoxFit.cover,
-                              errorBuilder: (_, __, ___) => Text(
+                              errorBuilder: (_, _, _) => Text(
                                 initial,
-                                style: AppTextStyles.poppinsHeadline.copyWith(fontSize: 36, color: AppColors.primary),
+                                style: AppTextStyles.poppinsHeadline.copyWith(
+                                  fontSize: 36,
+                                  color: AppColors.primary,
+                                ),
                               ),
                             ),
                           )
                         : Text(
                             initial,
-                            style: AppTextStyles.poppinsHeadline.copyWith(fontSize: 36, color: AppColors.primary),
+                            style: AppTextStyles.poppinsHeadline.copyWith(
+                              fontSize: 36,
+                              color: AppColors.primary,
+                            ),
                           ),
                   ),
                   const SizedBox(height: 12),
@@ -207,7 +236,10 @@ class _EditProfilePageState extends State<EditProfilePage> {
                   ),
                   const SizedBox(height: 4),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 4,
+                    ),
                     decoration: BoxDecoration(
                       color: AppColors.primary.withOpacity(0.15),
                       borderRadius: BorderRadius.circular(20),
@@ -240,7 +272,12 @@ class _EditProfilePageState extends State<EditProfilePage> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // Full Name
-                  Text('Full Name', style: AppTextStyles.interLabel.copyWith(color: AppColors.textSecondary)),
+                  Text(
+                    'Full Name',
+                    style: AppTextStyles.interLabel.copyWith(
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
                   const SizedBox(height: 8),
                   TextFormField(
                     controller: _namaController,
@@ -249,14 +286,25 @@ class _EditProfilePageState extends State<EditProfilePage> {
                       hintText: 'Masukkan nama lengkap',
                       filled: true,
                       fillColor: AppColors.inputFill,
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide.none,
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 14,
+                      ),
                     ),
                   ),
                   const SizedBox(height: 16),
 
                   // Email Address
-                  Text('Email Address', style: AppTextStyles.interLabel.copyWith(color: AppColors.textSecondary)),
+                  Text(
+                    'Email Address',
+                    style: AppTextStyles.interLabel.copyWith(
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
                   const SizedBox(height: 8),
                   TextFormField(
                     controller: _emailController,
@@ -266,14 +314,25 @@ class _EditProfilePageState extends State<EditProfilePage> {
                       hintText: 'Masukkan email',
                       filled: true,
                       fillColor: AppColors.inputFill,
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide.none,
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 14,
+                      ),
                     ),
                   ),
                   const SizedBox(height: 16),
 
                   // No Handphone
-                  Text('No Handphone', style: AppTextStyles.interLabel.copyWith(color: AppColors.textSecondary)),
+                  Text(
+                    'No Handphone',
+                    style: AppTextStyles.interLabel.copyWith(
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
                   const SizedBox(height: 8),
                   TextFormField(
                     controller: _noHpController,
@@ -283,8 +342,14 @@ class _EditProfilePageState extends State<EditProfilePage> {
                       hintText: 'Masukkan nomor handphone',
                       filled: true,
                       fillColor: AppColors.inputFill,
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide.none,
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 14,
+                      ),
                     ),
                   ),
 
@@ -299,9 +364,14 @@ class _EditProfilePageState extends State<EditProfilePage> {
                         backgroundColor: AppColors.primary,
                         foregroundColor: Colors.black,
                         padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
                       ),
-                      child: Text('SIMPAN PERUBAHAN', style: AppTextStyles.poppinsButton),
+                      child: Text(
+                        'SIMPAN PERUBAHAN',
+                        style: AppTextStyles.poppinsButton,
+                      ),
                     ),
                   ),
                 ],
@@ -325,7 +395,9 @@ class _EditProfilePageState extends State<EditProfilePage> {
                   const SizedBox(height: 4),
                   Text(
                     'Terakhir diubah 3 bulan lalu',
-                    style: AppTextStyles.interCaption.copyWith(color: AppColors.textHint),
+                    style: AppTextStyles.interCaption.copyWith(
+                      color: AppColors.textHint,
+                    ),
                   ),
                   const SizedBox(height: 16),
                   SizedBox(
@@ -337,9 +409,16 @@ class _EditProfilePageState extends State<EditProfilePage> {
                       style: OutlinedButton.styleFrom(
                         side: BorderSide(color: AppColors.primary),
                         padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
                       ),
-                      child: Text('UBAH PASSWORD', style: AppTextStyles.poppinsButton.copyWith(color: AppColors.primary)),
+                      child: Text(
+                        'UBAH PASSWORD',
+                        style: AppTextStyles.poppinsButton.copyWith(
+                          color: AppColors.primary,
+                        ),
+                      ),
                     ),
                   ),
                 ],

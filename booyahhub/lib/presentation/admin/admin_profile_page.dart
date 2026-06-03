@@ -157,10 +157,12 @@ class _AdminProfilePageState extends State<AdminProfilePage> {
           style: AppTextStyles.poppinsTitle.copyWith(color: AppColors.primary),
         ),
         backgroundColor: AppColors.background,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, color: AppColors.primary),
-          onPressed: () => context.pop(),
-        ),
+        leading: Navigator.canPop(context)
+            ? IconButton(
+                icon: const Icon(Icons.arrow_back_ios, color: AppColors.primary),
+                onPressed: () => context.pop(),
+              )
+            : null,
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(AppConstants.paddingM),

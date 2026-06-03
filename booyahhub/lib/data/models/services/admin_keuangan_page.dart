@@ -3,10 +3,9 @@ import '../../config/app_color.dart';
 import '../../config/app_constants.dart';
 import '../../config/app_text_styles.dart';
 import '../../data/models/transaksi_keuangan_model.dart';
-import '../../data/models/saldo_pengguna_model.dart';
 import '../../data/models/services/keuangan_service.dart';
 import '../../data/models/services/owner_service.dart';
-import 'daftar_klaim_aktif_page.dart'; // Import halaman daftar klaim
+import 'daftar_klaim_aktif_page.dart';
 
 class AdminKeuanganPage extends StatefulWidget {
   const AdminKeuanganPage({super.key});
@@ -17,11 +16,11 @@ class AdminKeuanganPage extends StatefulWidget {
 
 class _AdminKeuanganPageState extends State<AdminKeuanganPage> {
   final KeuanganService _keuanganService = KeuanganService();
-  final OwnerService _ownerService = OwnerService(); // Instance of OwnerService
+  final OwnerService _ownerService = OwnerService();
   bool _isLoading = true;
-  double _totalPendapatan = 0; // Untuk menyimpan total pendapatan
-  double _totalFeePlatform = 0;
+  double _totalPendapatan = 0;
   List<TransaksiKeuangan> _recentTransactions = [];
+  int _currentIndex = 3; // Index aktif bottom navigation bar
 
   @override
   void initState() {
@@ -32,13 +31,10 @@ class _AdminKeuanganPageState extends State<AdminKeuanganPage> {
   Future<void> _fetchData() async {
     setState(() => _isLoading = true);
     try {
-      // Mengambil total pendapatan dari OwnerService
       final revenueData = await _ownerService.getTotalRevenue();
       _totalPendapatan = (revenueData['total_pendapatan_platform'] ?? 0)
           .toDouble();
-      _totalFeePlatform = (revenueData['total_fee_platform'] ?? 0).toDouble();
 
-      // Mengambil semua transaksi untuk tampilan admin
       final transactions = await _keuanganService.fetchAllTransaksi(limit: 5);
 
       setState(() {
@@ -51,7 +47,6 @@ class _AdminKeuanganPageState extends State<AdminKeuanganPage> {
     }
   }
 
-  @override
   Widget build(BuildContext context) {
     if (_isLoading) {
       return const Scaffold(
@@ -60,6 +55,12 @@ class _AdminKeuanganPageState extends State<AdminKeuanganPage> {
           child: CircularProgressIndicator(color: AppColors.primary),
         ),
       );
+    }
+
+    String displayPendapatan =
+        'Rp ${(_totalPendapatan / 1000000).toStringAsFixed(1)}M';
+    if (_totalPendapatan < 1000000) {
+      displayPendapatan = 'Rp ${_totalPendapatan.toInt()}';
     }
 
     return Scaffold(
@@ -91,7 +92,7 @@ class _AdminKeuanganPageState extends State<AdminKeuanganPage> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Total Pendapatan',
+                    'Total Saldo Keuangan',
                     style: AppTextStyles.interLabel.copyWith(
                       color: AppColors.textSecondary,
                     ),
@@ -138,8 +139,8 @@ class _AdminKeuanganPageState extends State<AdminKeuanganPage> {
                 const SizedBox(width: 16),
                 Expanded(
                   child: _buildActionButton(
-                    icon: Icons.pending_actions,
-                    label: 'Klaim Pending',
+                    icon: Icons.outbox,
+                    label: 'Tarik Tunai',
                     onTap: () {
                       Navigator.push(
                         context,
@@ -159,13 +160,13 @@ class _AdminKeuanganPageState extends State<AdminKeuanganPage> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  'Daftar Klaim Aktif',
+                  'Riwayat Transaksi',
                   style: AppTextStyles.poppinsSectionTitle.copyWith(
                     fontSize: 18,
                   ),
                 ),
-                TextButton(
-                  onPressed: () {
+                GestureDetector(
+                  onTap: () {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
@@ -173,10 +174,37 @@ class _AdminKeuanganPageState extends State<AdminKeuanganPage> {
                       ),
                     );
                   },
-                  child: Text(
-                    'Lihat Semua',
-                    style: AppTextStyles.interLink.copyWith(
-                      color: AppColors.primary,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppColors.backgroundCard,
+                      borderRadius: BorderRadius.circular(AppConstants.radiusM),
+                      border: Border.all(
+                        color: AppColors.primary.withOpacity(0.5),
+                        width: 1,
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          'Lihat Semua',
+                          style: AppTextStyles.interLabel.copyWith(
+                            color: AppColors.primary,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 12,
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        const Icon(
+                          Icons.arrow_forward_ios_rounded,
+                          color: AppColors.primary,
+                          size: 10,
+                        ),
+                      ],
                     ),
                   ),
                 ),
@@ -192,6 +220,9 @@ class _AdminKeuanganPageState extends State<AdminKeuanganPage> {
               separatorBuilder: (context, index) => const SizedBox(height: 12),
               itemBuilder: (context, index) {
                 final tx = _recentTransactions[index];
+                bool isIncome = tx.isPemasukan || tx.isHadiah;
+                Color color = isIncome ? AppColors.success : AppColors.error;
+
                 return Container(
                   padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
@@ -201,16 +232,10 @@ class _AdminKeuanganPageState extends State<AdminKeuanganPage> {
                   child: Row(
                     children: [
                       CircleAvatar(
-                        backgroundColor: tx.isPemasukan || tx.isHadiah
-                            ? AppColors.success.withOpacity(0.1)
-                            : AppColors.error.withOpacity(0.1),
+                        backgroundColor: color.withOpacity(0.1),
                         child: Icon(
-                          tx.isPemasukan || tx.isHadiah
-                              ? Icons.call_received
-                              : Icons.call_made,
-                          color: tx.isPemasukan || tx.isHadiah
-                              ? AppColors.success
-                              : AppColors.error,
+                          isIncome ? Icons.call_received : Icons.call_made,
+                          color: color,
                         ),
                       ),
                       const SizedBox(width: 16),
@@ -219,10 +244,7 @@ class _AdminKeuanganPageState extends State<AdminKeuanganPage> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              tx.deskripsi ??
-                                  (tx.isPemasukan
-                                      ? 'Pemasukan'
-                                      : 'Pengeluaran'),
+                              tx.deskripsi,
                               style: AppTextStyles.interBodyMedium.copyWith(
                                 fontWeight: FontWeight.bold,
                               ),
@@ -238,9 +260,7 @@ class _AdminKeuanganPageState extends State<AdminKeuanganPage> {
                       Text(
                         tx.displayNominal,
                         style: AppTextStyles.poppinsMoneySmall.copyWith(
-                          color: tx.isPemasukan || tx.isHadiah
-                              ? AppColors.success
-                              : AppColors.error,
+                          color: color,
                         ),
                       ),
                     ],
@@ -251,9 +271,39 @@ class _AdminKeuanganPageState extends State<AdminKeuanganPage> {
           ],
         ),
       ),
+      // --- BOTTOM NAVIGATION BAR (WARNA EMAS SESUAI GAMBAR) ---
+      bottomNavigationBar: Padding(
+        padding: const EdgeInsets.only(bottom: 16.0, left: 16.0, right: 16.0),
+        child: Container(
+          decoration: BoxDecoration(
+            color: AppColors.primary, // Warna dasar emas/kuning tua
+            borderRadius: BorderRadius.circular(AppConstants.radiusXL),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(
+              vertical: 8.0,
+              horizontal: 12.0,
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: [
+                _buildBottomNavItem(Icons.dashboard, 0),
+                _buildBottomNavItem(Icons.add_circle_outline, 1),
+                _buildBottomNavItem(Icons.people_outline, 2),
+                _buildBottomNavActiveItem(
+                  Icons.account_balance_wallet,
+                  'Keuan...',
+                ),
+                _buildBottomNavItem(Icons.settings_outlined, 4),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 
+  // Widget Helper untuk Tombol Aksi (Isi Saldo / Tarik Tunai)
   Widget _buildActionButton({
     required IconData icon,
     required String label,
@@ -276,6 +326,43 @@ class _AdminKeuanganPageState extends State<AdminKeuanganPage> {
             Text(label, style: AppTextStyles.interBody),
           ],
         ),
+      ),
+    );
+  }
+
+  // Widget Helper untuk Item Navigasi yang Tidak Aktif
+  Widget _buildBottomNavItem(IconData icon, int index) {
+    return IconButton(
+      icon: Icon(icon, color: Colors.black87),
+      onPressed: () {
+        setState(() {
+          _currentIndex = index;
+        });
+      },
+    );
+  }
+
+  // Widget Helper untuk Item Navigasi yang Sedang Aktif (Berbentuk Kapsul Hitam)
+  Widget _buildBottomNavActiveItem(IconData icon, String label) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: AppColors.background, // Kapsul Hitam
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, color: AppColors.primary, size: 20), // Icon Emas
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: AppTextStyles.interBodyMedium.copyWith(
+              color: AppColors.textPrimary,
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ],
       ),
     );
   }

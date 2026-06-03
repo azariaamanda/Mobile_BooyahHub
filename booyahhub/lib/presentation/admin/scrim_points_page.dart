@@ -1,30 +1,57 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../config/app_color.dart';
-import '../../config/app_constants.dart';
 import '../../config/app_text_styles.dart';
 
 class ScrimPointsPage extends StatefulWidget {
-  final int scrimId;
-  const ScrimPointsPage({super.key, required this.scrimId});
+  final int sesiId;
+  const ScrimPointsPage({super.key, required this.sesiId});
 
   @override
   State<ScrimPointsPage> createState() => _ScrimPointsPageState();
 }
 
 class _ScrimPointsPageState extends State<ScrimPointsPage> {
+  final _supabase = Supabase.instance.client;
   int _selectedMatch = 0;
 
   final List<Map<String, dynamic>> _teams = [
-    {'nama_tim': 'EVOS Divine', 'kapten': 'Sam13', 'place': null, 'kill': 0, 'poin': 0},
-    {'nama_tim': 'RRQ Kazu', 'kapten': 'Sisi', 'place': 1, 'kill': 10, 'poin': 22},
-    {'nama_tim': 'Genesis Dogma', 'kapten': 'Upin', 'place': 12, 'kill': 1, 'poin': 1},
+    {
+      'nama_tim': 'EVOS Divine',
+      'kapten': 'Sam13',
+      'place': null,
+      'kill': 0,
+      'poin': 0,
+    },
+    {
+      'nama_tim': 'RRQ Kazu',
+      'kapten': 'Sisi',
+      'place': 1,
+      'kill': 10,
+      'poin': 22,
+    },
+    {
+      'nama_tim': 'Genesis Dogma',
+      'kapten': 'Upin',
+      'place': 12,
+      'kill': 1,
+      'poin': 1,
+    },
   ];
 
   final List<Map<String, int>> _poinSystem = [
-    {'place': 1, 'poin': 12}, {'place': 2, 'poin': 10}, {'place': 3, 'poin': 8},
-    {'place': 4, 'poin': 7}, {'place': 5, 'poin': 6}, {'place': 6, 'poin': 5},
-    {'place': 7, 'poin': 4}, {'place': 8, 'poin': 3}, {'place': 9, 'poin': 2},
-    {'place': 10, 'poin': 1}, {'place': 11, 'poin': 0}, {'place': 12, 'poin': 0},
+    {'place': 1, 'poin': 12},
+    {'place': 2, 'poin': 10},
+    {'place': 3, 'poin': 8},
+    {'place': 4, 'poin': 7},
+    {'place': 5, 'poin': 6},
+    {'place': 6, 'poin': 5},
+    {'place': 7, 'poin': 4},
+    {'place': 8, 'poin': 3},
+    {'place': 9, 'poin': 2},
+    {'place': 10, 'poin': 1},
+    {'place': 11, 'poin': 0},
+    {'place': 12, 'poin': 0},
   ];
 
   final List<TextEditingController> _killControllers = [];
@@ -33,7 +60,9 @@ class _ScrimPointsPageState extends State<ScrimPointsPage> {
   void initState() {
     super.initState();
     for (var team in _teams) {
-      _killControllers.add(TextEditingController(text: team['kill'].toString()));
+      _killControllers.add(
+        TextEditingController(text: team['kill'].toString()),
+      );
     }
   }
 
@@ -43,6 +72,180 @@ class _ScrimPointsPageState extends State<ScrimPointsPage> {
       controller.dispose();
     }
     super.dispose();
+  }
+
+  Future<void> _fetchData() async {
+    setState(() => _isLoading = true);
+    try {
+      // Ambil sesi berdasarkan sesiId yang dikirim
+      final sesiData = await _supabase
+          .from('sesi_scrim')
+          .select('*')
+          .eq('id_sesi', widget.sesiId)
+          .single();
+
+      // Ambil data tim untuk sesi ini
+      await _fetchTeamsData(widget.sesiId);
+
+      // Ambil sistem poin
+      final poinData = await _supabase
+          .from('sistem_poin')
+          .select('peringkat_ke, poin')
+          .order('peringkat_ke', ascending: true);
+      _poinSystem = List<Map<String, dynamic>>.from(poinData);
+    } catch (e) {
+      print('Error: $e');
+    } finally {
+      setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _fetchTeamsData(int sesiId) async {
+    try {
+      // Ambil pendaftaran tim (tanpa join)
+      final pendaftaran = await _supabase
+          .from('pendaftaran_tim')
+          .select('id_pendaftaran, akun_id, nama_kapten')
+          .eq('id_sesi', sesiId)
+          .eq('status_pembayaran', 'dikonfirmasi');
+
+      // Ambil hasil pertandingan yang sudah ada
+      final hasil = await _supabase
+          .from('hasil_pertandingan')
+          .select('*')
+          .eq('id_sesi', sesiId)
+          .eq('match_ke', _selectedMatch + 1);
+
+      // Proses data tim
+      List<Map<String, dynamic>> teamList = [];
+      _killControllers.clear();
+
+      for (var p in pendaftaran) {
+        final akunId = p['akun_id'] as int?;
+        String namaTim = 'Tim ${akunId ?? '?'}';
+
+        // Ambil nama tim dari profil_pengguna (query terpisah, aman)
+        if (akunId != null) {
+          final profilData = await _supabase
+              .from('profil_pengguna')
+              .select('nama_tim')
+              .eq('akun_id', akunId)
+              .maybeSingle();
+
+          if (profilData != null && profilData['nama_tim'] != null) {
+            namaTim = profilData['nama_tim'];
+          }
+        }
+
+        final existingHasil = hasil.firstWhere(
+          (h) => h['id_pendaftaran'] == p['id_pendaftaran'],
+          orElse: () => {},
+        );
+
+        final kill = existingHasil.isEmpty
+            ? 0
+            : (existingHasil['total_kill'] ?? 0);
+        final place = existingHasil.isEmpty ? null : existingHasil['peringkat'];
+
+        // Hitung poin dari place
+        int poinPlacement = 0;
+        if (place != null) {
+          final found = _poinSystem.firstWhere(
+            (ps) => ps['peringkat_ke'] == place,
+            orElse: () => {'poin': 0},
+          );
+          poinPlacement = found['poin'] ?? 0;
+        }
+        final totalPoin = poinPlacement + kill;
+
+        teamList.add({
+          'id_pendaftaran': p['id_pendaftaran'],
+          'akun_id': akunId,
+          'nama_tim': namaTim,
+          'kapten': p['nama_kapten'] ?? '',
+          'place': place,
+          'kill': kill,
+          'poin': totalPoin,
+        });
+        _killControllers.add(TextEditingController(text: kill.toString()));
+      }
+
+      setState(() => _teams = teamList);
+    } catch (e) {
+      print('Error fetchTeamsData: $e');
+      setState(() => _teams = []);
+    }
+  }
+
+  Future<void> _saveScores() async {
+    if (_sessions.isEmpty || _teams.isEmpty) return;
+
+    setState(() => _isLoading = true);
+    try {
+      final sesiId = _sessions[_selectedMatch]['id_sesi'];
+      final matchKe = _selectedMatch + 1;
+
+      for (int i = 0; i < _teams.length; i++) {
+        final team = _teams[i];
+        final place = team['place'];
+        final kill = int.tryParse(_killControllers[i].text) ?? 0;
+
+        // Hitung poin placement
+        int poinPlacement = 0;
+        if (place != null) {
+          final found = _poinSystem.firstWhere(
+            (ps) => ps['peringkat_ke'] == place,
+            orElse: () => {'poin': 0},
+          );
+          poinPlacement = found['poin'] ?? 0;
+        }
+        final totalPoin = poinPlacement + kill;
+
+        // Cek apakah sudah ada data
+        final existing = await _supabase
+            .from('hasil_pertandingan')
+            .select()
+            .eq('id_pendaftaran', team['id_pendaftaran'])
+            .eq('match_ke', matchKe)
+            .maybeSingle();
+
+        if (existing != null) {
+          await _supabase
+              .from('hasil_pertandingan')
+              .update({
+                'peringkat': place,
+                'poin_placement': poinPlacement,
+                'total_kill': kill,
+                'total_poin': totalPoin,
+              })
+              .eq('id_hasil', existing['id_hasil']);
+        } else {
+          await _supabase.from('hasil_pertandingan').insert({
+            'id_pendaftaran': team['id_pendaftaran'],
+            'id_sesi': sesiId,
+            'match_ke': matchKe,
+            'peringkat': place,
+            'poin_placement': poinPlacement,
+            'total_kill': kill,
+            'total_poin': totalPoin,
+          });
+        }
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Skor berhasil disimpan'),
+          backgroundColor: AppColors.success,
+        ),
+      );
+      await _fetchTeamsData(sesiId);
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Gagal: $e'), backgroundColor: AppColors.error),
+      );
+    } finally {
+      setState(() => _isLoading = false);
+    }
   }
 
   void _updatePlace(int index, int? place) {
@@ -63,7 +266,9 @@ class _ScrimPointsPageState extends State<ScrimPointsPage> {
   void _updatePoin(int index) {
     int poinPlacement = 0;
     if (_teams[index]['place'] != null) {
-      final found = _poinSystem.firstWhere((p) => p['place'] == _teams[index]['place']);
+      final found = _poinSystem.firstWhere(
+        (p) => p['place'] == _teams[index]['place'],
+      );
       poinPlacement = found['poin'] ?? 0;
     }
     final totalPoin = poinPlacement + (_teams[index]['kill'] ?? 0);
@@ -75,12 +280,35 @@ class _ScrimPointsPageState extends State<ScrimPointsPage> {
   int get _belumDiisi => _totalTim - _sudahDiisi;
 
   @override
+  @override
   Widget build(BuildContext context) {
+    if (_isLoading) {
+      return const Center(
+        child: CircularProgressIndicator(color: AppColors.primary),
+      );
+    }
+
+    if (_teams.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(
+              Icons.people_outline,
+              size: 48,
+              color: AppColors.textSecondary,
+            ),
+            const SizedBox(height: 16),
+            Text('Belum ada tim terdaftar', style: AppTextStyles.interBody),
+          ],
+        ),
+      );
+    }
+
     return Scaffold(
       backgroundColor: AppColors.background,
       body: Column(
         children: [
-          // Header yang bisa di-scroll
           Expanded(
             child: SingleChildScrollView(
               child: Column(
@@ -103,11 +331,14 @@ class _ScrimPointsPageState extends State<ScrimPointsPage> {
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                     child: Row(
-                      children: List.generate(4, (i) => Expanded(
-                        child: _matchButton(i + 1, _selectedMatch, (match) {
-                          setState(() => _selectedMatch = match - 1);
-                        }),
-                      )),
+                      children: List.generate(
+                        4,
+                        (i) => Expanded(
+                          child: _matchButton(i + 1, _selectedMatch, (match) {
+                            setState(() => _selectedMatch = match - 1);
+                          }),
+                        ),
+                      ),
                     ),
                   ),
 
@@ -117,7 +348,10 @@ class _ScrimPointsPageState extends State<ScrimPointsPage> {
                   ListView.builder(
                     shrinkWrap: true,
                     physics: const NeverScrollableScrollPhysics(),
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 4,
+                    ),
                     itemCount: _teams.length,
                     itemBuilder: (context, i) {
                       final team = _teams[i];
@@ -132,53 +366,88 @@ class _ScrimPointsPageState extends State<ScrimPointsPage> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(team['nama_tim'], style: AppTextStyles.poppinsTitleSmall.copyWith(fontSize: 14)),
-                            Text('& Capt: ${team['kapten']}', style: AppTextStyles.interCaption.copyWith(fontSize: 11)),
+                            Text(
+                              team['nama_tim'],
+                              style: AppTextStyles.poppinsTitleSmall.copyWith(
+                                fontSize: 14,
+                              ),
+                            ),
+                            Text(
+                              '& Capt: ${team['kapten']}',
+                              style: AppTextStyles.interCaption.copyWith(
+                                fontSize: 11,
+                              ),
+                            ),
                             const SizedBox(height: 8),
                             Row(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                // Place
                                 Expanded(
                                   child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
-                                      Text('Place', style: AppTextStyles.interLabel.copyWith(fontSize: 10)),
+                                      Text(
+                                        'Place',
+                                        style: AppTextStyles.interLabel
+                                            .copyWith(fontSize: 10),
+                                      ),
                                       const SizedBox(height: 2),
-                                      _buildPlaceDropdown(team['place'], (place) => _updatePlace(i, place)),
+                                      _buildPlaceDropdown(
+                                        team['place'],
+                                        (place) => _updatePlace(i, place),
+                                      ),
                                     ],
                                   ),
                                 ),
                                 const SizedBox(width: 6),
-                                // Kill
                                 Expanded(
                                   child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
-                                      Text('Kill', style: AppTextStyles.interLabel.copyWith(fontSize: 10)),
+                                      Text(
+                                        'Kill',
+                                        style: AppTextStyles.interLabel
+                                            .copyWith(fontSize: 10),
+                                      ),
                                       const SizedBox(height: 2),
-                                      _buildKillField(i, team['kill'], (kill) => _updateKill(i, kill)),
+                                      _buildKillField(
+                                        i,
+                                        team['kill'],
+                                        (kill) => _updateKill(i, kill),
+                                      ),
                                     ],
                                   ),
                                 ),
                                 const SizedBox(width: 6),
-                                // Poin
                                 Expanded(
                                   child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
-                                      Text('Poin', style: AppTextStyles.interLabel.copyWith(fontSize: 10)),
+                                      Text(
+                                        'Poin',
+                                        style: AppTextStyles.interLabel
+                                            .copyWith(fontSize: 10),
+                                      ),
                                       const SizedBox(height: 2),
                                       Container(
                                         height: 40,
                                         decoration: BoxDecoration(
-                                          color: AppColors.primary.withOpacity(0.1),
-                                          borderRadius: BorderRadius.circular(10),
+                                          color: AppColors.primary.withOpacity(
+                                            0.1,
+                                          ),
+                                          borderRadius: BorderRadius.circular(
+                                            10,
+                                          ),
                                         ),
                                         child: Center(
                                           child: Text(
                                             '${team['poin']}',
-                                            style: AppTextStyles.poppinsMoneyLarge.copyWith(fontSize: 16),
+                                            style: AppTextStyles
+                                                .poppinsMoneyLarge
+                                                .copyWith(fontSize: 16),
                                           ),
                                         ),
                                       ),
@@ -192,7 +461,7 @@ class _ScrimPointsPageState extends State<ScrimPointsPage> {
                       );
                     },
                   ),
-                  
+
                   const SizedBox(height: 12),
                 ],
               ),
@@ -209,7 +478,10 @@ class _ScrimPointsPageState extends State<ScrimPointsPage> {
                 onPressed: () {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
-                      content: Text('Skor berhasil disimpan (Demo)', style: AppTextStyles.interBody),
+                      content: Text(
+                        'Skor berhasil disimpan (Demo)',
+                        style: AppTextStyles.interBody,
+                      ),
                       backgroundColor: AppColors.success,
                     ),
                   );
@@ -218,7 +490,10 @@ class _ScrimPointsPageState extends State<ScrimPointsPage> {
                   backgroundColor: AppColors.primary,
                   foregroundColor: Colors.black,
                 ),
-                child: Text('SIMPAN SEMUA POIN', style: AppTextStyles.poppinsButton.copyWith(fontSize: 13)),
+                child: Text(
+                  'SIMPAN SEMUA POIN',
+                  style: AppTextStyles.poppinsButton.copyWith(fontSize: 13),
+                ),
               ),
             ),
           ),
@@ -238,8 +513,14 @@ class _ScrimPointsPageState extends State<ScrimPointsPage> {
         ),
         child: Column(
           children: [
-            Text(value, style: AppTextStyles.poppinsMoneyLarge.copyWith(fontSize: 16)),
-            Text(label, style: AppTextStyles.interCaption.copyWith(fontSize: 9)),
+            Text(
+              value,
+              style: AppTextStyles.poppinsMoneyLarge.copyWith(fontSize: 16),
+            ),
+            Text(
+              label,
+              style: AppTextStyles.interCaption.copyWith(fontSize: 9),
+            ),
           ],
         ),
       ),
@@ -286,13 +567,24 @@ class _ScrimPointsPageState extends State<ScrimPointsPage> {
           isExpanded: true,
           dropdownColor: AppColors.backgroundCard,
           style: AppTextStyles.interInput.copyWith(fontSize: 12),
-          hint: Text('Pilih', style: AppTextStyles.interHint.copyWith(fontSize: 11)),
+          hint: Text(
+            'Pilih',
+            style: AppTextStyles.interHint.copyWith(fontSize: 11),
+          ),
           items: [
-            const DropdownMenuItem(value: null, child: Text('Pilih Place', style: TextStyle(fontSize: 11))),
-            ..._poinSystem.map((p) => DropdownMenuItem(
-              value: p['place'],
-              child: Text('#${p['place']} - ${p['poin']} Poin', style: const TextStyle(fontSize: 11)),
-            )),
+            const DropdownMenuItem(
+              value: null,
+              child: Text('Pilih Place', style: TextStyle(fontSize: 11)),
+            ),
+            ..._poinSystem.map(
+              (p) => DropdownMenuItem(
+                value: p['place'],
+                child: Text(
+                  '#${p['place']} - ${p['poin']} Poin',
+                  style: const TextStyle(fontSize: 11),
+                ),
+              ),
+            ),
           ],
           onChanged: onChanged,
         ),
