@@ -8,11 +8,8 @@ import '../../config/app_constants.dart';
 import '../../config/app_image_helper.dart';
 import '../../config/app_text_styles.dart';
 import '../../config/supabase_client.dart';
-import '../../data/models/saldo_pengguna_model.dart';
-import '../../data/models/services/keuangan_service.dart';
 import 'user_widgets/team_profile_header.dart';
 import 'user_widgets/scrim_item_card.dart';
-import 'user_widgets/financial_dashboard_widget.dart';
 
 class UserHomeScreen extends StatefulWidget {
   const UserHomeScreen({super.key});
@@ -25,11 +22,6 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
   final int _selectedModeId = 0;
   String _selectedSort = 'terbaru';
   final _supabase = Supabase.instance.client;
-  final KeuanganService _keuanganService = KeuanganService();
-
-  SaldoPengguna? _saldoPengguna;
-  bool _loadingSaldo = true;
-  int? _idAkun;
 
   final List<Map<String, String>> _sortOptions = [
     {'value': 'semua', 'label': 'Semua'},
@@ -41,39 +33,6 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
   @override
   void initState() {
     super.initState();
-    _loadSaldoData();
-  }
-
-  Future<void> _loadSaldoData() async {
-    try {
-      final currentUser = _supabase.auth.currentUser;
-      if (currentUser == null) return;
-
-      final akunResponse = await _supabase
-          .from('akun')
-          .select('id_akun')
-          .eq('email', currentUser.email!)
-          .maybeSingle();
-
-      if (akunResponse != null) {
-        setState(() {
-          _idAkun = akunResponse['id_akun'];
-        });
-
-        final saldo = await _keuanganService.fetchSaldoPengguna(
-          akunResponse['id_akun'],
-        );
-        setState(() {
-          _saldoPengguna = saldo;
-          _loadingSaldo = false;
-        });
-      }
-    } catch (e) {
-      debugPrint('Error loading saldo: $e');
-      setState(() {
-        _loadingSaldo = false;
-      });
-    }
   }
 
   // ─── FUNGSI AMBIL DATA PROFIL DARI DATABASE ───
@@ -331,23 +290,6 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
                       namaTim: namaTim,
                       fotoProfilName: emailUser,
                     );
-                  },
-                ),
-                const SizedBox(height: AppConstants.paddingL),
-
-                FinancialDashboardWidget(
-                  saldo: _saldoPengguna,
-                  isLoading: _loadingSaldo,
-                  onWithdraw: () {
-                    if (_saldoPengguna != null) {
-                      context.push(
-                        '/financial/withdraw',
-                        extra: _saldoPengguna,
-                      );
-                    }
-                  },
-                  onViewMore: () {
-                    context.push('/user/financial');
                   },
                 ),
                 const SizedBox(height: AppConstants.paddingL),

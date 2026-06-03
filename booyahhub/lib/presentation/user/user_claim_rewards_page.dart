@@ -200,7 +200,7 @@ class _UserClaimRewardsPageState extends State<UserClaimRewardsPage> {
                       horizontal: AppConstants.paddingL,
                     ),
                     itemCount: filteredRewards.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 16),
+                    separatorBuilder: (_, _) => const SizedBox(height: 16),
                     itemBuilder: (context, index) {
                       return _buildRewardCard(context, filteredRewards[index]);
                     },

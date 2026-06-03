@@ -6,7 +6,7 @@ import 'admin_dashboard_screen.dart';
 import 'create_scrim_page.dart';
 import 'peserta_management_page.dart';
 import 'admin_keuangan_page.dart';
-import 'setting_page.dart';
+import 'admin_profile_page.dart';
 
 class AdminMainNavigator extends StatefulWidget {
   const AdminMainNavigator({super.key});
@@ -23,7 +23,7 @@ class _AdminMainNavigatorState extends State<AdminMainNavigator> {
     CreateScrimPage(), // 1: Buat Scrim
     PesertaManagementPage(), // 2: Peserta
     AdminKeuanganPage(), // 3: Keuangan
-    PaymentConfigPage(), // 4: Pengaturan
+    AdminProfilePage(), // 4: Pengaturan
   ];
 
   // Label DIPENDEKKAN supaya muat di nav 5 item.

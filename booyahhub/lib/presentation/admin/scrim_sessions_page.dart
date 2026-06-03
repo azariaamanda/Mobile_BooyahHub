@@ -18,7 +18,7 @@ class _ScrimSessionsPageState extends State<ScrimSessionsPage> {
   List<Map<String, dynamic>> _allSessions = [];
   List<Map<String, dynamic>> _filteredSessions = [];
   Map<String, dynamic>? _scrim;
-  
+
   DateTime _selectedDate = DateTime.now();
   List<DateTime> _availableDates = [];
 
@@ -44,14 +44,15 @@ class _ScrimSessionsPageState extends State<ScrimSessionsPage> {
           .eq('id_scrim', widget.scrimId)
           .order('waktu_mulai', ascending: true);
       _allSessions = List<Map<String, dynamic>>.from(sesiData);
-      
-      _availableDates = _allSessions
-          .map((s) => DateTime.parse(s['waktu_mulai']).toLocal())
-          .map((d) => DateTime(d.year, d.month, d.day))
-          .toSet()
-          .toList()
-        ..sort();
-      
+
+      _availableDates =
+          _allSessions
+              .map((s) => DateTime.parse(s['waktu_mulai']).toLocal())
+              .map((d) => DateTime(d.year, d.month, d.day))
+              .toSet()
+              .toList()
+            ..sort();
+
       if (_availableDates.isNotEmpty) {
         _selectedDate = _availableDates.first;
         _filterSessions();
@@ -75,76 +76,105 @@ class _ScrimSessionsPageState extends State<ScrimSessionsPage> {
 
   // ==================== POPUP ATUR JADWAL ====================
   Future<void> _showAddSchedulePopup() async {
-    DateTime _currentMonth = DateTime.now();
-    Set<DateTime> _selectedDates = {};
+    DateTime currentMonth = DateTime.now();
+    Set<DateTime> selectedDates = {};
     TimeOfDay startTime = const TimeOfDay(hour: 8, minute: 0);
     TimeOfDay endTime = const TimeOfDay(hour: 9, minute: 0);
     int slot = 12;
-    
+
     await showDialog(
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDialogState) {
           return Dialog(
             backgroundColor: AppColors.backgroundCard,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
             child: Container(
               width: MediaQuery.of(context).size.width - 40,
               padding: const EdgeInsets.all(16),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text('Atur Jadwal', style: AppTextStyles.poppinsHeadline.copyWith(fontSize: 20)),
+                  Text(
+                    'Atur Jadwal',
+                    style: AppTextStyles.poppinsHeadline.copyWith(fontSize: 20),
+                  ),
                   const SizedBox(height: 4),
-                  Text('HARI BARU UNTUK SCRIM', style: AppTextStyles.interLabel.copyWith(color: AppColors.primary, fontSize: 10)),
+                  Text(
+                    'HARI BARU UNTUK SCRIM',
+                    style: AppTextStyles.interLabel.copyWith(
+                      color: AppColors.primary,
+                      fontSize: 10,
+                    ),
+                  ),
                   const SizedBox(height: 8),
-                  Text('Pilih tanggal pelaksanaan untuk sesi baru.', style: AppTextStyles.interCaption),
+                  Text(
+                    'Pilih tanggal pelaksanaan untuk sesi baru.',
+                    style: AppTextStyles.interCaption,
+                  ),
                   const SizedBox(height: 4),
-                  Text('Pastikan tidak bentrok dengan jadwal yang sudah ada.', style: AppTextStyles.interCaption.copyWith(fontSize: 11)),
+                  Text(
+                    'Pastikan tidak bentrok dengan jadwal yang sudah ada.',
+                    style: AppTextStyles.interCaption.copyWith(fontSize: 11),
+                  ),
                   const SizedBox(height: 16),
-                  
+
                   // Month selector
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       IconButton(
-                        icon: const Icon(Icons.chevron_left, color: AppColors.primary),
+                        icon: const Icon(
+                          Icons.chevron_left,
+                          color: AppColors.primary,
+                        ),
                         onPressed: () {
                           setDialogState(() {
-                            _currentMonth = DateTime(_currentMonth.year, _currentMonth.month - 1);
+                            currentMonth = DateTime(
+                              currentMonth.year,
+                              currentMonth.month - 1,
+                            );
                           });
                         },
                       ),
                       Text(
-                        '${_getMonth(_currentMonth.month)} ${_currentMonth.year}',
+                        '${_getMonth(currentMonth.month)} ${currentMonth.year}',
                         style: AppTextStyles.poppinsTitleSmall,
                       ),
                       IconButton(
-                        icon: const Icon(Icons.chevron_right, color: AppColors.primary),
+                        icon: const Icon(
+                          Icons.chevron_right,
+                          color: AppColors.primary,
+                        ),
                         onPressed: () {
                           setDialogState(() {
-                            _currentMonth = DateTime(_currentMonth.year, _currentMonth.month + 1);
+                            currentMonth = DateTime(
+                              currentMonth.year,
+                              currentMonth.month + 1,
+                            );
                           });
                         },
                       ),
                     ],
                   ),
-                  
+
                   // Calendar grid
-                  _buildCalendarGrid(_currentMonth, _selectedDates, (date) {
+                  _buildCalendarGrid(currentMonth, selectedDates, (date) {
                     setDialogState(() {
-                      if (_selectedDates.contains(date)) {
-                        _selectedDates.remove(date);
+                      if (selectedDates.contains(date)) {
+                        selectedDates.remove(date);
                       } else {
-                        _selectedDates.add(date);
+                        selectedDates.add(date);
                       }
                     });
                   }),
-                  
+
                   const SizedBox(height: 16),
-                  
+
                   // Selected dates summary
-                  if (_selectedDates.isNotEmpty)
+                  if (selectedDates.isNotEmpty)
                     Container(
                       padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
@@ -152,23 +182,29 @@ class _ScrimSessionsPageState extends State<ScrimSessionsPage> {
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(
-                        '${_selectedDates.length} tanggal dipilih',
-                        style: AppTextStyles.interLabel.copyWith(color: AppColors.primary),
+                        '${selectedDates.length} tanggal dipilih',
+                        style: AppTextStyles.interLabel.copyWith(
+                          color: AppColors.primary,
+                        ),
                       ),
                     ),
-                  
+
                   const SizedBox(height: 16),
-                  
+
                   // Time and slot picker
                   Row(
                     children: [
-                      Expanded(child: _buildTimePicker('MULAI', startTime, (time) {
-                        setDialogState(() => startTime = time);
-                      })),
+                      Expanded(
+                        child: _buildTimePicker('MULAI', startTime, (time) {
+                          setDialogState(() => startTime = time);
+                        }),
+                      ),
                       const SizedBox(width: 16),
-                      Expanded(child: _buildTimePicker('SELESAI', endTime, (time) {
-                        setDialogState(() => endTime = time);
-                      })),
+                      Expanded(
+                        child: _buildTimePicker('SELESAI', endTime, (time) {
+                          setDialogState(() => endTime = time);
+                        }),
+                      ),
                     ],
                   ),
                   const SizedBox(height: 16),
@@ -185,21 +221,32 @@ class _ScrimSessionsPageState extends State<ScrimSessionsPage> {
                             side: BorderSide(color: AppColors.divider),
                             padding: const EdgeInsets.symmetric(vertical: 12),
                           ),
-                          child: Text('BATAL', style: AppTextStyles.poppinsButton.copyWith(color: AppColors.textSecondary)),
+                          child: Text(
+                            'BATAL',
+                            style: AppTextStyles.poppinsButton.copyWith(
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
                         ),
                       ),
                       const SizedBox(width: 12),
                       Expanded(
                         child: ElevatedButton(
                           onPressed: () async {
-                            for (var date in _selectedDates) {
+                            for (var date in selectedDates) {
                               final startDateTime = DateTime(
-                                date.year, date.month, date.day,
-                                startTime.hour, startTime.minute,
+                                date.year,
+                                date.month,
+                                date.day,
+                                startTime.hour,
+                                startTime.minute,
                               );
                               final endDateTime = DateTime(
-                                date.year, date.month, date.day,
-                                endTime.hour, endTime.minute,
+                                date.year,
+                                date.month,
+                                date.day,
+                                endTime.hour,
+                                endTime.minute,
                               );
                               await _supabase.from('sesi_scrim').insert({
                                 'id_scrim': widget.scrimId,
@@ -216,7 +263,10 @@ class _ScrimSessionsPageState extends State<ScrimSessionsPage> {
                             backgroundColor: AppColors.primary,
                             padding: const EdgeInsets.symmetric(vertical: 12),
                           ),
-                          child: Text('SIMPAN', style: AppTextStyles.poppinsButton),
+                          child: Text(
+                            'SIMPAN',
+                            style: AppTextStyles.poppinsButton,
+                          ),
                         ),
                       ),
                     ],
@@ -230,16 +280,23 @@ class _ScrimSessionsPageState extends State<ScrimSessionsPage> {
     );
   }
 
-  Widget _buildCalendarGrid(DateTime month, Set<DateTime> selectedDates, Function(DateTime) onDateTap) {
+  Widget _buildCalendarGrid(
+    DateTime month,
+    Set<DateTime> selectedDates,
+    Function(DateTime) onDateTap,
+  ) {
     final daysInMonth = DateTime(month.year, month.month + 1, 0).day;
     final firstDayOfWeek = DateTime(month.year, month.month, 1).weekday % 7;
     final today = DateTime.now();
-    
+
     return GridView.builder(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 7, childAspectRatio: 1.2, mainAxisSpacing: 4, crossAxisSpacing: 4,
+        crossAxisCount: 7,
+        childAspectRatio: 1.2,
+        mainAxisSpacing: 4,
+        crossAxisSpacing: 4,
       ),
       itemCount: 42,
       itemBuilder: (context, index) {
@@ -249,8 +306,11 @@ class _ScrimSessionsPageState extends State<ScrimSessionsPage> {
         }
         final date = DateTime(month.year, month.month, day);
         final isSelected = selectedDates.contains(date);
-        final isToday = date.year == today.year && date.month == today.month && date.day == today.day;
-        
+        final isToday =
+            date.year == today.year &&
+            date.month == today.month &&
+            date.day == today.day;
+
         return GestureDetector(
           onTap: () => onDateTap(date),
           child: Container(
@@ -277,57 +337,78 @@ class _ScrimSessionsPageState extends State<ScrimSessionsPage> {
   Future<void> _showEditSessionPopup(Map<String, dynamic> session) async {
     final currentDate = DateTime.parse(session['waktu_mulai']).toLocal();
     DateTime selectedDate = currentDate;
-    TimeOfDay startTime = TimeOfDay(hour: currentDate.hour, minute: currentDate.minute);
+    TimeOfDay startTime = TimeOfDay(
+      hour: currentDate.hour,
+      minute: currentDate.minute,
+    );
     final endDateTime = DateTime.parse(session['waktu_selesai']).toLocal();
-    TimeOfDay endTime = TimeOfDay(hour: endDateTime.hour, minute: endDateTime.minute);
+    TimeOfDay endTime = TimeOfDay(
+      hour: endDateTime.hour,
+      minute: endDateTime.minute,
+    );
     int slot = session['slot_maksimal'] ?? 12;
     int currentParticipants = 10; // TODO: hitung dari database
     String currentRoomId = session['room_id'] ?? '';
-    
+
     await showDialog(
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDialogState) {
           return Dialog(
             backgroundColor: AppColors.backgroundCard,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
             child: Container(
               width: MediaQuery.of(context).size.width - 40,
               padding: const EdgeInsets.all(16),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text('Edit Sesi', style: AppTextStyles.poppinsHeadline.copyWith(fontSize: 20)),
+                  Text(
+                    'Edit Sesi',
+                    style: AppTextStyles.poppinsHeadline.copyWith(fontSize: 20),
+                  ),
                   const SizedBox(height: 4),
-                  Text('SESI BARU UNTUK SCRIM', style: AppTextStyles.interLabel.copyWith(color: AppColors.primary, fontSize: 10)),
+                  Text(
+                    'SESI BARU UNTUK SCRIM',
+                    style: AppTextStyles.interLabel.copyWith(
+                      color: AppColors.primary,
+                      fontSize: 10,
+                    ),
+                  ),
                   const SizedBox(height: 16),
-                  
+
                   // Date picker
                   _buildDatePicker(selectedDate, (date) {
                     setDialogState(() => selectedDate = date);
                   }),
                   const SizedBox(height: 16),
-                  
+
                   // Time pickers
                   Row(
                     children: [
-                      Expanded(child: _buildTimePicker('MULAI', startTime, (time) {
-                        setDialogState(() => startTime = time);
-                      })),
+                      Expanded(
+                        child: _buildTimePicker('MULAI', startTime, (time) {
+                          setDialogState(() => startTime = time);
+                        }),
+                      ),
                       const SizedBox(width: 16),
-                      Expanded(child: _buildTimePicker('SELESAI', endTime, (time) {
-                        setDialogState(() => endTime = time);
-                      })),
+                      Expanded(
+                        child: _buildTimePicker('SELESAI', endTime, (time) {
+                          setDialogState(() => endTime = time);
+                        }),
+                      ),
                     ],
                   ),
                   const SizedBox(height: 16),
-                  
+
                   // Slot picker
                   _buildSlotPicker(slot, (value) {
                     setDialogState(() => slot = value);
                   }),
                   const SizedBox(height: 16),
-                  
+
                   // Current capacity info
                   Container(
                     padding: const EdgeInsets.all(12),
@@ -338,18 +419,26 @@ class _ScrimSessionsPageState extends State<ScrimSessionsPage> {
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text('KAPASITAS SAAT INI', style: AppTextStyles.interLabel),
-                        Text('$currentParticipants/$slot Tim', style: AppTextStyles.poppinsMoneySmall),
+                        Text(
+                          'KAPASITAS SAAT INI',
+                          style: AppTextStyles.interLabel,
+                        ),
+                        Text(
+                          '$currentParticipants/$slot Tim',
+                          style: AppTextStyles.poppinsMoneySmall,
+                        ),
                       ],
                     ),
                   ),
                   const SizedBox(height: 8),
                   Text(
                     'Mengubah waktu akan memberitahu peserta yang sudah terdaftar.',
-                    style: AppTextStyles.interCaption.copyWith(color: AppColors.textHint),
+                    style: AppTextStyles.interCaption.copyWith(
+                      color: AppColors.textHint,
+                    ),
                   ),
                   const SizedBox(height: 24),
-                  
+
                   Row(
                     children: [
                       Expanded(
@@ -359,7 +448,12 @@ class _ScrimSessionsPageState extends State<ScrimSessionsPage> {
                             side: BorderSide(color: AppColors.divider),
                             padding: const EdgeInsets.symmetric(vertical: 12),
                           ),
-                          child: Text('BATAL', style: AppTextStyles.poppinsButton.copyWith(color: AppColors.textSecondary)),
+                          child: Text(
+                            'BATAL',
+                            style: AppTextStyles.poppinsButton.copyWith(
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
                         ),
                       ),
                       const SizedBox(width: 12),
@@ -367,19 +461,32 @@ class _ScrimSessionsPageState extends State<ScrimSessionsPage> {
                         child: ElevatedButton(
                           onPressed: () async {
                             final startDateTime = DateTime(
-                              selectedDate.year, selectedDate.month, selectedDate.day,
-                              startTime.hour, startTime.minute,
+                              selectedDate.year,
+                              selectedDate.month,
+                              selectedDate.day,
+                              startTime.hour,
+                              startTime.minute,
                             );
                             final endDateTime = DateTime(
-                              selectedDate.year, selectedDate.month, selectedDate.day,
-                              endTime.hour, endTime.minute,
+                              selectedDate.year,
+                              selectedDate.month,
+                              selectedDate.day,
+                              endTime.hour,
+                              endTime.minute,
                             );
-                            await _supabase.from('sesi_scrim').update({
-                              'waktu_mulai': startDateTime.toIso8601String(),
-                              'waktu_selesai': endDateTime.toIso8601String(),
-                              'slot_maksimal': slot,
-                              'room_id': currentRoomId.isEmpty ? null : currentRoomId,
-                            }).eq('id_sesi', session['id_sesi']);
+                            await _supabase
+                                .from('sesi_scrim')
+                                .update({
+                                  'waktu_mulai': startDateTime
+                                      .toIso8601String(),
+                                  'waktu_selesai': endDateTime
+                                      .toIso8601String(),
+                                  'slot_maksimal': slot,
+                                  'room_id': currentRoomId.isEmpty
+                                      ? null
+                                      : currentRoomId,
+                                })
+                                .eq('id_sesi', session['id_sesi']);
                             Navigator.pop(ctx);
                             _fetchData();
                           },
@@ -387,7 +494,10 @@ class _ScrimSessionsPageState extends State<ScrimSessionsPage> {
                             backgroundColor: AppColors.primary,
                             padding: const EdgeInsets.symmetric(vertical: 12),
                           ),
-                          child: Text('SIMPAN PERUBAHAN', style: AppTextStyles.poppinsButton),
+                          child: Text(
+                            'SIMPAN PERUBAHAN',
+                            style: AppTextStyles.poppinsButton,
+                          ),
                         ),
                       ),
                     ],
@@ -405,7 +515,10 @@ class _ScrimSessionsPageState extends State<ScrimSessionsPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('TANGGAL', style: AppTextStyles.interLabel.copyWith(color: AppColors.primary)),
+        Text(
+          'TANGGAL',
+          style: AppTextStyles.interLabel.copyWith(color: AppColors.primary),
+        ),
         const SizedBox(height: 8),
         GestureDetector(
           onTap: () async {
@@ -439,7 +552,10 @@ class _ScrimSessionsPageState extends State<ScrimSessionsPage> {
               children: [
                 const Icon(Icons.calendar_today, color: AppColors.primary),
                 const SizedBox(width: 12),
-                Text(_formatDate(selectedDate), style: AppTextStyles.interInput),
+                Text(
+                  _formatDate(selectedDate),
+                  style: AppTextStyles.interInput,
+                ),
                 const Spacer(),
                 const Icon(Icons.arrow_drop_down, color: AppColors.primary),
               ],
@@ -450,11 +566,18 @@ class _ScrimSessionsPageState extends State<ScrimSessionsPage> {
     );
   }
 
-  Widget _buildTimePicker(String label, TimeOfDay time, Function(TimeOfDay) onChanged) {
+  Widget _buildTimePicker(
+    String label,
+    TimeOfDay time,
+    Function(TimeOfDay) onChanged,
+  ) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: AppTextStyles.interLabel.copyWith(color: AppColors.primary)),
+        Text(
+          label,
+          style: AppTextStyles.interLabel.copyWith(color: AppColors.primary),
+        ),
         const SizedBox(height: 8),
         GestureDetector(
           onTap: () async {
@@ -499,7 +622,10 @@ class _ScrimSessionsPageState extends State<ScrimSessionsPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('KAPASITAS', style: AppTextStyles.interLabel.copyWith(color: AppColors.primary)),
+        Text(
+          'KAPASITAS',
+          style: AppTextStyles.interLabel.copyWith(color: AppColors.primary),
+        ),
         const SizedBox(height: 8),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 8),
@@ -538,10 +664,20 @@ class _ScrimSessionsPageState extends State<ScrimSessionsPage> {
         backgroundColor: AppColors.backgroundCard,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: Text('Hapus Sesi', style: AppTextStyles.poppinsTitle),
-        content: Text('Yakin ingin menghapus sesi ini?', style: AppTextStyles.interBody),
+        content: Text(
+          'Yakin ingin menghapus sesi ini?',
+          style: AppTextStyles.interBody,
+        ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text('Batal', style: AppTextStyles.interLink)),
-          ElevatedButton(style: ElevatedButton.styleFrom(backgroundColor: AppColors.error), onPressed: () => Navigator.pop(ctx, true), child: Text('Hapus', style: AppTextStyles.poppinsButton)),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text('Batal', style: AppTextStyles.interLink),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.error),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text('Hapus', style: AppTextStyles.poppinsButton),
+          ),
         ],
       ),
     );
@@ -552,7 +688,20 @@ class _ScrimSessionsPageState extends State<ScrimSessionsPage> {
   }
 
   String _formatDate(DateTime d) => '${d.day} ${_getMonth(d.month)} ${d.year}';
-  String _getMonth(int m) => ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'][m - 1];
+  String _getMonth(int m) => [
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'Mei',
+    'Jun',
+    'Jul',
+    'Agu',
+    'Sep',
+    'Okt',
+    'Nov',
+    'Des',
+  ][m - 1];
   String _formatTime(String? s) {
     if (s == null) return '-';
     final d = DateTime.parse(s);
@@ -583,7 +732,9 @@ class _ScrimSessionsPageState extends State<ScrimSessionsPage> {
     if (_isLoading) {
       return Scaffold(
         backgroundColor: AppColors.background,
-        body: const Center(child: CircularProgressIndicator(color: AppColors.primary)),
+        body: const Center(
+          child: CircularProgressIndicator(color: AppColors.primary),
+        ),
       );
     }
 
@@ -608,11 +759,17 @@ class _ScrimSessionsPageState extends State<ScrimSessionsPage> {
                   isExpanded: true,
                   dropdownColor: AppColors.backgroundCard,
                   style: AppTextStyles.interInput,
-                  icon: const Icon(Icons.arrow_drop_down, color: AppColors.primary),
+                  icon: const Icon(
+                    Icons.arrow_drop_down,
+                    color: AppColors.primary,
+                  ),
                   items: _availableDates.map((date) {
                     return DropdownMenuItem(
                       value: date,
-                      child: Text(_formatDate(date), style: AppTextStyles.interInput),
+                      child: Text(
+                        _formatDate(date),
+                        style: AppTextStyles.interInput,
+                      ),
                     );
                   }).toList(),
                   onChanged: (date) {
@@ -648,9 +805,16 @@ class _ScrimSessionsPageState extends State<ScrimSessionsPage> {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        const Icon(Icons.schedule_outlined, size: 48, color: AppColors.textSecondary),
+                        const Icon(
+                          Icons.schedule_outlined,
+                          size: 48,
+                          color: AppColors.textSecondary,
+                        ),
                         const SizedBox(height: 16),
-                        Text('Belum ada sesi untuk tanggal ini', style: AppTextStyles.interBody),
+                        Text(
+                          'Belum ada sesi untuk tanggal ini',
+                          style: AppTextStyles.interBody,
+                        ),
                       ],
                     ),
                   )
@@ -662,7 +826,7 @@ class _ScrimSessionsPageState extends State<ScrimSessionsPage> {
                       final slotMaks = sesi['slot_maksimal'] ?? 12;
                       final slotTerisi = _getSlotTerisi(sesi['id_sesi']);
                       final sisaSlot = slotMaks - slotTerisi;
-                      
+
                       return Container(
                         margin: const EdgeInsets.only(bottom: 12),
                         padding: const EdgeInsets.all(16),
@@ -681,26 +845,39 @@ class _ScrimSessionsPageState extends State<ScrimSessionsPage> {
                                 // Waktu
                                 Row(
                                   children: [
-                                    Icon(Icons.access_time, size: 16, color: AppColors.primary),
+                                    Icon(
+                                      Icons.access_time,
+                                      size: 16,
+                                      color: AppColors.primary,
+                                    ),
                                     const SizedBox(width: 8),
                                     Text(
                                       '${_formatTime(sesi['waktu_mulai'])} - ${_formatTime(sesi['waktu_selesai'])}',
-                                      style: AppTextStyles.poppinsTitleSmall.copyWith(fontSize: 14),
+                                      style: AppTextStyles.poppinsTitleSmall
+                                          .copyWith(fontSize: 14),
                                     ),
                                   ],
                                 ),
                                 // Edit & Delete buttons
                                 Row(
                                   children: [
-                                    _actionButton(Icons.edit, AppColors.primary, () => _showEditSessionPopup(sesi)),
+                                    _actionButton(
+                                      Icons.edit,
+                                      AppColors.primary,
+                                      () => _showEditSessionPopup(sesi),
+                                    ),
                                     const SizedBox(width: 8),
-                                    _actionButton(Icons.delete, AppColors.error, () => _deleteSession(sesi['id_sesi'])),
+                                    _actionButton(
+                                      Icons.delete,
+                                      AppColors.error,
+                                      () => _deleteSession(sesi['id_sesi']),
+                                    ),
                                   ],
                                 ),
                               ],
                             ),
                             const SizedBox(height: 12),
-                            
+
                             // Baris 2: Slot info
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -708,32 +885,45 @@ class _ScrimSessionsPageState extends State<ScrimSessionsPage> {
                                 Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Text('SLOT TERISI', style: AppTextStyles.interLabel.copyWith(fontSize: 10)),
+                                    Text(
+                                      'SLOT TERISI',
+                                      style: AppTextStyles.interLabel.copyWith(
+                                        fontSize: 10,
+                                      ),
+                                    ),
                                     Text(
                                       '$slotTerisi/$slotMaks Tim',
-                                      style: AppTextStyles.poppinsMoneySmall.copyWith(fontSize: 18),
+                                      style: AppTextStyles.poppinsMoneySmall
+                                          .copyWith(fontSize: 18),
                                     ),
                                   ],
                                 ),
                                 Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 6,
+                                  ),
                                   decoration: BoxDecoration(
-                                    color: sisaSlot > 0 
-                                        ? AppColors.primary.withOpacity(0.15) 
+                                    color: sisaSlot > 0
+                                        ? AppColors.primary.withOpacity(0.15)
                                         : AppColors.error.withOpacity(0.15),
                                     borderRadius: BorderRadius.circular(20),
                                   ),
                                   child: Text(
-                                    sisaSlot > 0 ? '$sisaSlot Slot Tersisa' : 'Penuh',
+                                    sisaSlot > 0
+                                        ? '$sisaSlot Slot Tersisa'
+                                        : 'Penuh',
                                     style: AppTextStyles.interCaption.copyWith(
-                                      color: sisaSlot > 0 ? AppColors.primary : AppColors.error,
+                                      color: sisaSlot > 0
+                                          ? AppColors.primary
+                                          : AppColors.error,
                                       fontWeight: FontWeight.w700,
                                     ),
                                   ),
                                 ),
                               ],
                             ),
-                            
+
                             // // Baris 3: Room ID (jika ada)
                             // if (sesi['room_id'] != null && sesi['room_id'].toString().isNotEmpty) ...[
                             //   const SizedBox(height: 12),

@@ -66,7 +66,8 @@ class _BookingFormPageState extends State<BookingFormPage> {
         final response = await supabase
             .from('pendaftaran_tim')
             .insert({
-              'id_sesi': widget.sesiId, // Menggunakan parameter asli yang dilempar ke halaman
+              'id_sesi': widget
+                  .sesiId, // Menggunakan parameter asli yang dilempar ke halaman
               'id_tim': 1, // Sesuaikan dengan logika id_tim pengguna lu bray
               'nama_kapten': _namaKaptenController.text,
               'whatsapp_kapten': _whatsappController.text,
@@ -75,7 +76,7 @@ class _BookingFormPageState extends State<BookingFormPage> {
               'id_player_3': _idPlayer3Controller.text,
               'id_player_4': _idPlayer4Controller.text,
               // Mengambil value dinamis dari pilihan user di UI
-              'metode_pembayaran_daftar': _selectedPaymentMethod, 
+              'metode_pembayaran_daftar': _selectedPaymentMethod,
             })
             .select('id_pendaftaran')
             .single();
@@ -89,8 +90,10 @@ class _BookingFormPageState extends State<BookingFormPage> {
 
         // Navigasi ke halaman payment checkout bawa ID baru
         if (!mounted) return;
-        context.push('/user/payment/$idBaruDariSupabase', extra: idBaruDariSupabase);
-
+        context.push(
+          '/user/payment/$idBaruDariSupabase',
+          extra: idBaruDariSupabase,
+        );
       } catch (error) {
         // Tutup loading dialog jika terjadi kegagalan
         if (!mounted) return;
@@ -138,7 +141,10 @@ class _BookingFormPageState extends State<BookingFormPage> {
               // ─── Top Banner: Slot Dipilih ───────────────────────────
               Container(
                 width: double.infinity,
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
                 decoration: BoxDecoration(
                   color: AppColors.backgroundCard,
                   borderRadius: BorderRadius.circular(12),
@@ -146,7 +152,11 @@ class _BookingFormPageState extends State<BookingFormPage> {
                 ),
                 child: Row(
                   children: [
-                    const Icon(Icons.check_circle_outline, color: AppColors.accent, size: 20),
+                    const Icon(
+                      Icons.check_circle_outline,
+                      color: AppColors.accent,
+                      size: 20,
+                    ),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Text(
@@ -169,15 +179,21 @@ class _BookingFormPageState extends State<BookingFormPage> {
               _buildYellowCard(
                 children: [
                   _buildFieldLabel('Nama Tim'),
-                  _buildInputField(controller: _namaTimController, hint: 'Nama'),
+                  _buildInputField(
+                    controller: _namaTimController,
+                    hint: 'Nama',
+                  ),
                   const SizedBox(height: 16),
                   _buildFieldLabel('Nama Kapten'),
-                  _buildInputField(controller: _namaKaptenController, hint: 'Nama Lengkap'),
+                  _buildInputField(
+                    controller: _namaKaptenController,
+                    hint: 'Nama Lengkap',
+                  ),
                   const SizedBox(height: 16),
                   _buildFieldLabel('WhatsApp Kapten'),
                   _buildInputField(
-                    controller: _whatsappController, 
-                    hint: '0857-xxxx', 
+                    controller: _whatsappController,
+                    hint: '0857-xxxx',
                     keyboardType: TextInputType.phone,
                   ),
                 ],
@@ -190,16 +206,28 @@ class _BookingFormPageState extends State<BookingFormPage> {
               _buildYellowCard(
                 children: [
                   _buildFieldLabel('ID Player 1 (Kapten)'),
-                  _buildInputField(controller: _idPlayer1Controller, hint: 'Masukkan ID Player'),
+                  _buildInputField(
+                    controller: _idPlayer1Controller,
+                    hint: 'Masukkan ID Player',
+                  ),
                   const SizedBox(height: 16),
                   _buildFieldLabel('ID Player 2'),
-                  _buildInputField(controller: _idPlayer2Controller, hint: 'Masukkan ID Player'),
+                  _buildInputField(
+                    controller: _idPlayer2Controller,
+                    hint: 'Masukkan ID Player',
+                  ),
                   const SizedBox(height: 16),
                   _buildFieldLabel('ID Player 3'),
-                  _buildInputField(controller: _idPlayer3Controller, hint: 'Masukkan ID Player'),
+                  _buildInputField(
+                    controller: _idPlayer3Controller,
+                    hint: 'Masukkan ID Player',
+                  ),
                   const SizedBox(height: 16),
                   _buildFieldLabel('ID Player 4'),
-                  _buildInputField(controller: _idPlayer4Controller, hint: 'Masukkan ID Player'),
+                  _buildInputField(
+                    controller: _idPlayer4Controller,
+                    hint: 'Masukkan ID Player',
+                  ),
                 ],
               ),
               const SizedBox(height: 24),
@@ -211,73 +239,92 @@ class _BookingFormPageState extends State<BookingFormPage> {
                 children: [
                   _buildFieldLabel('Pilih Metode Pembayaran'),
                   DropdownButtonFormField<String>(
-                  value: _selectedPaymentMethod,
-                  dropdownColor: AppColors.backgroundCard, // Pop-up list pake background gelap lu bray
-                  icon: const Icon(Icons.arrow_drop_down, color: Color(0xFF1A2B38)), // Icon disamain sama warna label biar kontras
-                  
-                  // 1. INI KUNCINYA BRAY! Ngatur tampilan teks SETELAH dipilih (di dalam kotak putih)
-                  selectedItemBuilder: (BuildContext context) {
-                    return _paymentOptions.map<Widget>((option) {
-                      return Container(
-                        alignment: Alignment.centerLeft,
+                    initialValue: _selectedPaymentMethod,
+                    dropdownColor: AppColors
+                        .backgroundCard, // Pop-up list pake background gelap lu bray
+                    icon: const Icon(
+                      Icons.arrow_drop_down,
+                      color: Color(0xFF1A2B38),
+                    ), // Icon disamain sama warna label biar kontras
+                    // 1. INI KUNCINYA BRAY! Ngatur tampilan teks SETELAH dipilih (di dalam kotak putih)
+                    selectedItemBuilder: (BuildContext context) {
+                      return _paymentOptions.map<Widget>((option) {
+                        return Container(
+                          alignment: Alignment.centerLeft,
+                          child: Text(
+                            option['label']!,
+                            style: const TextStyle(
+                              color: Colors
+                                  .black87, // Teks jadi hitam/gelap pas udah kepilih di kotak putih!
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        );
+                      }).toList();
+                    },
+
+                    // 2. Ini tampilan PAS POP-UP LIST DIKLIK/MUNCUL (di luar kotak putih)
+                    items: _paymentOptions.map((option) {
+                      return DropdownMenuItem<String>(
+                        value: option['value'],
                         child: Text(
                           option['label']!,
                           style: const TextStyle(
-                            color: Colors.black87, // Teks jadi hitam/gelap pas udah kepilih di kotak putih!
+                            color: AppColors
+                                .textPrimary, // Tetep putih biar kontras di background gelap list-nya
                             fontSize: 14,
                             fontWeight: FontWeight.w500,
                           ),
                         ),
                       );
-                    }).toList();
-                  },
-                  
-                  // 2. Ini tampilan PAS POP-UP LIST DIKLIK/MUNCUL (di luar kotak putih)
-                  items: _paymentOptions.map((option) {
-                    return DropdownMenuItem<String>(
-                      value: option['value'],
-                      child: Text(
-                        option['label']!,
-                        style: const TextStyle(
-                          color: AppColors.textPrimary, // Tetep putih biar kontras di background gelap list-nya
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500,
+                    }).toList(),
+                    onChanged: (value) {
+                      setState(() {
+                        _selectedPaymentMethod = value;
+                      });
+                    },
+                    decoration: InputDecoration(
+                      hintText: 'Pilih Metode',
+                      hintStyle: TextStyle(
+                        color: Colors.grey.shade500,
+                        fontSize: 14,
+                      ),
+                      filled: true,
+                      fillColor: const Color(
+                        0xFFF3F3F3,
+                      ), // Kotak input tetep putih bersih serasi ama field atas
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 14,
+                      ),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide.none,
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide.none,
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(
+                          color: Color(0xFF020C15),
+                          width: 1.5,
                         ),
                       ),
-                    );
-                  }).toList(),
-                  onChanged: (value) {
-                    setState(() {
-                      _selectedPaymentMethod = value;
-                    });
-                  },
-                  decoration: InputDecoration(
-                    hintText: 'Pilih Metode',
-                    hintStyle: TextStyle(color: Colors.grey.shade500, fontSize: 14),
-                    filled: true,
-                    fillColor: const Color(0xFFF3F3F3), // Kotak input tetep putih bersih serasi ama field atas
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide.none,
+                      errorStyle: const TextStyle(
+                        color: Color(0xFF8B1A00),
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide.none,
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: Color(0xFF020C15), width: 1.5),
-                    ),
-                    errorStyle: const TextStyle(color: Color(0xFF8B1A00), fontWeight: FontWeight.bold),
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return 'Silakan pilih metode pembayaran bray';
+                      }
+                      return null;
+                    },
                   ),
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Silakan pilih metode pembayaran bray';
-                    }
-                    return null;
-                  },
-                )
                 ],
               ),
               const SizedBox(height: 32),
@@ -298,10 +345,7 @@ class _BookingFormPageState extends State<BookingFormPage> {
                   ),
                   child: const Text(
                     'Selanjutnya',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                   ),
                 ),
               ),
@@ -372,7 +416,10 @@ class _BookingFormPageState extends State<BookingFormPage> {
         hintStyle: TextStyle(color: Colors.grey.shade500, fontSize: 14),
         filled: true,
         fillColor: const Color(0xFFF3F3F3),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 14,
+        ),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide.none,
@@ -385,7 +432,10 @@ class _BookingFormPageState extends State<BookingFormPage> {
           borderRadius: BorderRadius.circular(12),
           borderSide: const BorderSide(color: Color(0xFF020C15), width: 1.5),
         ),
-        errorStyle: const TextStyle(color: Color(0xFF8B1A00), fontWeight: FontWeight.bold),
+        errorStyle: const TextStyle(
+          color: Color(0xFF8B1A00),
+          fontWeight: FontWeight.bold,
+        ),
       ),
       validator: (value) {
         if (value == null || value.trim().isEmpty) {

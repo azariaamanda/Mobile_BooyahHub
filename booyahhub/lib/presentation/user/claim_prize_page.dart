@@ -20,7 +20,9 @@ class ClaimPrizePage extends StatelessWidget {
         ),
         title: Text(
           'Klaim Hadiah',
-          style: AppTextStyles.poppinsTitle.copyWith(color: AppColors.textPrimary),
+          style: AppTextStyles.poppinsTitle.copyWith(
+            color: AppColors.textPrimary,
+          ),
         ),
         centerTitle: false,
       ),
@@ -33,9 +35,7 @@ class ClaimPrizePage extends StatelessWidget {
               const SizedBox(height: 16),
               Text(
                 'Penghargaan Kamu',
-                style: AppTextStyles.poppinsHeadline.copyWith(
-                  fontSize: 24,
-                ),
+                style: AppTextStyles.poppinsHeadline.copyWith(fontSize: 24),
               ),
               const SizedBox(height: 8),
               Text(
@@ -43,7 +43,7 @@ class ClaimPrizePage extends StatelessWidget {
                 style: AppTextStyles.interBody,
               ),
               const SizedBox(height: 32),
-              
+
               // Belum Diklaim Card
               _buildPrizeCard(
                 context,
@@ -87,7 +87,11 @@ class ClaimPrizePage extends StatelessWidget {
                           ),
                         ),
                         const SizedBox(width: 8),
-                        const Icon(Icons.chevron_right, color: AppColors.black, size: 20),
+                        const Icon(
+                          Icons.chevron_right,
+                          color: AppColors.black,
+                          size: 20,
+                        ),
                       ],
                     ),
                   ),
@@ -187,7 +191,10 @@ class ClaimPrizePage extends StatelessWidget {
                 ),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 6,
+                ),
                 decoration: BoxDecoration(
                   color: badgeColor,
                   borderRadius: BorderRadius.circular(20),
@@ -212,7 +219,11 @@ class ClaimPrizePage extends StatelessWidget {
                 children: [
                   Row(
                     children: [
-                      const Icon(Icons.star, color: AppColors.primary, size: 14),
+                      const Icon(
+                        Icons.star,
+                        color: AppColors.primary,
+                        size: 14,
+                      ),
                       const SizedBox(width: 4),
                       Text('Rank', style: AppTextStyles.interCaption),
                     ],
@@ -242,7 +253,7 @@ class ClaimPrizePage extends StatelessWidget {
               ),
             ],
           ),
-          if (actionWidget != null) actionWidget,
+          ?actionWidget,
         ],
       ),
     );
