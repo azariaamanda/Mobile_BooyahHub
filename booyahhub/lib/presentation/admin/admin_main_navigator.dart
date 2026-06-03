@@ -3,7 +3,7 @@ import '../../config/app_color.dart';
 import '../../config/app_constants.dart';
 import '../../config/app_text_styles.dart';
 import 'admin_dashboard_screen.dart';
-import 'create_scrim_page.dart';
+import 'admin_scrim_page.dart';
 import 'peserta_management_page.dart';
 import 'admin_keuangan_page.dart';
 import 'admin_profile_page.dart';
@@ -20,7 +20,7 @@ class _AdminMainNavigatorState extends State<AdminMainNavigator> {
 
   final List<Widget> _pages = const [
     AdminDashboardScreen(), // 0: Dashboard
-    CreateScrimPage(), // 1: Buat Scrim
+    AdminScrimPage(), // 1: Scrim
     PesertaManagementPage(), // 2: Peserta
     AdminKeuanganPage(), // 3: Keuangan
     AdminProfilePage(), // 4: Pengaturan
