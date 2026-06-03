@@ -5,7 +5,7 @@ import '../../config/app_text_styles.dart';
 import 'admin_dashboard_screen.dart';
 import 'create_scrim_page.dart';
 import 'peserta_management_page.dart';
-import '../../data/models/services/admin_keuangan_page.dart';
+import 'admin_keuangan_page.dart';
 import 'setting_page.dart';
 
 class AdminMainNavigator extends StatefulWidget {

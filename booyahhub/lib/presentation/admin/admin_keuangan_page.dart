@@ -113,7 +113,7 @@ class _AdminKeuanganPageState extends State<AdminKeuanganPage> {
                       ),
                       const SizedBox(width: 4),
                       Text(
-                        '+0% Bulan ini', // Placeholder, bisa dihitung jika ada data perbandingan
+                        '+0% Bulan ini',
                         style: AppTextStyles.interCaption.copyWith(
                           color: AppColors.success,
                         ),
