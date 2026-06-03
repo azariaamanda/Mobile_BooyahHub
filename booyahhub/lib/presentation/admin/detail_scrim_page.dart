@@ -4,9 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../config/app_color.dart';
 import '../../config/app_constants.dart';
 import '../../config/app_text_styles.dart';
-import 'scrim_sessions_page.dart';      // import file sesi
-import 'scrim_points_page.dart';        // import file poin
-import 'scrim_leaderboard_page.dart';   // import file leaderboard
+import 'scrim_sessions_page.dart';
 
 class DetailScrimPage extends StatefulWidget {
   final int scrimId;
@@ -36,7 +34,7 @@ class _DetailScrimPageState extends State<DetailScrimPage>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 4, vsync: this);
+    _tabController = TabController(length: 2, vsync: this);  // Hanya 2 tab
     _fetchDetail();
   }
 
@@ -47,61 +45,61 @@ class _DetailScrimPageState extends State<DetailScrimPage>
   }
 
   Future<void> _fetchDetail() async {
-  setState(() => _isLoading = true);
-  try {
-    final scrimData = await _supabase
-        .from('scrim')
-        .select('*')
-        .eq('id_scrim', widget.scrimId)
-        .single();
-    _scrim = scrimData;
+    setState(() => _isLoading = true);
+    try {
+      final scrimData = await _supabase
+          .from('scrim')
+          .select('*')
+          .eq('id_scrim', widget.scrimId)
+          .single();
+      _scrim = scrimData;
 
-    final idMode = scrimData['id_mode'];
-    print('=== DEBUG ===');
-    print('id_mode dari scrim: $idMode');
-    print('id_scrim: ${scrimData['id_scrim']}');
-    
-    if (idMode != null) {
-      final modeData = await _supabase
-          .from('master_mode_pertandingan')
-          .select('nama_mode')
-          .eq('id_mode', idMode)
-          .maybeSingle();
+      final idMode = scrimData['id_mode'];
+      print('=== DEBUG ===');
+      print('id_mode dari scrim: $idMode');
+      print('id_scrim: ${scrimData['id_scrim']}');
       
-      print('modeData: $modeData');
-      
-      if (modeData != null && modeData['nama_mode'] != null) {
-        _namaMode = modeData['nama_mode'].toString();
-      } else {
-        // Fallback hardcoded
-        switch (idMode) {
-          case 1: _namaMode = 'Clash Squad'; break;
-          case 2: _namaMode = 'Battle Royale'; break;
-          case 3: _namaMode = 'Ranked BR'; break;
-          case 4: _namaMode = 'Solo Vs Squad'; break;
-          default: _namaMode = 'Mode $idMode';
+      if (idMode != null) {
+        final modeData = await _supabase
+            .from('master_mode_pertandingan')
+            .select('nama_mode')
+            .eq('id_mode', idMode)
+            .maybeSingle();
+        
+        print('modeData: $modeData');
+        
+        if (modeData != null && modeData['nama_mode'] != null) {
+          _namaMode = modeData['nama_mode'].toString();
+        } else {
+          // Fallback hardcoded
+          switch (idMode) {
+            case 1: _namaMode = 'Clash Squad'; break;
+            case 2: _namaMode = 'Battle Royale'; break;
+            case 3: _namaMode = 'Ranked BR'; break;
+            case 4: _namaMode = 'Solo Vs Squad'; break;
+            default: _namaMode = 'Mode $idMode';
+          }
         }
+      } else {
+        _namaMode = 'Mode tidak diatur';
       }
-    } else {
-      _namaMode = 'Mode tidak diatur';
-    }
-    
-    print('_namaMode: $_namaMode');
-    print('================');
+      
+      print('_namaMode: $_namaMode');
+      print('================');
 
-    final sesiData = await _supabase
-        .from('sesi_scrim')
-        .select('*')
-        .eq('id_scrim', widget.scrimId)
-        .order('waktu_mulai', ascending: true);
-    _sessions = List<Map<String, dynamic>>.from(sesiData);
-  } catch (e) {
-    debugPrint('Error fetchDetail: $e');
-    _namaMode = 'Error loading mode';
-  } finally {
-    if (mounted) setState(() => _isLoading = false);
+      final sesiData = await _supabase
+          .from('sesi_scrim')
+          .select('*')
+          .eq('id_scrim', widget.scrimId)
+          .order('waktu_mulai', ascending: true);
+      _sessions = List<Map<String, dynamic>>.from(sesiData);
+    } catch (e) {
+      debugPrint('Error fetchDetail: $e');
+      _namaMode = 'Error loading mode';
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
   }
-}
 
   Future<void> _deleteScrim() async {
     final confirm = await showDialog<bool>(
@@ -207,9 +205,7 @@ class _DetailScrimPageState extends State<DetailScrimPage>
                       controller: _tabController,
                       children: [
                         _buildInfoTab(),
-                        ScrimSessionsPage(scrimId: widget.scrimId),      // langsung panggil widget dari file terpisah
-                        ScrimPointsPage(scrimId: widget.scrimId),                         // langsung panggil widget dari file terpisah
-                        ScrimLeaderboardPage(scrimId: widget.scrimId),   // langsung panggil widget dari file terpisah
+                        ScrimSessionsPage(scrimId: widget.scrimId),  // HANYA SESI
                       ],
                     ),
                   ),
@@ -369,20 +365,18 @@ class _DetailScrimPageState extends State<DetailScrimPage>
         tabs: const [
           Tab(text: 'Informasi'),
           Tab(text: 'Sesi'),
-          Tab(text: 'Poin'),
-          Tab(text: 'Leaderboard'),
         ],
         indicatorColor: AppColors.primary,
         labelColor: AppColors.primary,
         unselectedLabelColor: AppColors.textHint,
         labelStyle: AppTextStyles.interLabel,
-        dividerColor: Colors.transparent,  // ← TAMBAHKAN INI
+        dividerColor: Colors.transparent,
       ),
     );
   }
 
   Widget _buildInfoTab() {
-    return SingleChildScrollView(  // ← TAMBAHKAN INI
+    return SingleChildScrollView(
       padding: const EdgeInsets.all(8),
       child: Column(
         children: [
