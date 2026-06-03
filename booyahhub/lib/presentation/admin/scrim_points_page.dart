@@ -14,8 +14,9 @@ class ScrimPointsPage extends StatefulWidget {
 class _ScrimPointsPageState extends State<ScrimPointsPage> {
   final _supabase = Supabase.instance.client;
   int _selectedMatch = 0;
+  bool _isLoading = false;
 
-  final List<Map<String, dynamic>> _teams = [
+  List<Map<String, dynamic>> _teams = [
     {
       'nama_tim': 'EVOS Divine',
       'kapten': 'Sam13',
@@ -39,7 +40,7 @@ class _ScrimPointsPageState extends State<ScrimPointsPage> {
     },
   ];
 
-  final List<Map<String, int>> _poinSystem = [
+  List<Map<String, dynamic>> _poinSystem = [
     {'place': 1, 'poin': 12},
     {'place': 2, 'poin': 10},
     {'place': 3, 'poin': 8},
@@ -178,11 +179,11 @@ class _ScrimPointsPageState extends State<ScrimPointsPage> {
   }
 
   Future<void> _saveScores() async {
-    if (_sessions.isEmpty || _teams.isEmpty) return;
+    if (_teams.isEmpty) return;
 
     setState(() => _isLoading = true);
     try {
-      final sesiId = _sessions[_selectedMatch]['id_sesi'];
+      final sesiId = widget.sesiId;
       final matchKe = _selectedMatch + 1;
 
       for (int i = 0; i < _teams.length; i++) {
@@ -279,7 +280,6 @@ class _ScrimPointsPageState extends State<ScrimPointsPage> {
   int get _sudahDiisi => _teams.where((t) => t['place'] != null).length;
   int get _belumDiisi => _totalTim - _sudahDiisi;
 
-  @override
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {

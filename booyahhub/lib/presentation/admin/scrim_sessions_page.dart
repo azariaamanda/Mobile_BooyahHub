@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../config/app_color.dart';
-import '../../config/app_constants.dart';
 import '../../config/app_text_styles.dart';
 
 class ScrimSessionsPage extends StatefulWidget {
@@ -166,10 +164,10 @@ class _ScrimSessionsPageState extends State<ScrimSessionsPage> {
                   // Calendar grid
                   _buildCalendarGrid(_currentMonth, _selectedDates, (date) {
                     setDialogState(() {
-                      if (selectedDates.contains(date)) {
-                        selectedDates.remove(date);
+                      if (_selectedDates.contains(date)) {
+                        _selectedDates.remove(date);
                       } else {
-                        selectedDates.add(date);
+                        _selectedDates.add(date);
                       }
                     });
                   }),
@@ -309,6 +307,8 @@ class _ScrimSessionsPageState extends State<ScrimSessionsPage> {
         }
         final date = DateTime(month.year, month.month, day);
         final isSelected = selectedDates.contains(date);
+        final hasExisting = _existingDates.contains(date);
+        final bgColor = isSelected ? AppColors.primary : null;
         final isToday =
             date.year == today.year &&
             date.month == today.month &&
@@ -337,239 +337,6 @@ class _ScrimSessionsPageState extends State<ScrimSessionsPage> {
           ),
         );
       },
-    );
-  }
-
-  // ==================== POPUP EDIT SESI ====================
-  Future<void> _showEditSessionPopup(Map<String, dynamic> session) async {
-    final currentDate = DateTime.parse(session['waktu_mulai']).toLocal();
-    DateTime selectedDate = currentDate;
-    TimeOfDay startTime = TimeOfDay(
-      hour: currentDate.hour,
-      minute: currentDate.minute,
-    );
-    final endDateTime = DateTime.parse(session['waktu_selesai']).toLocal();
-    TimeOfDay endTime = TimeOfDay(
-      hour: endDateTime.hour,
-      minute: endDateTime.minute,
-    );
-    int slot = session['slot_maksimal'] ?? 12;
-    int currentParticipants = 10; // TODO: hitung dari database
-    String currentRoomId = session['room_id'] ?? '';
-
-    await showDialog(
-      context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setDialogState) {
-          return Dialog(
-            backgroundColor: AppColors.backgroundCard,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Container(
-              width: MediaQuery.of(context).size.width - 40,
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    'Edit Sesi',
-                    style: AppTextStyles.poppinsHeadline.copyWith(fontSize: 20),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'SESI BARU UNTUK SCRIM',
-                    style: AppTextStyles.interLabel.copyWith(
-                      color: AppColors.primary,
-                      fontSize: 10,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Date picker
-                  _buildDatePicker(selectedDate, (date) {
-                    setDialogState(() => selectedDate = date);
-                  }),
-                  const SizedBox(height: 16),
-
-                  // Time pickers
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _buildTimePicker('MULAI', startTime, (time) {
-                          setDialogState(() => startTime = time);
-                        }),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: _buildTimePicker('SELESAI', endTime, (time) {
-                          setDialogState(() => endTime = time);
-                        }),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Slot picker
-                  _buildSlotPicker(slot, (value) {
-                    setDialogState(() => slot = value);
-                  }),
-                  const SizedBox(height: 16),
-
-                  // Current capacity info
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: AppColors.primary.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          'KAPASITAS SAAT INI',
-                          style: AppTextStyles.interLabel,
-                        ),
-                        Text(
-                          '$currentParticipants/$slot Tim',
-                          style: AppTextStyles.poppinsMoneySmall,
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Mengubah waktu akan memberitahu peserta yang sudah terdaftar.',
-                    style: AppTextStyles.interCaption.copyWith(
-                      color: AppColors.textHint,
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-
-                  Row(
-                    children: [
-                      Expanded(
-                        child: OutlinedButton(
-                          onPressed: () => Navigator.pop(ctx),
-                          style: OutlinedButton.styleFrom(
-                            side: BorderSide(color: AppColors.divider),
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                          ),
-                          child: Text(
-                            'BATAL',
-                            style: AppTextStyles.poppinsButton.copyWith(
-                              color: AppColors.textSecondary,
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: ElevatedButton(
-                          onPressed: () async {
-                            final startDateTime = DateTime(
-                              selectedDate.year,
-                              selectedDate.month,
-                              selectedDate.day,
-                              startTime.hour,
-                              startTime.minute,
-                            );
-                            final endDateTime = DateTime(
-                              selectedDate.year,
-                              selectedDate.month,
-                              selectedDate.day,
-                              endTime.hour,
-                              endTime.minute,
-                            );
-                            await _supabase
-                                .from('sesi_scrim')
-                                .update({
-                                  'waktu_mulai': startDateTime
-                                      .toIso8601String(),
-                                  'waktu_selesai': endDateTime
-                                      .toIso8601String(),
-                                  'slot_maksimal': slot,
-                                  'room_id': currentRoomId.isEmpty
-                                      ? null
-                                      : currentRoomId,
-                                })
-                                .eq('id_sesi', session['id_sesi']);
-                            Navigator.pop(ctx);
-                            _fetchData();
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.primary,
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                          ),
-                          child: Text(
-                            'SIMPAN PERUBAHAN',
-                            style: AppTextStyles.poppinsButton,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          );
-        },
-      ),
-    );
-  }
-
-  Widget _buildDatePicker(DateTime selectedDate, Function(DateTime) onChanged) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'TANGGAL',
-          style: AppTextStyles.interLabel.copyWith(color: AppColors.primary),
-        ),
-        const SizedBox(height: 8),
-        GestureDetector(
-          onTap: () async {
-            final picked = await showDatePicker(
-              context: context,
-              initialDate: selectedDate,
-              firstDate: DateTime.now(),
-              lastDate: DateTime.now().add(const Duration(days: 365)),
-              builder: (context, child) {
-                return Theme(
-                  data: Theme.of(context).copyWith(
-                    colorScheme: const ColorScheme.dark(
-                      primary: AppColors.primary,
-                      onPrimary: Colors.black,
-                      surface: AppColors.backgroundCard,
-                    ),
-                  ),
-                  child: child!,
-                );
-              },
-            );
-            if (picked != null) onChanged(picked);
-          },
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            decoration: BoxDecoration(
-              color: AppColors.inputFill,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Row(
-              children: [
-                const Icon(Icons.calendar_today, color: AppColors.primary),
-                const SizedBox(width: 12),
-                Text(
-                  _formatDate(selectedDate),
-                  style: AppTextStyles.interInput,
-                ),
-                const Spacer(),
-                const Icon(Icons.arrow_drop_down, color: AppColors.primary),
-              ],
-            ),
-          ),
-        ),
-      ],
     );
   }
 

@@ -142,6 +142,10 @@ class AdminDashboardScreen extends StatelessWidget {
 
             const SizedBox(height: AppConstants.paddingL),
 
+            // ── Keuangan ──
+            _RevenueCard(),
+            const SizedBox(height: AppConstants.paddingL),
+
             // ── Tren Booking ──
             Text(
               'Tren Booking',

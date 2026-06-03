@@ -245,10 +245,10 @@ class _DetailScrimPageState extends State<DetailScrimPage>
                           scrimId: widget.scrimId,
                         ), // langsung panggil widget dari file terpisah
                         ScrimPointsPage(
-                          scrimId: widget.scrimId,
+                          sesiId: widget.scrimId,
                         ), // langsung panggil widget dari file terpisah
                         ScrimLeaderboardPage(
-                          scrimId: widget.scrimId,
+                          sesiId: widget.scrimId,
                         ), // langsung panggil widget dari file terpisah
                       ],
                     ),

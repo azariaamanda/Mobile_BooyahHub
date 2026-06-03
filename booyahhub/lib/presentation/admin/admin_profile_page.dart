@@ -159,7 +159,10 @@ class _AdminProfilePageState extends State<AdminProfilePage> {
         backgroundColor: AppColors.background,
         leading: Navigator.canPop(context)
             ? IconButton(
-                icon: const Icon(Icons.arrow_back_ios, color: AppColors.primary),
+                icon: const Icon(
+                  Icons.arrow_back_ios,
+                  color: AppColors.primary,
+                ),
                 onPressed: () => context.pop(),
               )
             : null,
