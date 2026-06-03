@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../config/app_color.dart';
 import '../../config/app_text_styles.dart';
+import '../../data/models/services/auth_service.dart';
 
 import 'user_edit_profile_page.dart';
 import 'claim_prize_page.dart';
@@ -14,8 +15,43 @@ class UserProfilePage extends StatefulWidget {
 }
 
 class _UserProfilePageState extends State<UserProfilePage> {
-  String _name = 'Evos Shadow';
-  String _email = 'RaffiJulian@gmail.com';
+  String _name = 'Memuat...';
+  String _email = 'Memuat...';
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserProfile();
+  }
+
+  Future<void> _loadUserProfile() async {
+    final authService = AuthService();
+    final data = await authService.getCurrentAkunAndProfil();
+    
+    if (mounted && data != null) {
+      final akun = data['akun'];
+      final profil = data['profil'];
+      
+      setState(() {
+        _email = akun.email;
+        if (data['role'] == 'pengguna') {
+          _name = profil['nama_tim'] ?? 'Tim Tanpa Nama';
+        } else if (data['role'] == 'admin') {
+          _name = profil['nama_lengkap'] ?? 'Admin';
+        } else {
+          _name = profil['nama_owner'] ?? 'Owner';
+        }
+        _isLoading = false;
+      });
+    } else if (mounted) {
+      setState(() {
+        _name = 'Gagal memuat';
+        _email = 'Gagal memuat';
+        _isLoading = false;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
