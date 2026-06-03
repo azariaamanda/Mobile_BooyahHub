@@ -6,19 +6,16 @@ import '../../../config/app_text_styles.dart';
 
 class TeamProfileHeader extends StatelessWidget {
   final String namaTim;
-  final String fotoProfilName;
+  final String? fotoProfilUrl;
 
   const TeamProfileHeader({
     super.key,
     required this.namaTim,
-    required this.fotoProfilName,
+    this.fotoProfilUrl,
   });
 
   @override
   Widget build(BuildContext context) {
-    // Memakai image helper asli tim lu
-    final profileUrl = AppImageHelper.fotoProfilByEmail(fotoProfilName);
-
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween, // Mengganti .between yang error
       children: [
@@ -27,8 +24,8 @@ class TeamProfileHeader extends StatelessWidget {
             CircleAvatar(
               radius: 24,
               backgroundColor: AppColors.primary, // Memakai AppColors.primary (Emas Utama)
-              backgroundImage: profileUrl.isNotEmpty ? NetworkImage(profileUrl) : null,
-              child: profileUrl.isEmpty
+              backgroundImage: (fotoProfilUrl != null && fotoProfilUrl!.isNotEmpty) ? NetworkImage(fotoProfilUrl!) : null,
+              child: (fotoProfilUrl == null || fotoProfilUrl!.isEmpty)
                   ? const Icon(Icons.sports_esports, color: AppColors.black)
                   : null,
             ),

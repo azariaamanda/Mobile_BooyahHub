@@ -273,22 +273,18 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
                     if (snapshot.connectionState == ConnectionState.waiting) {
                       return const TeamProfileHeader(
                         namaTim: "Memuat...",
-                        fotoProfilName: "loading...",
+                        fotoProfilUrl: null,
                       );
                     }
 
                     final userData = snapshot.data;
                     final String namaTim =
                         userData?['nama_tim'] ?? "No Team Name";
-
-                    // Mengambil email dari hasil inner join relation 'akun'
-                    final Map<String, dynamic>? akunData =
-                        userData?['akun'] as Map<String, dynamic>?;
-                    final String emailUser = akunData?['email'] ?? "No Email";
+                    final String? fotoProfil = userData?['foto_profil'];
 
                     return TeamProfileHeader(
                       namaTim: namaTim,
-                      fotoProfilName: emailUser,
+                      fotoProfilUrl: fotoProfil,
                     );
                   },
                 ),

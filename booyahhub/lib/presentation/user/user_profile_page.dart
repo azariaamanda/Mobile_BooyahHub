@@ -6,6 +6,7 @@ import '../../data/models/services/auth_service.dart';
 
 import 'user_edit_profile_page.dart';
 import 'claim_prize_page.dart';
+import 'help_support_page.dart';
 
 class UserProfilePage extends StatefulWidget {
   const UserProfilePage({super.key});
@@ -129,7 +130,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
                 icon: Icons.person_outline,
                 title: 'Edit Profil',
                 onTap: () async {
-                  final result = await Navigator.of(context).push(
+                  await Navigator.of(context).push(
                     MaterialPageRoute(
                       builder: (context) => UserEditProfilePage(
                         initialName: _name,
@@ -139,12 +140,8 @@ class _UserProfilePageState extends State<UserProfilePage> {
                     ),
                   );
 
-                  if (result != null && result is Map<String, String>) {
-                    setState(() {
-                      _name = result['name'] ?? _name;
-                      _email = result['email'] ?? _email;
-                    });
-                  }
+                  // Reload dari database agar foto profil baru langsung tampil
+                  _loadUserProfile();
                 },
               ),
               const SizedBox(height: 12),
@@ -184,7 +181,13 @@ class _UserProfilePageState extends State<UserProfilePage> {
               _buildCardMenu(
                 icon: Icons.help_outline,
                 title: 'Bantuan dan Dukungan',
-                onTap: () {},
+                onTap: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (context) => const HelpSupportPage(),
+                    ),
+                  );
+                },
               ),
               const SizedBox(height: 12),
               _buildCardMenu(

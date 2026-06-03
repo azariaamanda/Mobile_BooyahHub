@@ -67,7 +67,7 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
             children: [
               Text(
                 'Selamat datang, Azaria',
-                style: AppTextStyles.poppinsSubtitle.copyWith(
+                style: AppTextStyles.poppinsTitleSmall.copyWith(
                   color: AppColors.textPrimary,
                   fontWeight: FontWeight.bold,
                 ),
@@ -225,7 +225,7 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
           children: [
             Text(
               'Analisis Pendapatan',
-              style: AppTextStyles.poppinsSubtitle.copyWith(
+              style: AppTextStyles.poppinsTitleSmall.copyWith(
                 color: AppColors.textPrimary,
                 fontWeight: FontWeight.bold,
               ),
@@ -295,7 +295,7 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
       children: [
         Text(
           'Perlu Tindakan Owner',
-          style: AppTextStyles.poppinsSubtitle.copyWith(
+          style: AppTextStyles.poppinsTitleSmall.copyWith(
             color: AppColors.textPrimary,
             fontWeight: FontWeight.bold,
           ),

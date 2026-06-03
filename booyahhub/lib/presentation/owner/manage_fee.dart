@@ -200,7 +200,7 @@ class _ManageFeeScreenState extends State<ManageFeeScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text('LAMA', style: AppTextStyles.interCaption.copyWith(color: AppColors.textSecondary, fontSize: 10)),
-                  Text('5%', style: AppTextStyles.poppinsSubtitle.copyWith(color: AppColors.textSecondary, fontStyle: FontStyle.italic)),
+                  Text('5%', style: AppTextStyles.poppinsTitleSmall.copyWith(color: AppColors.textSecondary, fontStyle: FontStyle.italic)),
                 ],
               ),
               const SizedBox(width: 16),
@@ -210,7 +210,7 @@ class _ManageFeeScreenState extends State<ManageFeeScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text('BARU', style: AppTextStyles.interCaption.copyWith(color: AppColors.primary, fontSize: 10, fontWeight: FontWeight.bold)),
-                  Text('25%', style: AppTextStyles.poppinsSubtitle.copyWith(color: AppColors.primary, fontStyle: FontStyle.italic, fontWeight: FontWeight.bold)),
+                  Text('25%', style: AppTextStyles.poppinsTitleSmall.copyWith(color: AppColors.primary, fontStyle: FontStyle.italic, fontWeight: FontWeight.bold)),
                 ],
               ),
             ],
@@ -338,7 +338,7 @@ class _ManageFeeScreenState extends State<ManageFeeScreen> {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text('Pendapatan Scrim', style: AppTextStyles.interBody.copyWith(color: AppColors.textSecondary)),
-            Text('Rp 100.000', style: AppTextStyles.poppinsSubtitle.copyWith(color: AppColors.textPrimary)),
+            Text('Rp 100.000', style: AppTextStyles.poppinsTitleSmall.copyWith(color: AppColors.textPrimary)),
           ],
         ),
         const SizedBox(height: 12),
@@ -348,7 +348,7 @@ class _ManageFeeScreenState extends State<ManageFeeScreen> {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text('Fee Platform (5%)', style: AppTextStyles.interBody.copyWith(color: AppColors.textSecondary)),
-            Text('-Rp 5.000', style: AppTextStyles.poppinsSubtitle.copyWith(color: AppColors.error)),
+            Text('-Rp 5.000', style: AppTextStyles.poppinsTitleSmall.copyWith(color: AppColors.error)),
           ],
         ),
         const SizedBox(height: 8),
@@ -356,7 +356,7 @@ class _ManageFeeScreenState extends State<ManageFeeScreen> {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text('Fee Admin (10%)', style: AppTextStyles.interBody.copyWith(color: AppColors.textSecondary)),
-            Text('-Rp 10.000', style: AppTextStyles.poppinsSubtitle.copyWith(color: AppColors.error)),
+            Text('-Rp 10.000', style: AppTextStyles.poppinsTitleSmall.copyWith(color: AppColors.error)),
           ],
         ),
         const SizedBox(height: 24),
