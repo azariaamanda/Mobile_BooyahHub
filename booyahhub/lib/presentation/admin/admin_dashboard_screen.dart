@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 import '../../config/app_color.dart';
 import '../../config/app_constants.dart';
 import '../../config/app_text_styles.dart';
+import 'admin_notification_page.dart';
 
 class AdminDashboardScreen extends StatelessWidget {
   const AdminDashboardScreen({super.key});
@@ -59,44 +59,46 @@ class AdminDashboardScreen extends StatelessWidget {
                   ],
                 ),
                 const Spacer(),
-                Stack(
-                  children: [
-                    Container(
-                      width: 44,
-                      height: 44,
-                      decoration: BoxDecoration(
-                        color: AppColors.backgroundCard,
-                        shape: BoxShape.circle,
-                      ),
-                      child: Icon(
-                        Icons.notifications_outlined,
-                        color: AppColors.textPrimary,
-                        size: 22,
-                      ),
+                GestureDetector(
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => const AdminNotificationPage(),
                     ),
-                    Positioned(
-                      right: 10,
-                      top: 10,
-                      child: Container(
-                        width: 8,
-                        height: 8,
+                  ),
+                  child: Stack(
+                    children: [
+                      Container(
+                        width: 44,
+                        height: 44,
                         decoration: BoxDecoration(
-                          color: AppColors.primary,
+                          color: AppColors.backgroundCard,
                           shape: BoxShape.circle,
                         ),
+                        child: Icon(
+                          Icons.notifications_outlined,
+                          color: AppColors.textPrimary,
+                          size: 22,
+                        ),
                       ),
-                    ),
-                  ],
+                      Positioned(
+                        right: 10,
+                        top: 10,
+                        child: Container(
+                          width: 8,
+                          height: 8,
+                          decoration: BoxDecoration(
+                            color: AppColors.primary,
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ),
 
             const SizedBox(height: AppConstants.paddingL),
-
-            // ── Pendapatan Bulan Ini ──
-            _RevenueCard(),
-
-            const SizedBox(height: AppConstants.paddingM),
 
             // ── Grid Stats 2x2 ──
             Row(
@@ -125,16 +127,6 @@ class AdminDashboardScreen extends StatelessWidget {
             const SizedBox(height: AppConstants.paddingS),
             Row(
               children: [
-                Expanded(
-                  child: _StatCard(
-                    title: 'Klaim Hadiah',
-                    value: '11',
-                    subtitle: 'Klaim',
-                    badge: 'Menunggu Verifikasi',
-                    badgeUp: null,
-                  ),
-                ),
-                const SizedBox(width: AppConstants.paddingS),
                 Expanded(
                   child: _StatCard(
                     title: 'Sisa Slot',

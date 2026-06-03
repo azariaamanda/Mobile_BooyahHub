@@ -22,8 +22,6 @@ import '../presentation/admin/peserta_management_page.dart';
 import '../presentation/admin/setup_session_page.dart';
 import '../presentation/admin/validate_payment_page.dart';
 import '../presentation/admin/input_score_page.dart';
-import '../presentation/admin/admin_claim_list_page.dart';
-import '../presentation/admin/admin_profile_page.dart';
 import '../presentation/user/user_home_screen.dart';
 import '../presentation/user/scrim_detail_page.dart';
 import '../presentation/user/booking_scrim_page.dart';
@@ -37,6 +35,12 @@ import '../presentation/user/user_main_navigator.dart';
 import '../presentation/user/user_premium_page.dart';
 import '../presentation/user/user_claim_rewards_page.dart';
 import '../presentation/user/user_notification_page.dart';
+import '../presentation/user/user_financial_screen.dart';
+import '../presentation/user/user_financial_withdraw_page.dart';
+import '../presentation/user/user_financial_detail_page.dart';
+import '../presentation/user/user_financial_history_page.dart';
+import '../data/models/saldo_pengguna_model.dart';
+import '../data/models/transaksi_keuangan_model.dart';
 
 class AppRouter {
   AppRouter._();
@@ -179,11 +183,6 @@ class AppRouter {
         },
       ),
       GoRoute(
-        path: '/admin/klaim',
-        name: 'admin_klaim',
-        builder: (context, state) => const AdminClaimListPage(),
-      ),
-      GoRoute(
         path: '/admin/profile/edit',
         name: 'edit_profile',
         builder: (context, state) => const EditProfilePage(),
@@ -197,6 +196,11 @@ class AppRouter {
         path: '/admin/peserta',
         name: 'peserta',
         builder: (context, state) => const PesertaManagementPage(),
+      ),
+      GoRoute(
+        path: '/admin/premium',
+        name: 'admin_premium',
+        builder: (context, state) => const UserPremiumPage(),
       ),
 
       // ─── USER (PELANGGAN) ──────────────────────────────────────
@@ -286,6 +290,34 @@ class AppRouter {
         path: '/user/notifikasi',
         name: 'notifikasi',
         builder: (context, state) => const UserNotificationPage(),
+      ),
+
+      // ─── FINANCIAL (KEUANGAN) ──────────────────────────────────
+      GoRoute(
+        path: '/user/financial',
+        name: 'financial',
+        builder: (context, state) => const UserFinancialScreen(),
+      ),
+      GoRoute(
+        path: '/financial/withdraw',
+        name: 'withdraw',
+        builder: (context, state) {
+          final saldo = state.extra as SaldoPengguna;
+          return WithdrawPage(saldo: saldo);
+        },
+      ),
+      GoRoute(
+        path: '/financial/detail',
+        name: 'financial_detail',
+        builder: (context, state) {
+          final transaksi = state.extra as TransaksiKeuangan;
+          return TransactionDetailPage(transaksi: transaksi);
+        },
+      ),
+      GoRoute(
+        path: '/financial/history',
+        name: 'financial_history',
+        builder: (context, state) => const TransactionHistoryPage(),
       ),
     ],
   );

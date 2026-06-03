@@ -29,7 +29,14 @@ class AuthService {
           .from('akun')
           .select()
           .eq('email', email)
-          .single();
+          .maybeSingle();
+
+      if (userData == null) {
+        return {
+          'success': false,
+          'message': 'Data akun tidak ditemukan di database',
+        };
+      }
 
       final akun = Akun.fromJson(userData);
 
@@ -103,20 +110,20 @@ class AuthService {
         return {'success': false, 'message': 'Gagal membuat akun'};
       }
 
-
-      final akunData = await _supabase.from('akun').insert({
-        'email': email,
-        'role': 'pengguna',
-        'status_akun': 'aktif',
-      }).select().single();
+      final akunData = await _supabase
+          .from('akun')
+          .insert({'email': email, 'role': 'pengguna', 'status_akun': 'aktif'})
+          .select()
+          .single();
 
       final akun = Akun.fromJson(akunData);
 
       // 3. Insert ke tabel profil_pengguna
-      final profilData = await _supabase.from('profil_pengguna').insert({
-        'akun_id': akun.idAkun,
-        'nama_tim': namaTim,
-      }).select().single();
+      final profilData = await _supabase
+          .from('profil_pengguna')
+          .insert({'akun_id': akun.idAkun, 'nama_tim': namaTim})
+          .select()
+          .single();
 
       final profil = ProfilPengguna.fromJson(profilData);
 
@@ -129,7 +136,8 @@ class AuthService {
     } on AuthException catch (e) {
       String message = 'Gagal mendaftar';
       if (e.message.contains('over_email_send_rate_limit')) {
-        message = 'Terlalu banyak percobaan. Tunggu beberapa saat lalu coba lagi.';
+        message =
+            'Terlalu banyak percobaan. Tunggu beberapa saat lalu coba lagi.';
       } else if (e.message.contains('User already registered')) {
         message = 'Email sudah terdaftar. Silakan login.';
       }
@@ -160,22 +168,26 @@ class AuthService {
         return {'success': false, 'message': 'Gagal membuat akun'};
       }
 
-      final akunData = await _supabase.from('akun').insert({
-        'email': email,
-        'role': 'admin',
-        'status_akun': 'pending',
-      }).select().single();
+      final akunData = await _supabase
+          .from('akun')
+          .insert({'email': email, 'role': 'admin', 'status_akun': 'pending'})
+          .select()
+          .single();
 
       final akun = Akun.fromJson(akunData);
 
-      final profilData = await _supabase.from('profil_admin').insert({
-        'akun_id': akun.idAkun,
-        'nama_lengkap': namaLengkap,
-        'no_handphone': noHandphone,
-        'foto_profil': fotoProfilPath,
-        'foto_ktp': fotoKtpPath,
-        'status_verifikasi_ktp': 'pending',
-      }).select().single();
+      final profilData = await _supabase
+          .from('profil_admin')
+          .insert({
+            'akun_id': akun.idAkun,
+            'nama_lengkap': namaLengkap,
+            'no_handphone': noHandphone,
+            'foto_profil': fotoProfilPath,
+            'foto_ktp': fotoKtpPath,
+            'status_verifikasi_ktp': 'pending',
+          })
+          .select()
+          .single();
 
       final profil = ProfilAdmin.fromJson(profilData);
 
@@ -188,7 +200,8 @@ class AuthService {
     } on AuthException catch (e) {
       String message = 'Gagal mendaftar';
       if (e.message.contains('over_email_send_rate_limit')) {
-        message = 'Terlalu banyak percobaan. Tunggu beberapa saat lalu coba lagi.';
+        message =
+            'Terlalu banyak percobaan. Tunggu beberapa saat lalu coba lagi.';
       } else if (e.message.contains('User already registered')) {
         message = 'Email sudah terdaftar.';
       }
@@ -254,11 +267,7 @@ class AuthService {
         if (profilData != null) profil = profilData;
       }
 
-      return {
-        'akun': akun,
-        'profil': profil,
-        'role': akun.role,
-      };
+      return {'akun': akun, 'profil': profil, 'role': akun.role};
     } catch (e) {
       return null;
     }
