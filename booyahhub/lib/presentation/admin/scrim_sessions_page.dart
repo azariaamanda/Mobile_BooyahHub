@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../config/app_color.dart';
 import '../../config/app_constants.dart';
@@ -21,6 +22,7 @@ class _ScrimSessionsPageState extends State<ScrimSessionsPage> {
 
   DateTime _selectedDate = DateTime.now();
   List<DateTime> _availableDates = [];
+  Set<DateTime> _existingDates = {};
 
   @override
   void initState() {
@@ -74,10 +76,10 @@ class _ScrimSessionsPageState extends State<ScrimSessionsPage> {
     setState(() {});
   }
 
-  // ==================== POPUP ATUR JADWAL ====================
+  // ==================== POPUP ATUR JADWAL (Tanpa Jam & Kapasitas) ====================
   Future<void> _showAddSchedulePopup() async {
-    DateTime currentMonth = DateTime.now();
-    Set<DateTime> selectedDates = {};
+    DateTime _currentMonth = DateTime.now();
+    Set<DateTime> _selectedDates = {};
     TimeOfDay startTime = const TimeOfDay(hour: 8, minute: 0);
     TimeOfDay endTime = const TimeOfDay(hour: 9, minute: 0);
     int slot = 12;
@@ -132,15 +134,16 @@ class _ScrimSessionsPageState extends State<ScrimSessionsPage> {
                         ),
                         onPressed: () {
                           setDialogState(() {
-                            currentMonth = DateTime(
-                              currentMonth.year,
-                              currentMonth.month - 1,
+                            _currentMonth = DateTime(
+                              _currentMonth.year,
+                              _currentMonth.month - 1,
                             );
                           });
                         },
                       ),
+                      const SizedBox(height: 4),
                       Text(
-                        '${_getMonth(currentMonth.month)} ${currentMonth.year}',
+                        '${_getMonth(_currentMonth.month)} ${_currentMonth.year}',
                         style: AppTextStyles.poppinsTitleSmall,
                       ),
                       IconButton(
@@ -150,9 +153,9 @@ class _ScrimSessionsPageState extends State<ScrimSessionsPage> {
                         ),
                         onPressed: () {
                           setDialogState(() {
-                            currentMonth = DateTime(
-                              currentMonth.year,
-                              currentMonth.month + 1,
+                            _currentMonth = DateTime(
+                              _currentMonth.year,
+                              _currentMonth.month + 1,
                             );
                           });
                         },
@@ -161,7 +164,7 @@ class _ScrimSessionsPageState extends State<ScrimSessionsPage> {
                   ),
 
                   // Calendar grid
-                  _buildCalendarGrid(currentMonth, selectedDates, (date) {
+                  _buildCalendarGrid(_currentMonth, _selectedDates, (date) {
                     setDialogState(() {
                       if (selectedDates.contains(date)) {
                         selectedDates.remove(date);
@@ -174,7 +177,7 @@ class _ScrimSessionsPageState extends State<ScrimSessionsPage> {
                   const SizedBox(height: 16),
 
                   // Selected dates summary
-                  if (selectedDates.isNotEmpty)
+                  if (_selectedDates.isNotEmpty)
                     Container(
                       padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
@@ -182,7 +185,7 @@ class _ScrimSessionsPageState extends State<ScrimSessionsPage> {
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(
-                        '${selectedDates.length} tanggal dipilih',
+                        '${_selectedDates.length} tanggal dipilih',
                         style: AppTextStyles.interLabel.copyWith(
                           color: AppColors.primary,
                         ),
@@ -233,7 +236,7 @@ class _ScrimSessionsPageState extends State<ScrimSessionsPage> {
                       Expanded(
                         child: ElevatedButton(
                           onPressed: () async {
-                            for (var date in selectedDates) {
+                            for (var date in _selectedDates) {
                               final startDateTime = DateTime(
                                 date.year,
                                 date.month,
@@ -315,15 +318,19 @@ class _ScrimSessionsPageState extends State<ScrimSessionsPage> {
           onTap: () => onDateTap(date),
           child: Container(
             decoration: BoxDecoration(
-              color: isSelected ? AppColors.primary : Colors.transparent,
-              borderRadius: BorderRadius.circular(8),
-              border: isToday ? Border.all(color: AppColors.primary) : null,
+              color: bgColor ?? Colors.transparent,
+              shape: BoxShape.circle,
+              border: isToday
+                  ? Border.all(color: AppColors.primary, width: 1.5)
+                  : null,
             ),
             alignment: Alignment.center,
             child: Text(
               day.toString(),
               style: AppTextStyles.interBody.copyWith(
-                color: isSelected ? Colors.black : AppColors.textPrimary,
+                color: isSelected
+                    ? Colors.black
+                    : (hasExisting ? AppColors.primary : AppColors.textPrimary),
                 fontWeight: isSelected ? FontWeight.w700 : FontWeight.w400,
               ),
             ),
@@ -657,6 +664,176 @@ class _ScrimSessionsPageState extends State<ScrimSessionsPage> {
     );
   }
 
+  // ==================== POPUP EDIT SESI ====================
+  Future<void> _showEditSessionPopup(Map<String, dynamic> session) async {
+    final currentDate = DateTime.parse(session['waktu_mulai']).toLocal();
+    TimeOfDay startTime = TimeOfDay(
+      hour: currentDate.hour,
+      minute: currentDate.minute,
+    );
+    final endDateTime = DateTime.parse(session['waktu_selesai']).toLocal();
+    TimeOfDay endTime = TimeOfDay(
+      hour: endDateTime.hour,
+      minute: endDateTime.minute,
+    );
+    int slot = session['slot_maksimal'] ?? 12;
+
+    final pesertaData = await _supabase
+        .from('pendaftaran_tim')
+        .select('id_pendaftaran')
+        .eq('id_sesi', session['id_sesi'])
+        .eq('status_pembayaran', 'dikonfirmasi');
+    final currentParticipants = pesertaData.length;
+
+    await showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) {
+          return Dialog(
+            backgroundColor: AppColors.backgroundCard,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Container(
+              width: MediaQuery.of(context).size.width - 40,
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'Edit Sesi',
+                    style: AppTextStyles.poppinsHeadline.copyWith(fontSize: 20),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'EDIT SESI UNTUK SCRIM',
+                    style: AppTextStyles.interLabel.copyWith(
+                      color: AppColors.primary,
+                      fontSize: 10,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _buildTimePicker('MULAI', startTime, (time) {
+                          setDialogState(() => startTime = time);
+                        }),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: _buildTimePicker('SELESAI', endTime, (time) {
+                          setDialogState(() => endTime = time);
+                        }),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+
+                  _buildSlotPicker(slot, (value) {
+                    setDialogState(() => slot = value);
+                  }),
+                  const SizedBox(height: 16),
+
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: AppColors.primary.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'KAPASITAS SAAT INI',
+                          style: AppTextStyles.interLabel,
+                        ),
+                        Text(
+                          '$currentParticipants/$slot Tim',
+                          style: AppTextStyles.poppinsMoneySmall,
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Mengubah waktu akan memberitahu peserta yang sudah terdaftar.',
+                    style: AppTextStyles.interCaption.copyWith(
+                      color: AppColors.textHint,
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: () => Navigator.pop(ctx),
+                          style: OutlinedButton.styleFrom(
+                            side: BorderSide(color: AppColors.divider),
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                          ),
+                          child: Text(
+                            'BATAL',
+                            style: AppTextStyles.poppinsButton.copyWith(
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: () async {
+                            final startDateTime = DateTime(
+                              currentDate.year,
+                              currentDate.month,
+                              currentDate.day,
+                              startTime.hour,
+                              startTime.minute,
+                            );
+                            final endDateTime = DateTime(
+                              currentDate.year,
+                              currentDate.month,
+                              currentDate.day,
+                              endTime.hour,
+                              endTime.minute,
+                            );
+                            await _supabase
+                                .from('sesi_scrim')
+                                .update({
+                                  'waktu_mulai': startDateTime
+                                      .toIso8601String(),
+                                  'waktu_selesai': endDateTime
+                                      .toIso8601String(),
+                                  'slot_maksimal': slot,
+                                })
+                                .eq('id_sesi', session['id_sesi']);
+                            Navigator.pop(ctx);
+                            _fetchData();
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.primary,
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                          ),
+                          child: Text(
+                            'SIMPAN',
+                            style: AppTextStyles.poppinsButton,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
   Future<void> _deleteSession(int sesiId) async {
     final confirm = await showDialog<bool>(
       context: context,
@@ -708,9 +885,17 @@ class _ScrimSessionsPageState extends State<ScrimSessionsPage> {
     return '${d.hour.toString().padLeft(2, '0')}.${d.minute.toString().padLeft(2, '0')}';
   }
 
-  int _getSlotTerisi(int sesiId) {
-    // TODO: hitung dari pendaftaran_tim
-    return 10;
+  Future<int> _getSlotTerisi(int sesiId) async {
+    try {
+      final pesertaData = await _supabase
+          .from('pendaftaran_tim')
+          .select('id_pendaftaran')
+          .eq('id_sesi', sesiId)
+          .eq('status_pembayaran', 'dikonfirmasi');
+      return pesertaData.length;
+    } catch (e) {
+      return 0;
+    }
   }
 
   Widget _actionButton(IconData icon, Color color, VoidCallback onTap) {
@@ -743,7 +928,6 @@ class _ScrimSessionsPageState extends State<ScrimSessionsPage> {
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Date filter dropdown
           if (_availableDates.isNotEmpty)
             Container(
               margin: const EdgeInsets.fromLTRB(16, 16, 16, 8),
@@ -782,23 +966,21 @@ class _ScrimSessionsPageState extends State<ScrimSessionsPage> {
               ),
             ),
 
-          // Atur Jadwal button
           Container(
-            margin: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+            margin: const EdgeInsets.fromLTRB(16, 8, 16, 16),
             child: SizedBox(
               width: double.infinity,
+              height: 46,
               child: ElevatedButton(
                 onPressed: _showAddSchedulePopup,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primary,
-                  padding: const EdgeInsets.symmetric(vertical: 8),
                 ),
                 child: Text('ATUR JADWAL', style: AppTextStyles.poppinsButton),
               ),
             ),
           ),
 
-          // Sessions list
           Expanded(
             child: _filteredSessions.isEmpty
                 ? Center(

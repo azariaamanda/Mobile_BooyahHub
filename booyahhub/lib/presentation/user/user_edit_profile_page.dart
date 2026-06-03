@@ -6,11 +6,13 @@ import '../../data/models/services/auth_service.dart';
 class UserEditProfilePage extends StatefulWidget {
   final String initialName;
   final String initialEmail;
+  final String? initialFotoProfil;
 
   const UserEditProfilePage({
     super.key,
     required this.initialName,
     required this.initialEmail,
+    this.initialFotoProfil,
   });
 
   @override
@@ -111,9 +113,12 @@ class _UserEditProfilePageState extends State<UserEditProfilePage> {
                       shape: BoxShape.circle,
                       border: Border.all(color: AppColors.primary, width: 2),
                     ),
-                    child: const CircleAvatar(
+                    child: CircleAvatar(
                       radius: 50,
-                      backgroundImage: NetworkImage('https://i.pravatar.cc/300'), // Placeholder
+                      backgroundColor: AppColors.surfaceVariant,
+                      backgroundImage: widget.initialFotoProfil != null && widget.initialFotoProfil!.isNotEmpty
+                          ? NetworkImage(widget.initialFotoProfil!)
+                          : const NetworkImage('https://i.pravatar.cc/300'), // Fallback
                     ),
                   ),
                   Container(

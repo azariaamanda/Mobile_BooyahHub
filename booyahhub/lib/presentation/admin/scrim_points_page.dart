@@ -1,16 +1,18 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../config/app_color.dart';
 import '../../config/app_text_styles.dart';
 
 class ScrimPointsPage extends StatefulWidget {
-  final int scrimId;
-  const ScrimPointsPage({super.key, required this.scrimId});
+  final int sesiId;
+  const ScrimPointsPage({super.key, required this.sesiId});
 
   @override
   State<ScrimPointsPage> createState() => _ScrimPointsPageState();
 }
 
 class _ScrimPointsPageState extends State<ScrimPointsPage> {
+  final _supabase = Supabase.instance.client;
   int _selectedMatch = 0;
 
   final List<Map<String, dynamic>> _teams = [
@@ -72,6 +74,180 @@ class _ScrimPointsPageState extends State<ScrimPointsPage> {
     super.dispose();
   }
 
+  Future<void> _fetchData() async {
+    setState(() => _isLoading = true);
+    try {
+      // Ambil sesi berdasarkan sesiId yang dikirim
+      final sesiData = await _supabase
+          .from('sesi_scrim')
+          .select('*')
+          .eq('id_sesi', widget.sesiId)
+          .single();
+
+      // Ambil data tim untuk sesi ini
+      await _fetchTeamsData(widget.sesiId);
+
+      // Ambil sistem poin
+      final poinData = await _supabase
+          .from('sistem_poin')
+          .select('peringkat_ke, poin')
+          .order('peringkat_ke', ascending: true);
+      _poinSystem = List<Map<String, dynamic>>.from(poinData);
+    } catch (e) {
+      print('Error: $e');
+    } finally {
+      setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _fetchTeamsData(int sesiId) async {
+    try {
+      // Ambil pendaftaran tim (tanpa join)
+      final pendaftaran = await _supabase
+          .from('pendaftaran_tim')
+          .select('id_pendaftaran, akun_id, nama_kapten')
+          .eq('id_sesi', sesiId)
+          .eq('status_pembayaran', 'dikonfirmasi');
+
+      // Ambil hasil pertandingan yang sudah ada
+      final hasil = await _supabase
+          .from('hasil_pertandingan')
+          .select('*')
+          .eq('id_sesi', sesiId)
+          .eq('match_ke', _selectedMatch + 1);
+
+      // Proses data tim
+      List<Map<String, dynamic>> teamList = [];
+      _killControllers.clear();
+
+      for (var p in pendaftaran) {
+        final akunId = p['akun_id'] as int?;
+        String namaTim = 'Tim ${akunId ?? '?'}';
+
+        // Ambil nama tim dari profil_pengguna (query terpisah, aman)
+        if (akunId != null) {
+          final profilData = await _supabase
+              .from('profil_pengguna')
+              .select('nama_tim')
+              .eq('akun_id', akunId)
+              .maybeSingle();
+
+          if (profilData != null && profilData['nama_tim'] != null) {
+            namaTim = profilData['nama_tim'];
+          }
+        }
+
+        final existingHasil = hasil.firstWhere(
+          (h) => h['id_pendaftaran'] == p['id_pendaftaran'],
+          orElse: () => {},
+        );
+
+        final kill = existingHasil.isEmpty
+            ? 0
+            : (existingHasil['total_kill'] ?? 0);
+        final place = existingHasil.isEmpty ? null : existingHasil['peringkat'];
+
+        // Hitung poin dari place
+        int poinPlacement = 0;
+        if (place != null) {
+          final found = _poinSystem.firstWhere(
+            (ps) => ps['peringkat_ke'] == place,
+            orElse: () => {'poin': 0},
+          );
+          poinPlacement = found['poin'] ?? 0;
+        }
+        final totalPoin = poinPlacement + kill;
+
+        teamList.add({
+          'id_pendaftaran': p['id_pendaftaran'],
+          'akun_id': akunId,
+          'nama_tim': namaTim,
+          'kapten': p['nama_kapten'] ?? '',
+          'place': place,
+          'kill': kill,
+          'poin': totalPoin,
+        });
+        _killControllers.add(TextEditingController(text: kill.toString()));
+      }
+
+      setState(() => _teams = teamList);
+    } catch (e) {
+      print('Error fetchTeamsData: $e');
+      setState(() => _teams = []);
+    }
+  }
+
+  Future<void> _saveScores() async {
+    if (_sessions.isEmpty || _teams.isEmpty) return;
+
+    setState(() => _isLoading = true);
+    try {
+      final sesiId = _sessions[_selectedMatch]['id_sesi'];
+      final matchKe = _selectedMatch + 1;
+
+      for (int i = 0; i < _teams.length; i++) {
+        final team = _teams[i];
+        final place = team['place'];
+        final kill = int.tryParse(_killControllers[i].text) ?? 0;
+
+        // Hitung poin placement
+        int poinPlacement = 0;
+        if (place != null) {
+          final found = _poinSystem.firstWhere(
+            (ps) => ps['peringkat_ke'] == place,
+            orElse: () => {'poin': 0},
+          );
+          poinPlacement = found['poin'] ?? 0;
+        }
+        final totalPoin = poinPlacement + kill;
+
+        // Cek apakah sudah ada data
+        final existing = await _supabase
+            .from('hasil_pertandingan')
+            .select()
+            .eq('id_pendaftaran', team['id_pendaftaran'])
+            .eq('match_ke', matchKe)
+            .maybeSingle();
+
+        if (existing != null) {
+          await _supabase
+              .from('hasil_pertandingan')
+              .update({
+                'peringkat': place,
+                'poin_placement': poinPlacement,
+                'total_kill': kill,
+                'total_poin': totalPoin,
+              })
+              .eq('id_hasil', existing['id_hasil']);
+        } else {
+          await _supabase.from('hasil_pertandingan').insert({
+            'id_pendaftaran': team['id_pendaftaran'],
+            'id_sesi': sesiId,
+            'match_ke': matchKe,
+            'peringkat': place,
+            'poin_placement': poinPlacement,
+            'total_kill': kill,
+            'total_poin': totalPoin,
+          });
+        }
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Skor berhasil disimpan'),
+          backgroundColor: AppColors.success,
+        ),
+      );
+      await _fetchTeamsData(sesiId);
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Gagal: $e'), backgroundColor: AppColors.error),
+      );
+    } finally {
+      setState(() => _isLoading = false);
+    }
+  }
+
   void _updatePlace(int index, int? place) {
     setState(() {
       _teams[index]['place'] = place;
@@ -104,12 +280,35 @@ class _ScrimPointsPageState extends State<ScrimPointsPage> {
   int get _belumDiisi => _totalTim - _sudahDiisi;
 
   @override
+  @override
   Widget build(BuildContext context) {
+    if (_isLoading) {
+      return const Center(
+        child: CircularProgressIndicator(color: AppColors.primary),
+      );
+    }
+
+    if (_teams.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(
+              Icons.people_outline,
+              size: 48,
+              color: AppColors.textSecondary,
+            ),
+            const SizedBox(height: 16),
+            Text('Belum ada tim terdaftar', style: AppTextStyles.interBody),
+          ],
+        ),
+      );
+    }
+
     return Scaffold(
       backgroundColor: AppColors.background,
       body: Column(
         children: [
-          // Header yang bisa di-scroll
           Expanded(
             child: SingleChildScrollView(
               child: Column(
@@ -183,7 +382,6 @@ class _ScrimPointsPageState extends State<ScrimPointsPage> {
                             Row(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                // Place
                                 Expanded(
                                   child: Column(
                                     crossAxisAlignment:
@@ -203,7 +401,6 @@ class _ScrimPointsPageState extends State<ScrimPointsPage> {
                                   ),
                                 ),
                                 const SizedBox(width: 6),
-                                // Kill
                                 Expanded(
                                   child: Column(
                                     crossAxisAlignment:
@@ -224,7 +421,6 @@ class _ScrimPointsPageState extends State<ScrimPointsPage> {
                                   ),
                                 ),
                                 const SizedBox(width: 6),
-                                // Poin
                                 Expanded(
                                   child: Column(
                                     crossAxisAlignment:

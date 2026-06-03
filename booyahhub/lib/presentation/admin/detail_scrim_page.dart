@@ -36,7 +36,7 @@ class _DetailScrimPageState extends State<DetailScrimPage>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 4, vsync: this);
+    _tabController = TabController(length: 2, vsync: this); // Hanya 2 tab
     _fetchDetail();
   }
 
@@ -527,8 +527,6 @@ class _DetailScrimPageState extends State<DetailScrimPage>
         tabs: const [
           Tab(text: 'Informasi'),
           Tab(text: 'Sesi'),
-          Tab(text: 'Poin'),
-          Tab(text: 'Leaderboard'),
         ],
         indicatorColor: AppColors.primary,
         labelColor: AppColors.primary,

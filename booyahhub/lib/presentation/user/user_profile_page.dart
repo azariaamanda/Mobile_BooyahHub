@@ -17,6 +17,7 @@ class UserProfilePage extends StatefulWidget {
 class _UserProfilePageState extends State<UserProfilePage> {
   String _name = 'Memuat...';
   String _email = 'Memuat...';
+  String? _fotoProfil;
   bool _isLoading = true;
 
   @override
@@ -35,6 +36,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
       
       setState(() {
         _email = akun.email;
+        _fotoProfil = profil['foto_profil'];
         if (data['role'] == 'pengguna') {
           _name = profil['nama_tim'] ?? 'Tim Tanpa Nama';
         } else if (data['role'] == 'admin') {
@@ -83,9 +85,12 @@ class _UserProfilePageState extends State<UserProfilePage> {
                   shape: BoxShape.circle,
                   border: Border.all(color: AppColors.primary, width: 2),
                 ),
-                child: const CircleAvatar(
+                child: CircleAvatar(
                   radius: 50,
-                  backgroundImage: NetworkImage('https://i.pravatar.cc/300'), // Placeholder
+                  backgroundColor: AppColors.surfaceVariant,
+                  backgroundImage: _fotoProfil != null && _fotoProfil!.isNotEmpty
+                      ? NetworkImage(_fotoProfil!)
+                      : const NetworkImage('https://i.pravatar.cc/300'), // Fallback
                 ),
               ),
               const SizedBox(height: 16),
@@ -129,6 +134,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
                       builder: (context) => UserEditProfilePage(
                         initialName: _name,
                         initialEmail: _email,
+                        initialFotoProfil: _fotoProfil,
                       ),
                     ),
                   );

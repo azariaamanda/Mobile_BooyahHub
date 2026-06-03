@@ -38,7 +38,7 @@ class _CreateScrimPageState extends State<CreateScrimPage> {
   DateTime _startDate = DateTime.now().add(const Duration(days: 7));
 
   // Dynamic session times
-  final List<Map<String, dynamic>> _sessions = [
+  List<Map<String, dynamic>> _sessions = [
     {
       'nama': 'Sesi 1',
       'tanggal': DateTime.now().add(const Duration(days: 7)),
@@ -51,6 +51,7 @@ class _CreateScrimPageState extends State<CreateScrimPage> {
   void initState() {
     super.initState();
     _fetchModes();
+    _fetchFeeSettings();
   }
 
   @override
@@ -64,8 +65,9 @@ class _CreateScrimPageState extends State<CreateScrimPage> {
     super.dispose();
   }
 
-  Future<void> _fetchModes() async {
-    setState(() => _isLoadingModes = true);
+  // ==================== FEE SETTINGS ====================
+  Future<void> _fetchFeeSettings() async {
+    setState(() => _isLoadingFee = true);
     try {
       final response = await _supabase
           .from('master_mode_pertandingan')
@@ -130,28 +132,39 @@ class _CreateScrimPageState extends State<CreateScrimPage> {
 
   void _addSession() {
     setState(() {
-      _sessions.add({
-        'nama': 'Sesi ${_sessions.length + 1}',
-        'tanggal': _startDate,
-        'waktuMulai': const TimeOfDay(hour: 8, minute: 0),
-        'waktuSelesai': const TimeOfDay(hour: 9, minute: 0),
-      });
+      final currentSessions = _sessionsPerDate[date] ?? [];
+      final newSession = {
+        'nama': 'Sesi ${currentSessions.length + 1}',
+        'tanggal': date,
+        'waktuMulai': _defaultStartTime,
+        'waktuSelesai': _defaultEndTime,
+      };
+      _sessionsPerDate[date] = [...currentSessions, newSession];
     });
   }
 
-  void _removeSession(int index) {
+  void _removeSessionFromDate(DateTime date, int sessionIndex) {
     setState(() {
-      _sessions.removeAt(index);
-      for (int i = 0; i < _sessions.length; i++) {
-        _sessions[i]['nama'] = 'Sesi ${i + 1}';
+      final currentSessions = _sessionsPerDate[date] ?? [];
+      currentSessions.removeAt(sessionIndex);
+      for (int i = 0; i < currentSessions.length; i++) {
+        currentSessions[i]['nama'] = 'Sesi ${i + 1}';
+      }
+      _sessionsPerDate[date] = currentSessions;
+      if (currentSessions.isEmpty) {
+        _sessionsPerDate.remove(date);
+        _selectedDates.remove(date);
       }
     });
   }
 
-  Future<void> _selectDate(int sessionIndex) async {
+  Future<void> _selectDateForSession(DateTime date, int sessionIndex) async {
+    final session = _sessionsPerDate[date]?[sessionIndex];
+    if (session == null) return;
+
     final DateTime? picked = await showDatePicker(
       context: context,
-      initialDate: _sessions[sessionIndex]['tanggal'] as DateTime,
+      initialDate: session['tanggal'] as DateTime,
       firstDate: DateTime.now(),
       lastDate: DateTime.now().add(const Duration(days: 365)),
       builder: (context, child) {
@@ -169,7 +182,45 @@ class _CreateScrimPageState extends State<CreateScrimPage> {
     );
     if (picked != null) {
       setState(() {
-        _sessions[sessionIndex]['tanggal'] = picked;
+        final oldDate = date;
+        final newDate = picked;
+
+        session['tanggal'] = newDate;
+
+        if (!oldDate.isAtSameMomentAs(newDate)) {
+          final oldSessions = _sessionsPerDate[oldDate];
+          if (oldSessions != null) {
+            oldSessions.removeAt(sessionIndex);
+            if (oldSessions.isEmpty) {
+              _sessionsPerDate.remove(oldDate);
+              _selectedDates.remove(oldDate);
+            } else {
+              for (int i = 0; i < oldSessions.length; i++) {
+                oldSessions[i]['nama'] = 'Sesi ${i + 1}';
+              }
+            }
+          }
+
+          if (!_selectedDates.contains(newDate)) {
+            _selectedDates.add(newDate);
+          }
+
+          final List<Map<String, dynamic>> newSessions = List.from(
+            _sessionsPerDate[newDate] ?? [],
+          );
+          newSessions.add(session);
+          newSessions.sort((a, b) {
+            final aNum =
+                int.tryParse(a['nama'].toString().replaceAll('Sesi ', '')) ?? 0;
+            final bNum =
+                int.tryParse(b['nama'].toString().replaceAll('Sesi ', '')) ?? 0;
+            return aNum.compareTo(bNum);
+          });
+          for (int i = 0; i < newSessions.length; i++) {
+            newSessions[i]['nama'] = 'Sesi ${i + 1}';
+          }
+          _sessionsPerDate[newDate] = newSessions;
+        }
       });
     }
   }
@@ -202,9 +253,9 @@ class _CreateScrimPageState extends State<CreateScrimPage> {
     if (picked != null) {
       setState(() {
         if (isStart) {
-          _sessions[sessionIndex]['waktuMulai'] = picked;
+          session['waktuMulai'] = picked;
         } else {
-          _sessions[sessionIndex]['waktuSelesai'] = picked;
+          session['waktuSelesai'] = picked;
         }
       });
     }
@@ -247,14 +298,15 @@ class _CreateScrimPageState extends State<CreateScrimPage> {
     );
   }
 
+  // ==================== SUBMIT ====================
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
     if (_selectedModeId == null) {
       _showSnackBar('Pilih mode pertandingan', isError: true);
       return;
     }
-    if (_sessions.isEmpty) {
-      _showSnackBar('Minimal 1 sesi', isError: true);
+    if (_sessionsPerDate.isEmpty) {
+      _showSnackBar('Minimal 1 tanggal dipilih', isError: true);
       return;
     }
 
@@ -273,13 +325,16 @@ class _CreateScrimPageState extends State<CreateScrimPage> {
       if (adminData == null) throw Exception('Admin tidak ditemukan');
       final adminId = adminData['id_akun'] as int;
 
-      // Upload poster
       String? posterUrl = await _uploadPoster();
 
-      // Insert scrim
       final biaya = int.tryParse(_biayaController.text) ?? 0;
       final maksPeserta = int.tryParse(_maksPesertaController.text) ?? 16;
-      final totalHadiah = (biaya * maksPeserta) * 85 ~/ 100;
+      final totalPendaftaran = biaya * maksPeserta;
+
+      // Gunakan fee dari database
+      final feePlatform = totalPendaftaran * _feePlatformPersen ~/ 100;
+      final feeAdmin = totalPendaftaran * _feeAdminPersen ~/ 100;
+      final totalHadiah = totalPendaftaran - (feePlatform + feeAdmin);
       final jumlahMatch = int.tryParse(_jumlahMatchController.text) ?? 3;
 
       final scrimResponse = await _supabase
@@ -342,14 +397,53 @@ class _CreateScrimPageState extends State<CreateScrimPage> {
     }
   }
 
+  // ==================== UTILS ====================
+  String _formatRupiah(int amount) {
+    if (amount == 0) return 'Rp 0';
+    return 'Rp ${amount.toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]}.')}';
+  }
+
+  String _formatDate(DateTime date) {
+    return '${date.day} ${_getMonthName(date.month)} ${date.year}';
+  }
+
+  String _getMonthName(int month) {
+    const months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'Mei',
+      'Jun',
+      'Jul',
+      'Agu',
+      'Sep',
+      'Okt',
+      'Nov',
+      'Des',
+    ];
+    return months[month - 1];
+  }
+
+  void _showSnackBar(String message, {bool isError = false}) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message, style: AppTextStyles.interBody),
+        backgroundColor: isError ? AppColors.error : AppColors.success,
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final biaya = int.tryParse(_biayaController.text) ?? 0;
     final peserta = int.tryParse(_maksPesertaController.text) ?? 0;
     final totalPendaftaran = biaya * peserta;
-    final totalHadiah = totalPendaftaran * 85 ~/ 100;
-    final feePlatform = totalPendaftaran * 5 ~/ 100;
-    final feeAdmin = totalPendaftaran * 10 ~/ 100;
+
+    final feePlatform = totalPendaftaran * _feePlatformPersen ~/ 100;
+    final feeAdmin = totalPendaftaran * _feeAdminPersen ~/ 100;
+    final totalHadiah = totalPendaftaran - (feePlatform + feeAdmin);
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -541,7 +635,7 @@ class _CreateScrimPageState extends State<CreateScrimPage> {
     );
   }
 
-  Widget _buildJadwalMulai() {
+  Widget _buildJumlahSesiPicker() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -552,50 +646,229 @@ class _CreateScrimPageState extends State<CreateScrimPage> {
           ),
         ),
         const SizedBox(height: 6),
-        GestureDetector(
-          onTap: () async {
-            final DateTime? picked = await showDatePicker(
-              context: context,
-              initialDate: _startDate,
-              firstDate: DateTime.now(),
-              lastDate: DateTime.now().add(const Duration(days: 365)),
-              builder: (context, child) {
-                return Theme(
-                  data: Theme.of(context).copyWith(
-                    colorScheme: const ColorScheme.dark(
-                      primary: AppColors.primary,
-                      onPrimary: Colors.black,
-                      surface: AppColors.backgroundCard,
+        Row(
+          children: [
+            IconButton(
+              icon: const Icon(Icons.remove, color: AppColors.primary),
+              onPressed: () {
+                if (_jumlahSesiPerTanggal > 1) {
+                  _updateJumlahSesiPerTanggal(_jumlahSesiPerTanggal - 1);
+                }
+              },
+            ),
+            Expanded(
+              child: Container(
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                decoration: BoxDecoration(
+                  color: AppColors.inputFill,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Center(
+                  child: Text(
+                    '$_jumlahSesiPerTanggal Sesi',
+                    style: AppTextStyles.poppinsTitleSmall,
+                  ),
+                ),
+              ),
+            ),
+            IconButton(
+              icon: const Icon(Icons.add, color: AppColors.primary),
+              onPressed: () {
+                if (_jumlahSesiPerTanggal < 10) {
+                  _updateJumlahSesiPerTanggal(_jumlahSesiPerTanggal + 1);
+                }
+              },
+            ),
+          ],
+        ),
+        const SizedBox(height: 4),
+        Text(
+          'Setiap tanggal yang dipilih akan memiliki $_jumlahSesiPerTanggal sesi (Sesi 1, Sesi 2, ...)',
+          style: AppTextStyles.interCaption.copyWith(color: AppColors.textHint),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildCalendarPicker() {
+    final daysInMonth = DateTime(
+      _currentMonth.year,
+      _currentMonth.month + 1,
+      0,
+    ).day;
+    final firstDayOfWeek =
+        DateTime(_currentMonth.year, _currentMonth.month, 1).weekday % 7;
+    final today = DateTime.now();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            IconButton(
+              icon: const Icon(Icons.chevron_left, color: AppColors.primary),
+              onPressed: () {
+                setState(() {
+                  _currentMonth = DateTime(
+                    _currentMonth.year,
+                    _currentMonth.month - 1,
+                  );
+                });
+              },
+            ),
+            Text(
+              '${_getMonthName(_currentMonth.month)} ${_currentMonth.year}',
+              style: AppTextStyles.poppinsTitleSmall,
+            ),
+            IconButton(
+              icon: const Icon(Icons.chevron_right, color: AppColors.primary),
+              onPressed: () {
+                setState(() {
+                  _currentMonth = DateTime(
+                    _currentMonth.year,
+                    _currentMonth.month + 1,
+                  );
+                });
+              },
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceAround,
+          children: ['MIN', 'SEN', 'SEL', 'RAB', 'KAM', 'JUM', 'SAB']
+              .map(
+                (day) => Expanded(
+                  child: Center(
+                    child: Text(
+                      day,
+                      style: AppTextStyles.interCaption.copyWith(
+                        color: AppColors.textSecondary,
+                        fontSize: 11,
+                      ),
                     ),
                   ),
-                  child: child!,
-                );
-              },
-            );
-            if (picked != null) {
-              setState(() {
-                _startDate = picked;
-                // Update semua sesi dengan tanggal baru
-                for (int i = 0; i < _sessions.length; i++) {
-                  _sessions[i]['tanggal'] = _startDate.add(Duration(days: i));
-                }
-              });
+                ),
+              )
+              .toList(),
+        ),
+        const SizedBox(height: 8),
+        GridView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 7,
+            childAspectRatio: 1.2,
+            mainAxisSpacing: 4,
+            crossAxisSpacing: 4,
+          ),
+          itemCount: 42,
+          itemBuilder: (context, index) {
+            final day = index - firstDayOfWeek + 1;
+            if (day < 1 || day > daysInMonth) {
+              return const SizedBox();
             }
+            final date = DateTime(_currentMonth.year, _currentMonth.month, day);
+            final isPast =
+                date.isBefore(today) && !date.isAtSameMomentAs(today);
+            final isSelected = _selectedDates.contains(date);
+
+            return GestureDetector(
+              onTap: isPast ? null : () => _toggleDateSelection(date),
+              child: Container(
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: isSelected ? AppColors.primary : Colors.transparent,
+                  border: isSelected
+                      ? null
+                      : (date.isAtSameMomentAs(today)
+                            ? Border.all(color: AppColors.primary, width: 1.5)
+                            : null),
+                ),
+                child: Center(
+                  child: Text(
+                    day.toString(),
+                    style: AppTextStyles.interBody.copyWith(
+                      color: isSelected
+                          ? Colors.black
+                          : (isPast
+                                ? AppColors.textHint
+                                : AppColors.textPrimary),
+                      fontWeight: isSelected
+                          ? FontWeight.w700
+                          : FontWeight.w400,
+                    ),
+                  ),
+                ),
+              ),
+            );
           },
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-            decoration: BoxDecoration(
-              color: AppColors.inputFill,
-              borderRadius: BorderRadius.circular(12),
+        ),
+        const SizedBox(height: 12),
+        Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: AppColors.primary.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                '${_selectedDates.length} tanggal dipilih',
+                style: AppTextStyles.interLabel.copyWith(
+                  color: AppColors.primary,
+                ),
+              ),
+              if (_selectedDates.isNotEmpty)
+                TextButton(
+                  onPressed: _clearSelectedDates,
+                  child: Text(
+                    'Hapus Semua',
+                    style: AppTextStyles.interLink.copyWith(fontSize: 11),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildQuickActions() {
+    return Row(
+      children: [
+        Expanded(
+          child: OutlinedButton(
+            onPressed: _selectAllDatesInMonth,
+            style: OutlinedButton.styleFrom(
+              side: BorderSide(color: AppColors.primary),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
             ),
-            child: Row(
-              children: [
-                Icon(Icons.calendar_today, size: 20, color: AppColors.primary),
-                const SizedBox(width: 12),
-                Text(_formatDate(_startDate), style: AppTextStyles.interInput),
-                const Spacer(),
-                Icon(Icons.arrow_drop_down, color: AppColors.primary),
-              ],
+            child: Text(
+              'Pilih Semua Bulan Ini',
+              style: AppTextStyles.interLabel.copyWith(
+                color: AppColors.primary,
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: OutlinedButton(
+            onPressed: _clearSelectedDates,
+            style: OutlinedButton.styleFrom(
+              side: BorderSide(color: AppColors.error),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+            child: Text(
+              'Hapus Semua',
+              style: AppTextStyles.interLabel.copyWith(color: AppColors.error),
             ),
           ),
         ),
@@ -810,7 +1083,29 @@ class _CreateScrimPageState extends State<CreateScrimPage> {
     );
   }
 
-  Widget _buildSessions() {
+  Widget _buildSessionsList() {
+    if (_sessionsPerDate.isEmpty) {
+      return Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: AppColors.backgroundCard,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: AppColors.surfaceVariant),
+        ),
+        child: Center(
+          child: Text(
+            'Belum ada tanggal dipilih. Pilih tanggal di kalender.',
+            style: AppTextStyles.interBody.copyWith(
+              color: AppColors.textSecondary,
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ),
+      );
+    }
+
+    final sortedDates = _sessionsPerDate.keys.toList()..sort();
+
     return Column(
       children: List.generate(_sessions.length, (index) {
         final session = _sessions[index];
