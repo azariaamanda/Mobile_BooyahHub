@@ -119,12 +119,6 @@ class _UserProfilePageState extends State<UserProfilePage> {
               ),
               const SizedBox(height: 12),
               _buildCardMenu(
-                icon: Icons.lock_outline,
-                title: 'Ubah Password',
-                onTap: () {},
-              ),
-              const SizedBox(height: 12),
-              _buildCardMenu(
                 icon: Icons.notifications_none,
                 title: 'Pengaturan Notifikasi',
                 onTap: () {},
