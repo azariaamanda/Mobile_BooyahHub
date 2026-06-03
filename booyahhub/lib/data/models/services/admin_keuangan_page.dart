@@ -6,6 +6,7 @@ import '../../../config/app_text_styles.dart';
 import '../transaksi_keuangan_model.dart';
 import '../saldo_pengguna_model.dart';
 import 'keuangan_service.dart';
+import 'owner_service.dart'; // Import OwnerService
 
 class AdminKeuanganPage extends StatefulWidget {
   const AdminKeuanganPage({super.key});
@@ -16,8 +17,10 @@ class AdminKeuanganPage extends StatefulWidget {
 
 class _AdminKeuanganPageState extends State<AdminKeuanganPage> {
   final KeuanganService _keuanganService = KeuanganService();
+  final OwnerService _ownerService = OwnerService(); // Instance of OwnerService
   bool _isLoading = true;
-  SaldoPengguna? _saldo;
+  double _totalPendapatan = 0; // Untuk menyimpan total pendapatan
+  double _totalFeePlatform = 0;
   int _currentIndex = 3;
   List<TransaksiKeuangan> _recentTransactions = [];
 
@@ -30,27 +33,18 @@ class _AdminKeuanganPageState extends State<AdminKeuanganPage> {
   Future<void> _fetchData() async {
     setState(() => _isLoading = true);
     try {
-      final currentUser = Supabase.instance.client.auth.currentUser;
-      if (currentUser != null) {
-        // Mengambil id_akun numerik berdasarkan email auth
-        final akunData = await Supabase.instance.client
-            .from('akun')
-            .select('id_akun')
-            .eq('email', currentUser.email!)
-            .single();
+      // Mengambil total pendapatan dari OwnerService
+      final revenueData = await _ownerService.getTotalRevenue();
+      _totalPendapatan = (revenueData['total_pendapatan_platform'] ?? 0)
+          .toDouble();
+      _totalFeePlatform = (revenueData['total_fee_platform'] ?? 0).toDouble();
 
-        final int idAkun = akunData['id_akun'];
-        final saldoData = await _keuanganService.fetchSaldoPengguna(idAkun);
-        final transactions = await _keuanganService.fetchTransaksiPengguna(
-          idAkun,
-          limit: 5,
-        );
+      // Mengambil semua transaksi untuk tampilan admin
+      final transactions = await _keuanganService.fetchAllTransaksi(limit: 5);
 
-        setState(() {
-          _saldo = saldoData;
-          _recentTransactions = transactions;
-        });
-      }
+      setState(() {
+        _recentTransactions = transactions;
+      });
     } catch (e) {
       debugPrint('Error fetching financial data: $e');
     } finally {
@@ -98,14 +92,14 @@ class _AdminKeuanganPageState extends State<AdminKeuanganPage> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Total Saldo Keuangan',
+                    'Total Pendapatan',
                     style: AppTextStyles.interLabel.copyWith(
                       color: AppColors.textSecondary,
                     ),
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    _saldo?.displaySaldoTotal ?? 'Rp 0',
+                    'Rp ${_totalPendapatan.toStringAsFixed(0).replaceAll(RegExp(r'\B(?=(\d{3})+(?!\d))'), ',')}',
                     style: AppTextStyles.poppinsMoneyLarge.copyWith(
                       fontSize: 28,
                     ),
@@ -120,7 +114,7 @@ class _AdminKeuanganPageState extends State<AdminKeuanganPage> {
                       ),
                       const SizedBox(width: 4),
                       Text(
-                        '+0% Bulan ini',
+                        '+0% Bulan ini', // Placeholder, bisa dihitung jika ada data perbandingan
                         style: AppTextStyles.interCaption.copyWith(
                           color: AppColors.success,
                         ),
@@ -137,16 +131,16 @@ class _AdminKeuanganPageState extends State<AdminKeuanganPage> {
               children: [
                 Expanded(
                   child: _buildActionButton(
-                    icon: Icons.add_card,
-                    label: 'Isi Saldo',
+                    icon: Icons.money_off,
+                    label: 'Dana Keluar',
                     onTap: () {},
                   ),
                 ),
                 const SizedBox(width: 16),
                 Expanded(
                   child: _buildActionButton(
-                    icon: Icons.outbox,
-                    label: 'Tarik Tunai',
+                    icon: Icons.pending_actions,
+                    label: 'Klaim Pending',
                     onTap: () {},
                   ),
                 ),
@@ -159,7 +153,7 @@ class _AdminKeuanganPageState extends State<AdminKeuanganPage> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  'Riwayat Transaksi',
+                  'Daftar Klaim Aktif',
                   style: AppTextStyles.poppinsSectionTitle.copyWith(
                     fontSize: 18,
                   ),

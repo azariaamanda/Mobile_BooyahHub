@@ -66,6 +66,38 @@ class KeuanganService {
     }
   }
 
+  // ─── FETCH ALL TRANSAKSI (FOR ADMIN) ───
+  Future<List<TransaksiKeuangan>> fetchAllTransaksi({
+    String? tipeFilter,
+    String? statusFilter,
+    int limit = 50,
+    int offset = 0,
+  }) async {
+    try {
+      dynamic query = _supabase.from('transaksi_keuangan').select();
+
+      if (tipeFilter != null && tipeFilter.isNotEmpty) {
+        query = query.eq('tipe_transaksi', tipeFilter);
+      }
+
+      if (statusFilter != null && statusFilter.isNotEmpty) {
+        query = query.eq('status', statusFilter);
+      }
+
+      query = query.order('dibuat_pada', ascending: false);
+      query = query.range(offset, offset + limit - 1);
+
+      final response = await query;
+      return (response as List)
+          .map(
+            (item) => TransaksiKeuangan.fromJson(item as Map<String, dynamic>),
+          )
+          .toList();
+    } catch (e) {
+      throw Exception('Error fetching all transaksi: $e');
+    }
+  }
+
   // ─── CREATE PENARIKAN / WITHDRAWAL ───
   Future<TransaksiKeuangan> createPenarikan({
     required int idAkun,
