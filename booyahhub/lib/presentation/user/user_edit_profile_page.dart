@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../config/app_color.dart';
 import '../../config/app_text_styles.dart';
+import '../../data/models/services/auth_service.dart';
 
 class UserEditProfilePage extends StatefulWidget {
   final String initialName;
@@ -23,13 +24,14 @@ class _UserEditProfilePageState extends State<UserEditProfilePage> {
   final TextEditingController _newPasswordController = TextEditingController();
   final TextEditingController _confirmPasswordController = TextEditingController();
 
+  bool _isLoading = false;
+
   @override
   void initState() {
     super.initState();
     _nameController = TextEditingController(text: widget.initialName);
     _emailController = TextEditingController(text: widget.initialEmail);
   }
-
 
   @override
   void dispose() {
@@ -39,6 +41,40 @@ class _UserEditProfilePageState extends State<UserEditProfilePage> {
     _newPasswordController.dispose();
     _confirmPasswordController.dispose();
     super.dispose();
+  }
+
+  Future<void> _handleSave() async {
+    if (_newPasswordController.text.isNotEmpty && 
+        _newPasswordController.text != _confirmPasswordController.text) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Konfirmasi password baru tidak cocok')),
+      );
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
+    final result = await AuthService().updateProfileAndPassword(
+      newName: _nameController.text,
+      oldPassword: _oldPasswordController.text.isNotEmpty ? _oldPasswordController.text : null,
+      newPassword: _newPasswordController.text.isNotEmpty ? _newPasswordController.text : null,
+    );
+
+    setState(() => _isLoading = false);
+
+    if (result['success']) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(result['message'])),
+      );
+      Navigator.of(context).pop({
+        'name': _nameController.text,
+        'email': _emailController.text, // Email tidak berubah, dikembalikan apa adanya
+      });
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(result['message'])),
+      );
+    }
   }
 
   @override
@@ -125,6 +161,7 @@ class _UserEditProfilePageState extends State<UserEditProfilePage> {
                       label: 'Email',
                       controller: _emailController,
                       keyboardType: TextInputType.emailAddress,
+                      enabled: false, // Email tidak dapat diubah
                     ),
                     const SizedBox(height: 16),
                     _buildInputField(
@@ -154,12 +191,7 @@ class _UserEditProfilePageState extends State<UserEditProfilePage> {
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
-                  onPressed: () {
-                    Navigator.of(context).pop({
-                      'name': _nameController.text,
-                      'email': _emailController.text,
-                    });
-                  },
+                  onPressed: _isLoading ? null : _handleSave,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primary,
                     padding: const EdgeInsets.symmetric(vertical: 16),
@@ -167,19 +199,28 @@ class _UserEditProfilePageState extends State<UserEditProfilePage> {
                       borderRadius: BorderRadius.circular(12),
                     ),
                   ),
-                  child: Text(
-                    'Simpan Perubahan',
-                    style: AppTextStyles.poppinsButton.copyWith(
-                      color: AppColors.black,
-                    ),
-                  ),
+                  child: _isLoading
+                      ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            valueColor: AlwaysStoppedAnimation<Color>(AppColors.black),
+                          ),
+                        )
+                      : Text(
+                          'Simpan Perubahan',
+                          style: AppTextStyles.poppinsButton.copyWith(
+                            color: AppColors.black,
+                          ),
+                        ),
                 ),
               ),
               const SizedBox(height: 12),
               SizedBox(
                 width: double.infinity,
                 child: OutlinedButton(
-                  onPressed: () => Navigator.of(context).pop(),
+                  onPressed: _isLoading ? null : () => Navigator.of(context).pop(),
                   style: OutlinedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     side: const BorderSide(color: AppColors.inputBorder, width: 1),
@@ -208,6 +249,7 @@ class _UserEditProfilePageState extends State<UserEditProfilePage> {
     required TextEditingController controller,
     bool isPassword = false,
     TextInputType keyboardType = TextInputType.text,
+    bool enabled = true,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -223,10 +265,13 @@ class _UserEditProfilePageState extends State<UserEditProfilePage> {
           controller: controller,
           obscureText: isPassword,
           keyboardType: keyboardType,
-          style: AppTextStyles.interInput.copyWith(color: AppColors.textPrimary),
+          enabled: enabled,
+          style: AppTextStyles.interInput.copyWith(
+            color: enabled ? AppColors.textPrimary : AppColors.textSecondary,
+          ),
           decoration: InputDecoration(
             filled: true,
-            fillColor: AppColors.inputFill,
+            fillColor: enabled ? AppColors.inputFill : AppColors.backgroundCard,
             contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8),
@@ -239,6 +284,10 @@ class _UserEditProfilePageState extends State<UserEditProfilePage> {
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8),
               borderSide: const BorderSide(color: AppColors.primary),
+            ),
+            disabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: const BorderSide(color: AppColors.inputBorder),
             ),
           ),
         ),

@@ -272,4 +272,52 @@ class AuthService {
       return null;
     }
   }
+
+  // ============================================================
+  // UPDATE PROFIL & PASSWORD
+  // ============================================================
+  Future<Map<String, dynamic>> updateProfileAndPassword({
+    String? newName,
+    String? oldPassword,
+    String? newPassword,
+  }) async {
+    try {
+      if (!isLoggedIn) return {'success': false, 'message': 'Belum login'};
+      
+      final email = currentUser!.email!;
+
+      // 1. Verifikasi Password Lama & Update Password Baru
+      if (oldPassword != null && oldPassword.isNotEmpty && newPassword != null && newPassword.isNotEmpty) {
+        try {
+          // Re-authenticate untuk memastikan password lama benar
+          await _supabase.auth.signInWithPassword(email: email, password: oldPassword);
+        } catch (e) {
+          return {'success': false, 'message': 'Password lama salah'};
+        }
+
+        // Update ke password baru
+        await _supabase.auth.updateUser(UserAttributes(password: newPassword));
+      }
+
+      // 2. Update Nama Profil
+      if (newName != null && newName.isNotEmpty) {
+        final akunData = await _supabase.from('akun').select().eq('email', email).single();
+        final role = akunData['role'];
+        final akunId = akunData['id_akun'];
+
+        if (role == 'pengguna') {
+          await _supabase.from('profil_pengguna').update({'nama_tim': newName}).eq('akun_id', akunId);
+        } else if (role == 'admin') {
+          await _supabase.from('profil_admin').update({'nama_lengkap': newName}).eq('akun_id', akunId);
+        } else if (role == 'owner') {
+          // Asumsi field nama owner (sesuaikan jika berbeda)
+          await _supabase.from('profil_owner').update({'nama_owner': newName}).eq('akun_id', akunId);
+        }
+      }
+
+      return {'success': true, 'message': 'Profil berhasil diperbarui'};
+    } catch (e) {
+      return {'success': false, 'message': 'Terjadi kesalahan: $e'};
+    }
+  }
 }
