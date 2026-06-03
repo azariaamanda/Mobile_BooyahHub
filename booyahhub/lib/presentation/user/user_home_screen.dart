@@ -8,8 +8,11 @@ import '../../config/app_constants.dart';
 import '../../config/app_image_helper.dart';
 import '../../config/app_text_styles.dart';
 import '../../config/supabase_client.dart';
+import '../../data/models/saldo_pengguna_model.dart';
+import '../../data/models/services/keuangan_service.dart';
 import 'user_widgets/team_profile_header.dart';
 import 'user_widgets/scrim_item_card.dart';
+import 'user_widgets/financial_dashboard_widget.dart';
 
 class UserHomeScreen extends StatefulWidget {
   const UserHomeScreen({super.key});
@@ -22,6 +25,11 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
   final int _selectedModeId = 0;
   String _selectedSort = 'terbaru';
   final _supabase = Supabase.instance.client;
+  final KeuanganService _keuanganService = KeuanganService();
+
+  SaldoPengguna? _saldoPengguna;
+  bool _loadingSaldo = true;
+  int? _idAkun;
 
   final List<Map<String, String>> _sortOptions = [
     {'value': 'semua', 'label': 'Semua'},
@@ -29,6 +37,44 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
     {'value': 'terlama', 'label': 'Terlama'},
     {'value': 'terbaru', 'label': 'Terkini'},
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSaldoData();
+  }
+
+  Future<void> _loadSaldoData() async {
+    try {
+      final currentUser = _supabase.auth.currentUser;
+      if (currentUser == null) return;
+
+      final akunResponse = await _supabase
+          .from('akun')
+          .select('id_akun')
+          .eq('email', currentUser.email!)
+          .maybeSingle();
+
+      if (akunResponse != null) {
+        setState(() {
+          _idAkun = akunResponse['id_akun'];
+        });
+
+        final saldo = await _keuanganService.fetchSaldoPengguna(
+          akunResponse['id_akun'],
+        );
+        setState(() {
+          _saldoPengguna = saldo;
+          _loadingSaldo = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading saldo: $e');
+      setState(() {
+        _loadingSaldo = false;
+      });
+    }
+  }
 
   // ─── FUNGSI AMBIL DATA PROFIL DARI DATABASE ───
   Future<Map<String, dynamic>?> fetchUserData() async {
@@ -116,10 +162,7 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
           children: [
             Container(width: 4, height: 20, color: AppColors.primary),
             const SizedBox(width: AppConstants.paddingS),
-            Text(
-              'Scrim Terkini',
-              style: AppTextStyles.poppinsSectionTitle,
-            ),
+            Text('Scrim Terkini', style: AppTextStyles.poppinsSectionTitle),
           ],
         ),
         TextButton(
@@ -127,11 +170,7 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
           child: Row(
             children: [
               Text('Lihat Lainnya', style: AppTextStyles.interLink),
-              Icon(
-                Icons.arrow_forward_ios,
-                size: 12,
-                color: AppColors.primary,
-              ),
+              Icon(Icons.arrow_forward_ios, size: 12, color: AppColors.primary),
             ],
           ),
         ),
@@ -218,20 +257,23 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
           itemBuilder: (context, index) {
             final scrim = listScrim[index];
 
-            final double biaya = double.tryParse(scrim['biaya_pendaftaran'].toString()) ?? 0;
-            final double hadiah = double.tryParse(scrim['total_hadiah'].toString()) ?? 0;
+            final double biaya =
+                double.tryParse(scrim['biaya_pendaftaran'].toString()) ?? 0;
+            final double hadiah =
+                double.tryParse(scrim['total_hadiah'].toString()) ?? 0;
             final int maksPeserta = scrim['maks_peserta'] ?? 16;
 
             // Memanggil fungsi penanganan gambar dinamis
-            final String posterUrl = _getPosterUrl(scrim['poster'] as String?, scrim['id_scrim'])!;
+            final String? posterUrl = _getPosterUrl(
+              scrim['poster'] as String?,
+              scrim['id_scrim'],
+            );
 
             return GestureDetector(
               onTap: () {
                 context.pushNamed(
                   'detail_scrim',
-                  pathParameters: {
-                    'idScrim': scrim['id_scrim'].toString(),
-                  },
+                  pathParameters: {'idScrim': scrim['id_scrim'].toString()},
                 );
               },
               child: ScrimItemCard(
@@ -240,7 +282,7 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
                 prize: _formatRupiah(hadiah),
                 fee: biaya == 0 ? 'Free' : _formatRupiah(biaya),
                 slotsInfo: '0/$maksPeserta terisi',
-                posterImage: posterUrl, 
+                posterImage: posterUrl ?? '', // Berikan string kosong jika null
                 primaryYellow: AppColors.primary,
               ),
             );
@@ -277,16 +319,35 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
                     }
 
                     final userData = snapshot.data;
-                    final String namaTim = userData?['nama_tim'] ?? "No Team Name";
-                    
+                    final String namaTim =
+                        userData?['nama_tim'] ?? "No Team Name";
+
                     // Mengambil email dari hasil inner join relation 'akun'
-                    final Map<String, dynamic>? akunData = userData?['akun'] as Map<String, dynamic>?;
+                    final Map<String, dynamic>? akunData =
+                        userData?['akun'] as Map<String, dynamic>?;
                     final String emailUser = akunData?['email'] ?? "No Email";
 
                     return TeamProfileHeader(
                       namaTim: namaTim,
                       fotoProfilName: emailUser,
                     );
+                  },
+                ),
+                const SizedBox(height: AppConstants.paddingL),
+
+                FinancialDashboardWidget(
+                  saldo: _saldoPengguna,
+                  isLoading: _loadingSaldo,
+                  onWithdraw: () {
+                    if (_saldoPengguna != null) {
+                      context.push(
+                        '/financial/withdraw',
+                        extra: _saldoPengguna,
+                      );
+                    }
+                  },
+                  onViewMore: () {
+                    context.push('/user/financial');
                   },
                 ),
                 const SizedBox(height: AppConstants.paddingL),
@@ -323,10 +384,10 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
 class HomeBannerSlider extends StatefulWidget {
   final List<Map<String, dynamic>> banners;
   final String? Function(String?, dynamic) getPosterUrl;
-  
+
   const HomeBannerSlider({
-    super.key, 
-    required this.banners, 
+    super.key,
+    required this.banners,
     required this.getPosterUrl,
   });
 
@@ -342,20 +403,17 @@ class _HomeBannerSliderState extends State<HomeBannerSlider> {
   @override
   void initState() {
     super.initState();
-    _bannerTimer = Timer.periodic(
-      const Duration(seconds: 7),
-      (_) {
-        if (!_bannerController.hasClients) return;
+    _bannerTimer = Timer.periodic(const Duration(seconds: 7), (_) {
+      if (!_bannerController.hasClients) return;
 
-        final nextPage = (_currentBanner + 1) % widget.banners.length;
+      final nextPage = (_currentBanner + 1) % widget.banners.length;
 
-        _bannerController.animateToPage(
-          nextPage,
-          duration: const Duration(milliseconds: 500),
-          curve: Curves.easeInOut,
-        );
-      },
-    );
+      _bannerController.animateToPage(
+        nextPage,
+        duration: const Duration(milliseconds: 500),
+        curve: Curves.easeInOut,
+      );
+    });
   }
 
   @override
@@ -386,9 +444,9 @@ class _HomeBannerSliderState extends State<HomeBannerSlider> {
             },
             itemBuilder: (context, index) {
               final bannerScrim = widget.banners[index];
-              
+
               final String bannerImageUrl = widget.getPosterUrl(
-                bannerScrim['poster'] as String?, 
+                bannerScrim['poster'] as String?,
                 bannerScrim['id_scrim'],
               )!;
 
@@ -434,7 +492,9 @@ class _HomeBannerSliderState extends State<HomeBannerSlider> {
                           ),
                           decoration: BoxDecoration(
                             color: AppColors.primary,
-                            borderRadius: BorderRadius.circular(AppConstants.radiusXL),
+                            borderRadius: BorderRadius.circular(
+                              AppConstants.radiusXL,
+                            ),
                           ),
                           child: Text(
                             'Rekomendasi Scrim',
@@ -465,23 +525,20 @@ class _HomeBannerSliderState extends State<HomeBannerSlider> {
         const SizedBox(height: AppConstants.paddingM),
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
-          children: List.generate(
-            widget.banners.length,
-            (index) {
-              final bool isActive = index == _currentBanner;
+          children: List.generate(widget.banners.length, (index) {
+            final bool isActive = index == _currentBanner;
 
-              return AnimatedContainer(
-                duration: const Duration(milliseconds: 300),
-                margin: const EdgeInsets.symmetric(horizontal: 3),
-                width: isActive ? 24 : 8,
-                height: 8,
-                decoration: BoxDecoration(
-                  color: isActive ? AppColors.primary : AppColors.textDisabled,
-                  borderRadius: BorderRadius.circular(4),
-                ),
-              );
-            },
-          ),
+            return AnimatedContainer(
+              duration: const Duration(milliseconds: 300),
+              margin: const EdgeInsets.symmetric(horizontal: 3),
+              width: isActive ? 24 : 8,
+              height: 8,
+              decoration: BoxDecoration(
+                color: isActive ? AppColors.primary : AppColors.textDisabled,
+                borderRadius: BorderRadius.circular(4),
+              ),
+            );
+          }),
         ),
       ],
     );
