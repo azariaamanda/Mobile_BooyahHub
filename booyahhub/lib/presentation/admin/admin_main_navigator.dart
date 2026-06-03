@@ -5,7 +5,7 @@ import '../../config/app_text_styles.dart';
 import 'admin_dashboard_screen.dart';
 import 'create_scrim_page.dart';
 import 'peserta_management_page.dart';
-import '../user/user_financial_screen.dart'; // Menggunakan view keuangan yang sebelumnya ada di user
+import '../../data/models/services/admin_keuangan_page.dart';
 import 'setting_page.dart';
 
 class AdminMainNavigator extends StatefulWidget {
@@ -22,7 +22,7 @@ class _AdminMainNavigatorState extends State<AdminMainNavigator> {
     AdminDashboardScreen(), // 0: Dashboard
     CreateScrimPage(), // 1: Buat Scrim
     PesertaManagementPage(), // 2: Peserta
-    UserFinancialScreen(), // 3: Keuangan (Dashboard Finansial)
+    AdminKeuanganPage(), // 3: Keuangan
     PaymentConfigPage(), // 4: Pengaturan
   ];
 

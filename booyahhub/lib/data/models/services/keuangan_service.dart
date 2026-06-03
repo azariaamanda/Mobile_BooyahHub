@@ -14,7 +14,17 @@ class KeuanganService {
           .eq('id_akun', idAkun)
           .maybeSingle();
 
-      if (response == null) return null;
+      if (response == null) {
+        // Return default saldo kosong jika record belum ada di DB
+        return SaldoPengguna(
+          idSaldo: 0,
+          idAkun: idAkun,
+          saldoTotal: 0,
+          saldoDitahan: 0,
+          saldoKlaimHadiah: 0,
+          dibuatPada: DateTime.now(),
+        );
+      }
       return SaldoPengguna.fromJson(response);
     } catch (e) {
       throw Exception('Error fetching saldo: $e');
