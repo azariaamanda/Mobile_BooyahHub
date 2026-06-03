@@ -1,4 +1,6 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import '../../config/app_color.dart';
 import '../../config/app_text_styles.dart';
 import '../../data/models/services/auth_service.dart';
@@ -27,6 +29,7 @@ class _UserEditProfilePageState extends State<UserEditProfilePage> {
   final TextEditingController _confirmPasswordController = TextEditingController();
 
   bool _isLoading = false;
+  File? _selectedImage;
 
   @override
   void initState() {
@@ -45,6 +48,24 @@ class _UserEditProfilePageState extends State<UserEditProfilePage> {
     super.dispose();
   }
 
+  Future<void> _pickImage() async {
+    try {
+      final picker = ImagePicker();
+      final pickedFile = await picker.pickImage(source: ImageSource.gallery);
+      if (pickedFile != null) {
+        setState(() {
+          _selectedImage = File(pickedFile.path);
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Gagal membuka galeri: $e')),
+        );
+      }
+    }
+  }
+
   Future<void> _handleSave() async {
     if (_newPasswordController.text.isNotEmpty && 
         _newPasswordController.text != _confirmPasswordController.text) {
@@ -60,6 +81,7 @@ class _UserEditProfilePageState extends State<UserEditProfilePage> {
       newName: _nameController.text,
       oldPassword: _oldPasswordController.text.isNotEmpty ? _oldPasswordController.text : null,
       newPassword: _newPasswordController.text.isNotEmpty ? _newPasswordController.text : null,
+      newFotoProfil: _selectedImage,
     );
 
     setState(() => _isLoading = false);
@@ -105,36 +127,41 @@ class _UserEditProfilePageState extends State<UserEditProfilePage> {
               const SizedBox(height: 20),
               
               // Profile Picture with Edit Icon
-              Stack(
-                alignment: Alignment.bottomRight,
-                children: [
-                  Container(
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      border: Border.all(color: AppColors.primary, width: 2),
+              GestureDetector(
+                onTap: _pickImage,
+                child: Stack(
+                  alignment: Alignment.bottomRight,
+                  children: [
+                    Container(
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(color: AppColors.primary, width: 2),
+                      ),
+                      child: CircleAvatar(
+                        radius: 50,
+                        backgroundColor: AppColors.surfaceVariant,
+                        backgroundImage: _selectedImage != null
+                            ? FileImage(_selectedImage!) as ImageProvider
+                            : (widget.initialFotoProfil != null && widget.initialFotoProfil!.isNotEmpty
+                                ? NetworkImage(widget.initialFotoProfil!)
+                                : const NetworkImage('https://i.pravatar.cc/300')), // Fallback
+                      ),
                     ),
-                    child: CircleAvatar(
-                      radius: 50,
-                      backgroundColor: AppColors.surfaceVariant,
-                      backgroundImage: widget.initialFotoProfil != null && widget.initialFotoProfil!.isNotEmpty
-                          ? NetworkImage(widget.initialFotoProfil!)
-                          : const NetworkImage('https://i.pravatar.cc/300'), // Fallback
+                    Container(
+                      padding: const EdgeInsets.all(6),
+                      decoration: BoxDecoration(
+                        color: AppColors.primary,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: AppColors.background, width: 2),
+                      ),
+                      child: const Icon(
+                        Icons.edit,
+                        size: 16,
+                        color: AppColors.black,
+                      ),
                     ),
-                  ),
-                  Container(
-                    padding: const EdgeInsets.all(6),
-                    decoration: BoxDecoration(
-                      color: AppColors.primary,
-                      shape: BoxShape.circle,
-                      border: Border.all(color: AppColors.background, width: 2),
-                    ),
-                    child: const Icon(
-                      Icons.edit,
-                      size: 16,
-                      color: AppColors.black,
-                    ),
-                  ),
-                ],
+                  ],
+                ),
               ),
               const SizedBox(height: 12),
               Text(
