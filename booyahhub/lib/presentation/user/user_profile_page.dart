@@ -20,6 +20,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
   String _email = 'Memuat...';
   String? _fotoProfil;
   bool _isLoading = true;
+  bool _isNotifikasiAktif = true;
 
   @override
   void initState() {
@@ -159,7 +160,19 @@ class _UserProfilePageState extends State<UserProfilePage> {
               const SizedBox(height: 12),
               _buildCardMenu(
                 icon: Icons.notifications_none,
-                title: 'Pengaturan Notifikasi',
+                title: 'Notifikasi',
+                trailing: Switch(
+                  value: _isNotifikasiAktif,
+                  activeThumbColor: Colors.white,
+                  activeTrackColor: const Color(0xFFD4AF37), // Matches the yellowish primary color in screenshot
+                  inactiveThumbColor: Colors.white70,
+                  inactiveTrackColor: AppColors.surfaceVariant,
+                  onChanged: (val) {
+                    setState(() {
+                      _isNotifikasiAktif = val;
+                    });
+                  },
+                ),
                 onTap: () {},
               ),
               
@@ -317,6 +330,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
     Color? textColor,
     Color? iconColor,
     Color? iconBackgroundColor,
+    Widget? trailing,
   }) {
     return Container(
       decoration: BoxDecoration(
@@ -342,7 +356,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
             fontWeight: FontWeight.w600,
           ),
         ),
-        trailing: const Icon(Icons.arrow_forward_ios, size: 14, color: AppColors.textSecondary),
+        trailing: trailing ?? const Icon(Icons.arrow_forward_ios, size: 14, color: AppColors.textSecondary),
         onTap: onTap,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       ),
