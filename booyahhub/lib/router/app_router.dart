@@ -5,6 +5,7 @@ import '../presentation/auth/register_admin_page.dart';
 import '../presentation/auth/register_user_page.dart';
 import '../presentation/auth/register_owner_page.dart';
 import '../presentation/owner/edit_premium_package_screen.dart';
+import '../presentation/owner/manage_fee_screen.dart';
 import '../presentation/owner/owner_main_navigator.dart';
 import '../presentation/owner/admin_verification_page.dart';
 import '../presentation/owner/financial_report_page.dart';
@@ -98,6 +99,11 @@ class AppRouter {
         path: '/owner/verifikasi-admin',
         name: 'verifikasi_admin',
         builder: (context, state) => const AdminVerificationPage(),
+      ),
+      GoRoute(
+        path: '/owner/manage-fee',
+        name: 'owner_manage_fee',
+        builder: (context, state) => const ManageFeeScreen(),
       ),
       GoRoute(
         path: '/owner/laporan-keuangan',

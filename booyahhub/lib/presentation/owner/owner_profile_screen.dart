@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import '../../config/app_color.dart';
 import '../../config/app_text_styles.dart';
 
@@ -39,7 +40,7 @@ class OwnerProfileScreen extends StatelessWidget {
               value: 'Rp 45.500.000',
             ),
             const SizedBox(height: 32),
-            _buildMenuSection(),
+            _buildMenuSection(context),
           ],
         ),
       ),
@@ -174,12 +175,16 @@ class OwnerProfileScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildMenuSection() {
+  Widget _buildMenuSection(BuildContext context) {
     return Column(
       children: [
         _buildMenuItem(icon: Icons.person_rounded, title: 'Edit Profil & Password'),
         const SizedBox(height: 8),
-        _buildMenuItem(icon: Icons.account_balance_wallet_rounded, title: 'Kelola Fee'),
+        _buildMenuItem(
+          icon: Icons.account_balance_wallet_rounded, 
+          title: 'Kelola Fee',
+          onTap: () => context.push('/owner/manage-fee'),
+        ),
         const SizedBox(height: 8),
         _buildMenuItem(icon: Icons.stars_rounded, title: 'Layanan Premium'),
         const SizedBox(height: 8),
@@ -202,6 +207,7 @@ class OwnerProfileScreen extends StatelessWidget {
     required IconData icon,
     required String title,
     bool isDestructive = false,
+    VoidCallback? onTap,
   }) {
     final Color itemColor = isDestructive ? Colors.redAccent : Colors.white;
     final Color iconBgColor = isDestructive ? Colors.redAccent.withValues(alpha: 0.1) : Colors.white10;
@@ -234,7 +240,7 @@ class OwnerProfileScreen extends StatelessWidget {
           color: isDestructive ? Colors.redAccent.withValues(alpha: 0.5) : Colors.white54,
           size: 20,
         ),
-        onTap: () {},
+        onTap: onTap ?? () {},
       ),
     );
   }
