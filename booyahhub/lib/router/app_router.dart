@@ -4,6 +4,7 @@ import '../presentation/auth/login_screen.dart';
 import '../presentation/auth/register_admin_page.dart';
 import '../presentation/auth/register_user_page.dart';
 import '../presentation/auth/register_owner_page.dart';
+import '../presentation/owner/premium_management_screen.dart';
 import '../presentation/owner/edit_profile_screen.dart';
 import '../presentation/owner/edit_premium_package_screen.dart';
 import '../presentation/owner/manage_fee_screen.dart';
@@ -110,6 +111,11 @@ class AppRouter {
         path: '/owner/edit-profile',
         name: 'owner_edit_profile',
         builder: (context, state) => const EditProfileScreen(),
+      ),
+      GoRoute(
+        path: '/owner/premium-management',
+        name: 'owner_premium_management',
+        builder: (context, state) => const PremiumManagementScreen(),
       ),
       GoRoute(
         path: '/owner/laporan-keuangan',

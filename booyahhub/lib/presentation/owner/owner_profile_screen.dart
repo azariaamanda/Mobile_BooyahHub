@@ -190,7 +190,11 @@ class OwnerProfileScreen extends StatelessWidget {
           onTap: () => context.push('/owner/manage-fee'),
         ),
         const SizedBox(height: 8),
-        _buildMenuItem(icon: Icons.stars_rounded, title: 'Layanan Premium'),
+        _buildMenuItem(
+          icon: Icons.stars_rounded, 
+          title: 'Layanan Premium',
+          onTap: () => context.push('/owner/premium-management'),
+        ),
         const SizedBox(height: 8),
         _buildMenuItem(icon: Icons.campaign_rounded, title: 'Kelola Banner'),
         const SizedBox(height: 8),
@@ -202,6 +206,7 @@ class OwnerProfileScreen extends StatelessWidget {
           icon: Icons.logout_rounded,
           title: 'Logout',
           isDestructive: true,
+          onTap: () => context.go('/login'),
         ),
       ],
     );
