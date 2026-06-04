@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import '../../config/app_color.dart';
+import '../../config/app_constants.dart';
 import '../../config/app_text_styles.dart';
 import 'owner_dashboard_screen.dart';
+import 'premium_management_screen.dart';
 
 class OwnerMainNavigator extends StatefulWidget {
   const OwnerMainNavigator({super.key});
@@ -17,7 +19,7 @@ class _OwnerMainNavigatorState extends State<OwnerMainNavigator> {
     const OwnerDashboardScreen(),
     _buildPlaceholder('Halaman Admin'),
     _buildPlaceholder('Halaman Tagihan'),
-    _buildPlaceholder('Halaman Banner/Premium'),
+    const PremiumManagementScreen(),
     _buildPlaceholder('Halaman Profil'),
   ];
 
@@ -41,61 +43,80 @@ class _OwnerMainNavigatorState extends State<OwnerMainNavigator> {
         index: _selectedIndex,
         children: _pages,
       ),
-      extendBody: true, // Allows body to scroll behind the floating navbar
+      extendBody: true,
       bottomNavigationBar: SafeArea(
         child: Container(
-          margin: const EdgeInsets.only(left: 24, right: 24, bottom: 24),
-          padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
+          margin: const EdgeInsets.only(
+            left: AppConstants.paddingM,
+            right: AppConstants.paddingM,
+            bottom: AppConstants.paddingM,
+          ),
+          height: 65,
           decoration: BoxDecoration(
-            color: const Color(0xFFFFD700), // Yellow from design
-            borderRadius: BorderRadius.circular(40),
+            color: AppColors.primary,
+            borderRadius: BorderRadius.circular(AppConstants.radiusXL),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.3),
+                color: AppColors.shadow,
                 blurRadius: 10,
-                offset: const Offset(0, 5),
+                offset: const Offset(0, 4),
               ),
             ],
           ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              _buildNavItem(Icons.grid_view_rounded, 0),
-              _buildNavItem(Icons.people_alt_outlined, 1),
-              _buildNavItem(Icons.receipt_long_rounded, 2),
-              _buildNavItem(Icons.stars_rounded, 3),
-              _buildNavItem(Icons.person_outline_rounded, 4),
-            ],
+          padding: const EdgeInsets.symmetric(horizontal: AppConstants.paddingS),
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: [
+                _buildNavItem(Icons.grid_view_rounded, 'Dashboard', 0),
+                _buildNavItem(Icons.people_alt_outlined, 'Admin', 1),
+                _buildNavItem(Icons.receipt_long_rounded, 'Tagihan', 2),
+                _buildNavItem(Icons.stars_rounded, 'Layanan', 3),
+                _buildNavItem(Icons.person_outline_rounded, 'Profil', 4),
+              ],
+            ),
           ),
         ),
       ),
     );
   }
 
-  Widget _buildNavItem(IconData icon, int index) {
-    final isSelected = _selectedIndex == index;
+  Widget _buildNavItem(IconData icon, String label, int index) {
+    final bool isSelected = _selectedIndex == index;
 
-    return GestureDetector(
-      onTap: () {
-        setState(() {
-          _selectedIndex = index;
-        });
-      },
-      behavior: HitTestBehavior.opaque,
-      child: Container(
-        padding: const EdgeInsets.all(8),
-        decoration: isSelected
-            ? const BoxDecoration(
-                color: Colors.black,
-                shape: BoxShape.circle,
-              )
-            : null,
-        child: Icon(
-          icon,
-          color: isSelected ? const Color(0xFFFFD700) : Colors.black,
-          size: 24,
-        ),
-      ),
-    );
+    return isSelected
+        ? Container(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppConstants.paddingM, 
+              vertical: AppConstants.paddingS
+            ),
+            decoration: BoxDecoration(
+              color: AppColors.background,
+              borderRadius: BorderRadius.circular(AppConstants.radiusXL),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(icon, color: AppColors.primary, size: 20),
+                const SizedBox(width: AppConstants.paddingXS),
+                Text(
+                  label, 
+                  style: AppTextStyles.interCaption.copyWith(
+                    color: AppColors.primary,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+          )
+        : IconButton(
+            icon: Icon(icon, color: AppColors.background),
+            onPressed: () {
+              setState(() {
+                _selectedIndex = index;
+              });
+            },
+          );
   }
 }
