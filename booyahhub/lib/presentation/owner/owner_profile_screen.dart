@@ -178,7 +178,11 @@ class OwnerProfileScreen extends StatelessWidget {
   Widget _buildMenuSection(BuildContext context) {
     return Column(
       children: [
-        _buildMenuItem(icon: Icons.person_rounded, title: 'Edit Profil & Password'),
+        _buildMenuItem(
+          icon: Icons.person_rounded, 
+          title: 'Edit Profil & Password',
+          onTap: () => context.push('/owner/edit-profile'),
+        ),
         const SizedBox(height: 8),
         _buildMenuItem(
           icon: Icons.account_balance_wallet_rounded, 
