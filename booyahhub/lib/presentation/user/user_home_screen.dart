@@ -10,6 +10,7 @@ import '../../config/app_text_styles.dart';
 import '../../config/supabase_client.dart';
 import 'user_widgets/team_profile_header.dart';
 import 'user_widgets/scrim_item_card.dart';
+import 'user_widgets/claim_prize_notification.dart';
 
 class UserHomeScreen extends StatefulWidget {
   const UserHomeScreen({super.key});
@@ -38,6 +39,22 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
   void initState() {
     super.initState();
     _fetchModes(); // Ambil data mode
+
+    // Tampilkan notifikasi klaim hadiah setelah frame pertama selesai render
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        ClaimPrizeNotification.show(
+          context,
+          // TODO: Ganti dengan data dinamis dari database nantinya
+          scrimTitle: 'Rafif Scrim',
+          prizeAmount: 'Rp 250.000',
+          onClaim: () {
+            // TODO: Navigasi ke halaman klaim hadiah
+            // context.pushNamed('claim_prize');
+          },
+        );
+      }
+    });
   }
 
   // ─── FUNGSI AMBIL MODE ───
