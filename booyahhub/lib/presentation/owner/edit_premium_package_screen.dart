@@ -110,7 +110,7 @@ class _EditPremiumPackageScreenState extends State<EditPremiumPackageScreen> {
         'tier_level': _selectedTier,
         'harga': double.tryParse(_hargaController.text) ?? 0,
         'durasi_hari': int.tryParse(_durasiController.text) ?? 30,
-        'status': _isAktif ? 'aktif' : 'nonaktif',
+        'status': _isAktif ? 'AKTIF' : 'NONAKTIF',
         'fitur_paket': selectedFeatures,
       };
 
