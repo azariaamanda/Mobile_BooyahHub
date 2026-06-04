@@ -19,7 +19,7 @@ class _OwnerMainNavigatorState extends State<OwnerMainNavigator> {
   final List<Widget> _pages = [
     const OwnerDashboardScreen(),
     _buildPlaceholder('Halaman Admin'),
-    _buildPlaceholder('Halaman Tagihan'),
+    _buildPlaceholder('Halaman Banner'),
     const PremiumManagementScreen(),
     const OwnerProfileScreen(),
   ];
@@ -72,7 +72,7 @@ class _OwnerMainNavigatorState extends State<OwnerMainNavigator> {
               children: [
                 _buildNavItem(Icons.grid_view_rounded, 'Dashboard', 0),
                 _buildNavItem(Icons.people_alt_outlined, 'Admin', 1),
-                _buildNavItem(Icons.receipt_long_rounded, 'Tagihan', 2),
+                _buildNavItem(Icons.campaign_rounded, 'Banner', 2),
                 _buildNavItem(Icons.stars_rounded, 'Layanan', 3),
                 _buildNavItem(Icons.person_outline_rounded, 'Profil', 4),
               ],
