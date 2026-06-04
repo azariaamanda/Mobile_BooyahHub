@@ -93,7 +93,10 @@ class _PremiumManagementScreenState extends State<PremiumManagementScreen> {
           ],
         ),
         GestureDetector(
-          onTap: () => context.push('/owner/edit-premium'),
+          onTap: () async {
+            await context.push('/owner/edit-premium');
+            _fetchPackages();
+          },
           child: Container(
             width: 36,
             height: 36,
@@ -204,8 +207,9 @@ class _PremiumManagementScreenState extends State<PremiumManagementScreen> {
     required bool hasLeftBorder,
   }) {
     return GestureDetector(
-      onTap: () {
-        context.push('/owner/edit-premium', extra: pkg);
+      onTap: () async {
+        await context.push('/owner/edit-premium', extra: pkg);
+        _fetchPackages();
       },
       child: Container(
         decoration: BoxDecoration(
