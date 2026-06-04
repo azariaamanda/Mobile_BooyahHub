@@ -19,8 +19,8 @@ class UserHomeScreen extends StatefulWidget {
 }
 
 class _UserHomeScreenState extends State<UserHomeScreen> {
-  final int _selectedModeId = 0;
-  String _selectedSort = 'terbaru';
+  int _selectedModeId = 0; // PERBAIKAN: jadikan variable, bukan final
+  String _selectedSort = 'semua';
   final _supabase = Supabase.instance.client;
 
   final List<Map<String, String>> _sortOptions = [
@@ -30,9 +30,30 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
     {'value': 'terbaru', 'label': 'Terkini'},
   ];
 
+  // Daftar mode untuk filter (ditambahkan)
+  List<Map<String, dynamic>> _modes = [];
+  bool _isLoadingModes = true;
+
   @override
   void initState() {
     super.initState();
+    _fetchModes(); // Ambil data mode
+  }
+
+  // ─── FUNGSI AMBIL MODE ───
+  Future<void> _fetchModes() async {
+    try {
+      final modes = await fetchModes();
+      setState(() {
+        _modes = modes;
+        _isLoadingModes = false;
+      });
+    } catch (e) {
+      setState(() {
+        _isLoadingModes = false;
+      });
+      debugPrint('Error fetching modes: $e');
+    }
   }
 
   // ─── FUNGSI AMBIL DATA PROFIL DARI DATABASE ───
@@ -41,7 +62,6 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
       final currentUser = _supabase.auth.currentUser;
       if (currentUser == null || currentUser.email == null) return null;
 
-      // Ambil data profil_pengguna dengan melakukan join via akun menggunakan filter email user yang login
       final response = await _supabase
           .from('profil_pengguna')
           .select('nama_tim, foto_profil, akun!inner(email)')
@@ -55,14 +75,13 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
     }
   }
 
-  // LOGIKA GAMBAR SAMA SEPERTI DETAIL SCRIM PAGE (Disesuaikan dengan folder dalam bucket)
+  // LOGIKA GAMBAR
   String? _getPosterUrl(String? path, dynamic idScrim) {
     if (path == null || path.isEmpty) {
       return AppImageHelper.posterByIdScrim(idScrim);
     }
     if (path.startsWith('http')) return path;
 
-    // Menangani struktur bucket posters -> folder posters -> file gambar
     final fullPath = path.startsWith('posters/') ? path : 'posters/$path';
     return _supabase.storage.from('posters').getPublicUrl(fullPath);
   }
@@ -80,6 +99,7 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
     final response = await SupabaseClientHelper.client
         .from('scrim')
         .select()
+        .eq('status_scrim', 'aktif') // PERBAIKAN: hanya scrim aktif
         .order('dibuat_pada', ascending: false)
         .limit(3);
 
@@ -87,7 +107,10 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
   }
 
   Future<List<Map<String, dynamic>>> fetchScrimData() async {
-    dynamic query = SupabaseClientHelper.client.from('scrim').select();
+    dynamic query = SupabaseClientHelper.client
+        .from('scrim')
+        .select()
+        .eq('status_scrim', 'aktif');
 
     if (_selectedModeId != 0) {
       query = query.eq('id_mode', _selectedModeId);
@@ -113,6 +136,61 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
     return List<Map<String, dynamic>>.from(response);
   }
 
+  // ─── BUILD MODE FILTER CHIP (DITAMBAHKAN) ───
+  Widget _buildModeFilter() {
+    if (_isLoadingModes) {
+      return const SizedBox(
+        height: 40,
+        child: Center(
+          child: SizedBox(
+            width: 20,
+            height: 20,
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+              color: AppColors.primary,
+            ),
+          ),
+        ),
+      );
+    }
+
+    return SizedBox(
+      height: 40,
+      child: ListView.builder(
+        scrollDirection: Axis.horizontal,
+        itemBuilder: (context, index) {
+          final isAllMode = index == 0;
+          final isSelected = isAllMode
+              ? _selectedModeId == 0
+              : _selectedModeId == _modes[index - 1]['id_mode'];
+          final label = isAllMode ? 'Semua' : _modes[index - 1]['nama_mode'];
+
+          return GestureDetector(
+            onTap: () {
+              setState(() {
+                _selectedModeId = isAllMode ? 0 : _modes[index - 1]['id_mode'];
+              });
+            },
+            child: Container(
+              margin: const EdgeInsets.only(right: AppConstants.paddingS),
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppConstants.paddingM,
+                vertical: AppConstants.paddingXS,
+              ),
+              child: Text(
+                label,
+                style: isSelected
+                    ? AppTextStyles.goldHighlight
+                    : AppTextStyles.interBodyMedium,
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  // ─── BUILD SECTION TITLE (DIPERBAIKI "LIHAT LAINNYA") ───
   Widget _buildSectionTitle() {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -125,11 +203,13 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
           ],
         ),
         TextButton(
-          onPressed: () {},
+          onPressed: () {
+            context.pushNamed('scrim_page');
+          },
           child: Row(
             children: [
               Text('Lihat Lainnya', style: AppTextStyles.interLink),
-              Icon(Icons.arrow_forward_ios, size: 12, color: AppColors.primary),
+              const Icon(Icons.arrow_forward_ios, size: 12, color: AppColors.primary),
             ],
           ),
         ),
@@ -206,7 +286,7 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
         return GridView.builder(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
-          itemCount: listScrim.length,
+          itemCount: listScrim.length > 4 ? 4 : listScrim.length, // Hanya tampilkan 4 di home
           gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
             crossAxisCount: 2,
             crossAxisSpacing: 12,
@@ -222,7 +302,6 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
                 double.tryParse(scrim['total_hadiah'].toString()) ?? 0;
             final int maksPeserta = scrim['maks_peserta'] ?? 16;
 
-            // Memanggil fungsi penanganan gambar dinamis
             final String? posterUrl = _getPosterUrl(
               scrim['poster'] as String?,
               scrim['id_scrim'],
@@ -241,7 +320,7 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
                 prize: _formatRupiah(hadiah),
                 fee: biaya == 0 ? 'Free' : _formatRupiah(biaya),
                 slotsInfo: '0/$maksPeserta terisi',
-                posterImage: posterUrl ?? '', // Berikan string kosong jika null
+                posterImage: posterUrl ?? '',
                 primaryYellow: AppColors.primary,
               ),
             );
@@ -266,7 +345,7 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // ─── SEKARANG DIBUNGKUS FUTUREBUILDER BIAR DINAMIS ───
+                // Header Profil
                 FutureBuilder<Map<String, dynamic>?>(
                   future: fetchUserData(),
                   builder: (context, snapshot) {
@@ -290,9 +369,18 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
                 ),
                 const SizedBox(height: AppConstants.paddingL),
 
+                // Banner Slider
                 FutureBuilder<List<Map<String, dynamic>>>(
                   future: fetchBannerScrimData(),
                   builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return const SizedBox(
+                        height: 180,
+                        child: Center(
+                          child: CircularProgressIndicator(color: AppColors.primary),
+                        ),
+                      );
+                    }
                     if (!snapshot.hasData || snapshot.data!.isEmpty) {
                       return const SizedBox(height: 180);
                     }
@@ -304,6 +392,7 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
                 ),
 
                 const SizedBox(height: AppConstants.paddingL),
+
                 _buildSectionTitle(),
                 const SizedBox(height: AppConstants.paddingS),
                 _buildSortFilter(),
@@ -318,7 +407,7 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
   }
 }
 
-// ─── WIDGET MANDIRI BANNER SLIDER ───
+// ─── WIDGET BANNER SLIDER (SAMA SEPERTI SEBELUMNYA) ───
 class HomeBannerSlider extends StatefulWidget {
   final List<Map<String, dynamic>> banners;
   final String? Function(String?, dynamic) getPosterUrl;
@@ -343,9 +432,9 @@ class _HomeBannerSliderState extends State<HomeBannerSlider> {
     super.initState();
     _bannerTimer = Timer.periodic(const Duration(seconds: 7), (_) {
       if (!_bannerController.hasClients) return;
+      if (widget.banners.isEmpty) return;
 
       final nextPage = (_currentBanner + 1) % widget.banners.length;
-
       _bannerController.animateToPage(
         nextPage,
         duration: const Duration(milliseconds: 500),
@@ -368,6 +457,10 @@ class _HomeBannerSliderState extends State<HomeBannerSlider> {
 
   @override
   Widget build(BuildContext context) {
+    if (widget.banners.isEmpty) {
+      return const SizedBox(height: 180);
+    }
+
     return Column(
       children: [
         SizedBox(

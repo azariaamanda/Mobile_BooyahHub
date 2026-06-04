@@ -1,3 +1,4 @@
+import 'package:booyahhub/presentation/user/user_pesanan.dart';
 import 'package:flutter/material.dart';
 import '../../config/app_color.dart';
 import '../../config/app_constants.dart';
@@ -19,10 +20,10 @@ class _UserMainNavigatorState extends State<UserMainNavigator> {
 
   // DAFTAR HALAMAN YANG AKAN DIKONTROL OLEH BOTTOM NAV BAR
   final List<Widget> _pages = [
-    const UserHomeScreen(), // Index 0: Halaman Beranda yang lu buat tadi
-    const ScrimPage(),  // Index 1 (Ganti dengan class aslinya nanti)
-    const HistoryScrimPage(),// Index 2 (Ganti dengan class aslinya nanti)
-    const UserProfilePage(), // Index 3 (Ganti dengan class aslinya nanti)
+    const UserHomeScreen(),
+    const UserPesananPage(),
+    const HistoryScrimPage(),
+    const UserProfilePage(),
   ];
 
   @override
@@ -59,7 +60,7 @@ class _UserMainNavigatorState extends State<UserMainNavigator> {
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
               _buildNavItem(Icons.home, "Beranda", 0),
-              _buildNavItem(Icons.assignment, "Scrim", 1),
+              _buildNavItem(Icons.assignment, "Pesanan", 1),
               _buildNavItem(Icons.history, "Riwayat", 2),
               _buildNavItem(Icons.person, "Profil", 3),
             ],

@@ -27,6 +27,8 @@ import '../presentation/admin/input_score_page.dart';
 import '../presentation/admin/admin_claim_list_page.dart';
 import '../presentation/admin/admin_profile_page.dart';
 import '../presentation/user/user_home_screen.dart';
+import '../presentation/user/scrim_page.dart';
+import '../presentation/user/user_pesanan.dart';
 import '../presentation/user/scrim_detail_page.dart';
 import '../presentation/user/booking_scrim_page.dart';
 import '../presentation/user/booking_form_page.dart';
@@ -218,6 +220,16 @@ class AppRouter {
         path: '/user/beranda-konten',
         name: 'user_beranda_konten',
         builder: (context, state) => const UserHomeScreen(),
+      ),
+      GoRoute(
+        path: '/user/scrim',
+        name: 'scrim_page',
+        builder: (context, state) => const ScrimPage(),
+      ),
+      GoRoute(
+        path: '/user/pesanan',
+        name: 'user_pesanan',
+        builder: (context, state) => const UserPesananPage(),
       ),
       GoRoute(
         path: '/user/scrim/:idScrim',
