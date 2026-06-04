@@ -92,14 +92,17 @@ class _PremiumManagementScreenState extends State<PremiumManagementScreen> {
             ),
           ],
         ),
-        Container(
-          width: 36,
-          height: 36,
-          decoration: BoxDecoration(
-            color: const Color(0xFFFFD700),
-            borderRadius: BorderRadius.circular(8),
+        GestureDetector(
+          onTap: () => context.push('/owner/edit-premium'),
+          child: Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              color: const Color(0xFFFFD700),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: const Icon(Icons.add_rounded, color: Colors.black, size: 24),
           ),
-          child: const Icon(Icons.add_rounded, color: Colors.black, size: 24),
         ),
       ],
     );
@@ -167,6 +170,7 @@ class _PremiumManagementScreenState extends State<PremiumManagementScreen> {
     }
 
     return _buildPremiumCard(
+      pkg: pkg,
       context: context,
       title: pkg.namaPaket,
       tierBadgeText: pkg.tierLevel ?? 'UMUM',
@@ -184,6 +188,7 @@ class _PremiumManagementScreenState extends State<PremiumManagementScreen> {
   }
 
   Widget _buildPremiumCard({
+    required PaketPremiumModel pkg,
     required BuildContext context,
     required String title,
     required String tierBadgeText,
@@ -200,7 +205,7 @@ class _PremiumManagementScreenState extends State<PremiumManagementScreen> {
   }) {
     return GestureDetector(
       onTap: () {
-        context.push('/owner/edit-premium');
+        context.push('/owner/edit-premium', extra: pkg);
       },
       child: Container(
         decoration: BoxDecoration(
