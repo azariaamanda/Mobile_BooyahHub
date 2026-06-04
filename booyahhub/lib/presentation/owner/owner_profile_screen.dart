@@ -2,47 +2,81 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../config/app_color.dart';
 import '../../config/app_text_styles.dart';
+import '../../data/models/services/auth_service.dart';
 
-class OwnerProfileScreen extends StatelessWidget {
+class OwnerProfileScreen extends StatefulWidget {
   const OwnerProfileScreen({super.key});
+
+  @override
+  State<OwnerProfileScreen> createState() => _OwnerProfileScreenState();
+}
+
+class _OwnerProfileScreenState extends State<OwnerProfileScreen> {
+  final _authService = AuthService();
+  bool _isLoading = true;
+  Map<String, dynamic>? _akunData;
+  Map<String, dynamic>? _profilData;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadProfile();
+  }
+
+  Future<void> _loadProfile() async {
+    if (!mounted) return;
+    setState(() => _isLoading = true);
+    final data = await _authService.getCurrentAkunAndProfil();
+    if (data != null && mounted) {
+      setState(() {
+        _akunData = data['akun'].toJson();
+        _profilData = data['profil'] as Map<String, dynamic>?;
+        _isLoading = false;
+      });
+    } else {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(24, 24, 24, 100),
-          children: [
-            _buildAppBar(),
-            const SizedBox(height: 32),
-            _buildProfileInfo(),
-            const SizedBox(height: 32),
-            _buildStatCard(
-              icon: Icons.account_balance_wallet_rounded,
-              iconBgColor: const Color(0xFF3B331A), // Dark yellowish
-              iconColor: const Color(0xFFFFD700),
-              badgeText: '+12.5% Today',
-              badgeBgColor: const Color(0xFF3B331A),
-              badgeTextColor: const Color(0xFFFFD700),
-              title: 'Total Revenue',
-              value: 'Rp 45.500.000',
-            ),
-            const SizedBox(height: 16),
-            _buildStatCard(
-              icon: Icons.videogame_asset_rounded,
-              iconBgColor: Colors.white10,
-              iconColor: Colors.white70,
-              badgeText: 'All-Time',
-              badgeBgColor: Colors.white10,
-              badgeTextColor: Colors.white70,
-              title: 'Total Revenue',
-              value: 'Rp 45.500.000',
-            ),
-            const SizedBox(height: 32),
-            _buildMenuSection(context),
-          ],
-        ),
+        child: _isLoading
+            ? const Center(child: CircularProgressIndicator(color: Color(0xFFFFD700)))
+            : ListView(
+                padding: const EdgeInsets.fromLTRB(24, 24, 24, 100),
+                children: [
+                  _buildAppBar(),
+                  const SizedBox(height: 32),
+                  _buildProfileInfo(),
+                  const SizedBox(height: 32),
+                  _buildStatCard(
+                    icon: Icons.account_balance_wallet_rounded,
+                    iconBgColor: const Color(0xFF3B331A), // Dark yellowish
+                    iconColor: const Color(0xFFFFD700),
+                    badgeText: '+12.5% Today',
+                    badgeBgColor: const Color(0xFF3B331A),
+                    badgeTextColor: const Color(0xFFFFD700),
+                    title: 'Total Revenue',
+                    value: 'Rp 45.500.000',
+                  ),
+                  const SizedBox(height: 16),
+                  _buildStatCard(
+                    icon: Icons.videogame_asset_rounded,
+                    iconBgColor: Colors.white10,
+                    iconColor: Colors.white70,
+                    badgeText: 'All-Time',
+                    badgeBgColor: Colors.white10,
+                    badgeTextColor: Colors.white70,
+                    title: 'Total Revenue',
+                    value: 'Rp 45.500.000',
+                  ),
+                  const SizedBox(height: 32),
+                  _buildMenuSection(context),
+                ],
+              ),
       ),
     );
   }
@@ -67,6 +101,10 @@ class OwnerProfileScreen extends StatelessWidget {
   }
 
   Widget _buildProfileInfo() {
+    final name = _profilData?['nama_lengkap'] ?? 'Unknown';
+    final email = _akunData?['email'] ?? 'Unknown Email';
+    final fotoUrl = _profilData?['foto_profil'] as String?;
+
     return Column(
       children: [
         Container(
@@ -76,16 +114,20 @@ class OwnerProfileScreen extends StatelessWidget {
             color: const Color(0xFF131F2D),
             borderRadius: BorderRadius.circular(20),
             border: Border.all(color: const Color(0xFFFFD700), width: 3),
-            image: const DecorationImage(
-              // Using a placeholder network image or solid color for now
-              image: NetworkImage('https://i.pravatar.cc/300'),
-              fit: BoxFit.cover,
-            ),
+            image: fotoUrl != null
+                ? DecorationImage(
+                    image: NetworkImage(fotoUrl),
+                    fit: BoxFit.cover,
+                  )
+                : const DecorationImage(
+                    image: NetworkImage('https://i.pravatar.cc/300'),
+                    fit: BoxFit.cover,
+                  ),
           ),
         ),
         const SizedBox(height: 16),
         Text(
-          'Azaria Amanda',
+          name,
           style: AppTextStyles.poppinsHeadline.copyWith(
             color: Colors.white,
             fontSize: 22,
@@ -94,7 +136,7 @@ class OwnerProfileScreen extends StatelessWidget {
         ),
         const SizedBox(height: 4),
         Text(
-          'aza@booyahhub.com',
+          email,
           style: AppTextStyles.interCaption.copyWith(
             color: const Color(0xFFFFD700).withValues(alpha: 0.8),
             fontSize: 12,
@@ -181,7 +223,10 @@ class OwnerProfileScreen extends StatelessWidget {
         _buildMenuItem(
           icon: Icons.person_rounded, 
           title: 'Edit Profil & Password',
-          onTap: () => context.push('/owner/edit-profile'),
+          onTap: () async {
+            await context.push('/owner/edit-profile');
+            _loadProfile(); // Refresh data after returning
+          },
         ),
         const SizedBox(height: 8),
         _buildMenuItem(
@@ -206,7 +251,10 @@ class OwnerProfileScreen extends StatelessWidget {
           icon: Icons.logout_rounded,
           title: 'Logout',
           isDestructive: true,
-          onTap: () => context.go('/login'),
+          onTap: () {
+            _authService.logout();
+            context.go('/login');
+          },
         ),
       ],
     );

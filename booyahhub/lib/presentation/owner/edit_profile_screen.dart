@@ -1,9 +1,100 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../config/app_color.dart';
 import '../../config/app_text_styles.dart';
+import '../../data/models/services/auth_service.dart';
 
-class EditProfileScreen extends StatelessWidget {
+class EditProfileScreen extends StatefulWidget {
   const EditProfileScreen({super.key});
+
+  @override
+  State<EditProfileScreen> createState() => _EditProfileScreenState();
+}
+
+class _EditProfileScreenState extends State<EditProfileScreen> {
+  final _authService = AuthService();
+  final _supabase = Supabase.instance.client;
+  final ImagePicker _picker = ImagePicker();
+
+  bool _isLoading = true;
+  bool _isUploading = false;
+  
+  Map<String, dynamic>? _akunData;
+  Map<String, dynamic>? _profilData;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadProfile();
+  }
+
+  Future<void> _loadProfile() async {
+    setState(() => _isLoading = true);
+    final data = await _authService.getCurrentAkunAndProfil();
+    if (data != null && mounted) {
+      setState(() {
+        _akunData = data['akun'].toJson(); // Assume it has toJson()
+        _profilData = data['profil'] as Map<String, dynamic>?;
+        _isLoading = false;
+      });
+    } else {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _pickAndUploadFoto() async {
+    if (_akunData == null) return;
+    final String akunId = _akunData!['id_akun'].toString();
+
+    final XFile? image = await _picker.pickImage(
+      source: ImageSource.gallery,
+      maxWidth: 500,
+      imageQuality: 80,
+    );
+
+    if (image == null) return;
+
+    setState(() => _isUploading = true);
+
+    try {
+      final file = File(image.path);
+      final ext = file.path.split('.').last;
+      final fileName = '${DateTime.now().millisecondsSinceEpoch}_$akunId.$ext';
+
+      // 1. Upload ke Storage
+      await _supabase.storage.from('foto_profil').upload('owner/$fileName', file);
+      
+      // 2. Dapatkan Public URL
+      final publicUrl = _supabase.storage.from('foto_profil').getPublicUrl('owner/$fileName');
+
+      // 3. Update profil_owner table
+      await _supabase
+          .from('profil_owner')
+          .update({'foto_profil': publicUrl})
+          .eq('akun_id', int.parse(akunId));
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Foto profil berhasil diperbarui!')),
+        );
+      }
+
+      // Reload profile
+      await _loadProfile();
+
+    } catch (e) {
+      debugPrint('Upload error: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Gagal mengupload foto: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isUploading = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -17,53 +108,70 @@ class EditProfileScreen extends StatelessWidget {
           onPressed: () => Navigator.of(context).pop(),
         ),
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          children: [
-            _buildProfileHeader(),
-            const SizedBox(height: 40),
-            _buildPersonalDetailsSection(),
-            const SizedBox(height: 32),
-            _buildSecuritySection(),
-            const SizedBox(height: 32),
-          ],
-        ),
-      ),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator(color: Color(0xFFFFD700)))
+          : SingleChildScrollView(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                children: [
+                  _buildProfileHeader(),
+                  const SizedBox(height: 40),
+                  _buildPersonalDetailsSection(),
+                  const SizedBox(height: 32),
+                  _buildSecuritySection(),
+                  const SizedBox(height: 32),
+                ],
+              ),
+            ),
     );
   }
 
   Widget _buildProfileHeader() {
+    final fotoUrl = _profilData?['foto_profil'] as String?;
+    final name = _profilData?['nama_lengkap'] ?? 'Loading...';
+
     return Column(
       children: [
-        Stack(
-          alignment: Alignment.bottomRight,
-          children: [
-            Container(
-              width: 110,
-              height: 110,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                border: Border.all(color: const Color(0xFFFFD700), width: 3),
-                image: const DecorationImage(
-                  image: NetworkImage('https://i.pravatar.cc/300'),
-                  fit: BoxFit.cover,
+        GestureDetector(
+          onTap: _isUploading ? null : _pickAndUploadFoto,
+          child: Stack(
+            alignment: Alignment.bottomRight,
+            children: [
+              Container(
+                width: 110,
+                height: 110,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(color: const Color(0xFFFFD700), width: 3),
+                  color: AppColors.backgroundInput,
+                  image: fotoUrl != null
+                      ? DecorationImage(
+                          image: NetworkImage(fotoUrl),
+                          fit: BoxFit.cover,
+                        )
+                      : const DecorationImage(
+                          image: NetworkImage('https://i.pravatar.cc/300'),
+                          fit: BoxFit.cover,
+                        ),
                 ),
+                child: _isUploading 
+                  ? const Center(child: CircularProgressIndicator(color: Color(0xFFFFD700)))
+                  : null,
               ),
-            ),
-            Container(
-              padding: const EdgeInsets.all(4),
-              decoration: const BoxDecoration(
-                color: Color(0xFFFFD700),
-                shape: BoxShape.circle,
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: const BoxDecoration(
+                  color: Color(0xFFFFD700),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.edit_rounded, color: Colors.black, size: 16),
               ),
-              child: const Icon(Icons.verified_rounded, color: Colors.black, size: 16),
-            ),
-          ],
+            ],
+          ),
         ),
         const SizedBox(height: 20),
         Text(
-          'AKU OWNER',
+          name.toUpperCase(),
           style: AppTextStyles.poppinsHeadline.copyWith(
             color: Colors.white,
             fontSize: 22,
@@ -85,6 +193,10 @@ class EditProfileScreen extends StatelessWidget {
   }
 
   Widget _buildPersonalDetailsSection() {
+    final name = _profilData?['nama_lengkap'] ?? '-';
+    final phone = _profilData?['no_handphone'] ?? '-';
+    final email = _akunData?['email'] ?? '-';
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -108,19 +220,19 @@ class EditProfileScreen extends StatelessWidget {
               _buildDetailItem(
                 icon: Icons.person_outline_rounded,
                 label: 'Full Name',
-                value: 'Alok',
+                value: name,
               ),
               const SizedBox(height: 24),
               _buildDetailItem(
                 icon: Icons.mail_outline_rounded,
                 label: 'Email',
-                value: 'Alok@gmail.com',
+                value: email,
               ),
               const SizedBox(height: 24),
               _buildDetailItem(
                 icon: Icons.phone_rounded,
                 label: 'Telepon',
-                value: '+62 81283231731',
+                value: phone,
               ),
             ],
           ),
