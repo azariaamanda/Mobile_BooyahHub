@@ -66,6 +66,8 @@ class _HistoryScrimPageState extends State<HistoryScrimPage> {
   }
 
   // ─── AMBIL DATA DARI REAL DATABASE SUPABASE ────────────────────────────────
+  // ─── AMBIL DATA REAL + JOIN TABEL SCRIM BUAT NAMA ASLI ──────────────────────
+  // ─── AMBIL DATA REAL + NESTED JOIN KE SESI_SCRIM DAN SCRIM ──────────────────
   Future<List<Map<String, dynamic>>> _fetchHistoryScrim() async {
     try {
       final supabase = Supabase.instance.client;
@@ -75,7 +77,7 @@ class _HistoryScrimPageState extends State<HistoryScrimPage> {
         throw 'User belum login bray, silakan login dulu.';
       }
 
-      // Menarik data pendaftaran_tim yang akun_id nya punya email cocok dengan auth user
+      // Kita ubah query select-nya jadi nested join lewat sesi_scrim bray
       final response = await supabase
           .from('pendaftaran_tim')
           .select('''
@@ -83,6 +85,11 @@ class _HistoryScrimPageState extends State<HistoryScrimPage> {
             dibuat_pada, 
             status_pertandingan,
             akun!inner(email),
+            sesi_scrim(
+              scrim(
+                nama_scrim
+              )
+            ),
             hasil_pertandingan(peringkat, total_poin)
           ''')
           .eq('akun.email', userEmail)
@@ -94,11 +101,16 @@ class _HistoryScrimPageState extends State<HistoryScrimPage> {
         final String statusPertandingan = item['status_pertandingan'] ?? 'belum_mulai';
         final List<dynamic> hasilList = item['hasil_pertandingan'] ?? [];
         
+        // Cara bongkar data berantai (nested map) dari Supabase bray:
+        // pendaftaran_tim -> sesi_scrim -> scrim -> nama_scrim
+        final Map<String, dynamic>? sesiScrimData = item['sesi_scrim'] as Map<String, dynamic>?;
+        final Map<String, dynamic>? scrimData = sesiScrimData?['scrim'] as Map<String, dynamic>?;
+        final String namaScrimAsli = scrimData?['nama_scrim'] ?? 'Scrim Match #${item['id_pendaftaran']}';
+
         bool hasRank = false;
         String badgeText = 'BELUM MULAI';
         String peringkatInfo = '';
 
-        // Logika pembacaan status yang sinkron ama ENUM DB bray
         if (statusPertandingan == 'selesai') {
           if (hasilList.isNotEmpty) {
             hasRank = true;
@@ -125,17 +137,16 @@ class _HistoryScrimPageState extends State<HistoryScrimPage> {
           badgeText = 'BELUM MULAI';
         }
 
-        // Format tanggal dari timestamp DB (ISO 8601) ke format UI
         DateTime dateParsed = DateTime.parse(item['dibuat_pada']);
         String formattedDate = DateFormat('dd MMM yyyy').format(dateParsed);
         String formattedTime = '${DateFormat('HH:mm').format(dateParsed)} WIB';
 
         loadedHistory.add({
           'id_scrim': item['id_pendaftaran'],
-          'nama_scrim': 'Scrim Match #${item['id_pendaftaran']}', 
+          'nama_scrim': namaScrimAsli, // 👈 SEKARANG AMAN PAKE NAMA ASLI LEWAT JALUR SESI_SCRIM
           'tanggal': formattedDate,
           'jam': formattedTime,
-          'status': statusPertandingan, // 'belum_mulai' / 'sedang_berlangsung' / 'selesai' / 'dibatalkan'
+          'status': statusPertandingan,
           'badge_text': badgeText,
           'peringkat_info': peringkatInfo,
           'has_rank': hasRank,
