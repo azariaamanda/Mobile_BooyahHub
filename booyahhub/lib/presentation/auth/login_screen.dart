@@ -453,11 +453,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                     GestureDetector(
                       onTap: () {
-                        // TODO: Buat halaman register owner jika diperlukan
-                        // Sementara arahkan ke register admin dulu
-                        context.go('/register/admin');
-                        // Atau jika punya halaman khusus:
-                        // context.go('/register/owner');
+                        context.go('/register/owner');
                       },
                       child: Text(
                         'Daftar',
