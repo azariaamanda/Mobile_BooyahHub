@@ -78,6 +78,7 @@ class _HistoryScrimPageState extends State<HistoryScrimPage> {
       }
 
       // Kita ubah query select-nya jadi nested join lewat sesi_scrim bray
+      // Panggil kolom poster di dalam nested select scrim bray
       final response = await supabase
           .from('pendaftaran_tim')
           .select('''
@@ -87,7 +88,8 @@ class _HistoryScrimPageState extends State<HistoryScrimPage> {
             akun!inner(email),
             sesi_scrim(
               scrim(
-                nama_scrim
+                nama_scrim,
+                poster
               )
             ),
             hasil_pertandingan(peringkat, total_poin)
@@ -101,12 +103,14 @@ class _HistoryScrimPageState extends State<HistoryScrimPage> {
         final String statusPertandingan = item['status_pertandingan'] ?? 'belum_mulai';
         final List<dynamic> hasilList = item['hasil_pertandingan'] ?? [];
         
-        // Cara bongkar data berantai (nested map) dari Supabase bray:
-        // pendaftaran_tim -> sesi_scrim -> scrim -> nama_scrim
         final Map<String, dynamic>? sesiScrimData = item['sesi_scrim'] as Map<String, dynamic>?;
         final Map<String, dynamic>? scrimData = sesiScrimData?['scrim'] as Map<String, dynamic>?;
+        
         final String namaScrimAsli = scrimData?['nama_scrim'] ?? 'Scrim Match #${item['id_pendaftaran']}';
+        // Ambil string URL dari kolom poster bray
+        final String? posterUrl = scrimData?['poster']; 
 
+        // ... [Logika statusPertandingan di bawahnya tetep sama bawaan lu bray] ...
         bool hasRank = false;
         String badgeText = 'BELUM MULAI';
         String peringkatInfo = '';
@@ -116,16 +120,10 @@ class _HistoryScrimPageState extends State<HistoryScrimPage> {
             hasRank = true;
             final int peringkat = hasilList[0]['peringkat'] ?? 0;
             peringkatInfo = 'Peringkat $peringkat';
-            
-            if (peringkat == 1) {
-              badgeText = 'JUARA 1';
-            } else if (peringkat == 2) {
-              badgeText = 'JUARA 2';
-            } else if (peringkat == 3) {
-              badgeText = 'JUARA 3';
-            } else {
-              badgeText = 'RANK $peringkat';
-            }
+            if (peringkat == 1) badgeText = 'JUARA 1';
+            else if (peringkat == 2) badgeText = 'JUARA 2';
+            else if (peringkat == 3) badgeText = 'JUARA 3';
+            else badgeText = 'RANK $peringkat';
           } else {
             badgeText = 'SELESAI';
           }
@@ -143,7 +141,8 @@ class _HistoryScrimPageState extends State<HistoryScrimPage> {
 
         loadedHistory.add({
           'id_scrim': item['id_pendaftaran'],
-          'nama_scrim': namaScrimAsli, // 👈 SEKARANG AMAN PAKE NAMA ASLI LEWAT JALUR SESI_SCRIM
+          'nama_scrim': namaScrimAsli,
+          'poster_scrim': posterUrl, // 👈 OPER URL POSTER KE SINI BRAY
           'tanggal': formattedDate,
           'jam': formattedTime,
           'status': statusPertandingan,
@@ -287,22 +286,28 @@ class _HistoryScrimPageState extends State<HistoryScrimPage> {
                                     child: Row(
                                       crossAxisAlignment: CrossAxisAlignment.start,
                                       children: [
+                                        // ─── WIDGET GAMBAR POSTER SCRIM ───
                                         Container(
                                           width: 65,
                                           height: 65,
                                           decoration: BoxDecoration(
                                             color: isCancelled ? Colors.grey.shade800 : Colors.black26,
                                             borderRadius: BorderRadius.circular(20),
-                                            image: isCancelled
+                                            image: isCancelled || history['poster_scrim'] == null
                                                 ? null
-                                                : const DecorationImage(
-                                                    image: NetworkImage('https://via.placeholder.com/150'),
+                                                : DecorationImage(
+                                                    image: NetworkImage(history['poster_scrim']), // 👈 Baca url dari kolom poster bray
                                                     fit: BoxFit.cover,
+                                                    onError: (exception, stackTrace) {
+                                                      print('Gagal muat gambar poster bray');
+                                                    },
                                                   ),
                                           ),
                                           child: isCancelled
                                               ? const Icon(Icons.cancel_outlined, color: Colors.grey, size: 30)
-                                              : null,
+                                              : (history['poster_scrim'] == null
+                                                  ? const Icon(Icons.sports_esports, color: Colors.grey, size: 30) // Fallback pakai ikon game bray
+                                                  : null),
                                         ),
                                         const SizedBox(width: AppConstants.paddingM),
                                         Expanded(
