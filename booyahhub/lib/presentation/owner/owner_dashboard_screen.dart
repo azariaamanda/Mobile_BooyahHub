@@ -2,140 +2,161 @@ import 'package:flutter/material.dart';
 import '../../config/app_color.dart';
 import '../../config/app_text_styles.dart';
 
-class OwnerDashboardScreen extends StatefulWidget {
+class OwnerDashboardScreen extends StatelessWidget {
   const OwnerDashboardScreen({super.key});
-
-  @override
-  State<OwnerDashboardScreen> createState() => _OwnerDashboardScreenState();
-}
-
-class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
-  int _selectedIndex = 0;
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
-        child: SingleChildScrollView(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _buildHeader(),
-                const SizedBox(height: 32),
-                _buildSummaryGrid(),
-                const SizedBox(height: 32),
-                _buildChartSection(),
-                const SizedBox(height: 32),
-                _buildActionList(),
-                const SizedBox(height: 32),
-              ],
-            ),
-          ),
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(24, 24, 24, 100), // extra padding for floating navbar
+          children: [
+            _buildHeader(),
+            const SizedBox(height: 32),
+            _buildSummaryGrid(context),
+            const SizedBox(height: 32),
+            _buildChartSection(),
+            const SizedBox(height: 32),
+            _buildActionList(),
+          ],
         ),
       ),
-      bottomNavigationBar: _buildBottomNavigationBar(),
     );
   }
 
   Widget _buildHeader() {
     return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Container(
-          width: 50,
-          height: 50,
-          decoration: const BoxDecoration(
-            color: AppColors.primary,
-            shape: BoxShape.circle,
-          ),
-          child: Center(
-            child: Text(
-              'AA',
-              style: AppTextStyles.poppinsHeadline.copyWith(
-                color: AppColors.black,
-                fontSize: 18,
+        Row(
+          children: [
+            Container(
+              width: 50,
+              height: 50,
+              decoration: const BoxDecoration(
+                color: Color(0xFFFFD700), // Yellow
+                shape: BoxShape.circle,
               ),
-            ),
-          ),
-        ),
-        const SizedBox(width: 16),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Selamat datang, Azaria',
-                style: AppTextStyles.poppinsTitleSmall.copyWith(
-                  color: AppColors.textPrimary,
-                  fontWeight: FontWeight.bold,
+              child: Center(
+                child: Text(
+                  'AA',
+                  style: AppTextStyles.poppinsHeadline.copyWith(
+                    color: Colors.black,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
-              Text(
-                'Owner',
-                style: AppTextStyles.interBody.copyWith(
-                  color: AppColors.textSecondary,
-                  fontSize: 12,
+            ),
+            const SizedBox(width: 16),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Selamat datang, Azaria',
+                  style: AppTextStyles.poppinsTitleSmall.copyWith(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                  ),
+                ),
+                Text(
+                  'Owner',
+                  style: AppTextStyles.interBody.copyWith(
+                    color: Colors.white70,
+                    fontSize: 12,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+        Container(
+          width: 40,
+          height: 40,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            border: Border.all(color: const Color(0xFFFFD700), width: 1.5),
+          ),
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              const Icon(Icons.notifications_none_rounded, color: Colors.white, size: 22),
+              Positioned(
+                right: 8,
+                top: 8,
+                child: Container(
+                  width: 8,
+                  height: 8,
+                  decoration: const BoxDecoration(
+                    color: Color(0xFFFFD700),
+                    shape: BoxShape.circle,
+                  ),
                 ),
               ),
             ],
-          ),
-        ),
-        Container(
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            border: Border.all(color: AppColors.primary.withOpacity(0.5)),
-          ),
-          child: IconButton(
-            icon: const Icon(Icons.notifications_outlined, color: AppColors.primary),
-            onPressed: () {},
           ),
         ),
       ],
     );
   }
 
-  Widget _buildSummaryGrid() {
-    return GridView.count(
-      crossAxisCount: 2,
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      mainAxisSpacing: 16,
-      crossAxisSpacing: 16,
-      childAspectRatio: 1.1,
+  Widget _buildSummaryGrid(BuildContext context) {
+    return Column(
       children: [
-        _buildSummaryCard(
-          title: 'PENDAPATAN',
-          icon: Icons.account_balance_wallet_outlined,
-          value: 'Rp\n12.000.000',
-          subtitle: '+12.5%',
-          subtitleColor: AppColors.success,
-          iconColor: AppColors.primary,
+        Row(
+          children: [
+            Expanded(
+              child: _buildSummaryCard(
+                title: 'PENDAPATAN',
+                icon: Icons.account_balance_wallet_rounded,
+                value: 'Rp\n12.000.000',
+                subtitle: '+12.5%',
+                subtitleColor: const Color(0xFF00FF87),
+                iconColor: const Color(0xFFFFD700),
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: _buildSummaryCard(
+                title: 'TAGIHAN\nMENUNGGU',
+                icon: Icons.receipt_long_rounded,
+                value: '12 Tagihan',
+                subtitle: 'menunggu review',
+                subtitleColor: const Color(0xFFFFD700),
+                iconColor: const Color(0xFFFFD700),
+              ),
+            ),
+          ],
         ),
-        _buildSummaryCard(
-          title: 'TAGIHAN\nMENUNGGU',
-          icon: Icons.receipt_long_outlined,
-          value: '12 Tagihan',
-          subtitle: 'menunggu review',
-          subtitleColor: AppColors.primary,
-          iconColor: AppColors.textSecondary,
-        ),
-        _buildSummaryCard(
-          title: 'SESI AKTIF',
-          icon: Icons.videogame_asset_outlined,
-          value: '24 Sesi',
-          subtitle: 'Berlangsung Sekarang',
-          subtitleColor: AppColors.textHint,
-          iconColor: AppColors.textSecondary,
-        ),
-        _buildSummaryCard(
-          title: 'ADMIN',
-          icon: Icons.people_outline,
-          value: '1.250 Admin',
-          subtitle: 'admin terverifikasi',
-          subtitleColor: AppColors.textHint,
-          iconColor: AppColors.textSecondary,
+        const SizedBox(height: 16),
+        Row(
+          children: [
+            Expanded(
+              child: _buildSummaryCard(
+                title: 'SESI AKTIF',
+                icon: Icons.videogame_asset_rounded,
+                value: '24 Sesi',
+                subtitle: 'Berlangsung Sekarang',
+                subtitleColor: Colors.blueGrey,
+                iconColor: const Color(0xFFFFD700),
+                isDot: true,
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: _buildSummaryCard(
+                title: 'ADMIN',
+                icon: Icons.people_alt_rounded,
+                value: '1.250 Admin',
+                subtitle: 'admin terverifikasi',
+                subtitleColor: const Color(0xFFFFD700),
+                iconColor: const Color(0xFFFFD700),
+              ),
+            ),
+          ],
         ),
       ],
     );
@@ -148,18 +169,19 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
     required String subtitle,
     required Color subtitleColor,
     required Color iconColor,
+    bool isDot = false,
   }) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppColors.backgroundCard,
+        color: const Color(0xFF131F2D), // Darker card background
         borderRadius: BorderRadius.circular(16),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Icon(icon, color: iconColor, size: 20),
               const SizedBox(width: 8),
@@ -167,48 +189,49 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
                 child: Text(
                   title,
                   style: AppTextStyles.interCaption.copyWith(
-                    color: AppColors.textSecondary,
+                    color: Colors.white70,
                     fontWeight: FontWeight.w600,
-                    letterSpacing: 1.1,
+                    fontSize: 10,
+                    letterSpacing: 1.0,
                   ),
                 ),
               ),
             ],
           ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          const SizedBox(height: 16),
+          Text(
+            value,
+            style: AppTextStyles.poppinsHeadline.copyWith(
+              color: Colors.white,
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              height: 1.2,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Row(
             children: [
-              Text(
-                value,
-                style: AppTextStyles.poppinsHeadline.copyWith(
-                  color: AppColors.textPrimary,
-                  fontSize: 18,
+              if (isDot)
+                Container(
+                  width: 6,
+                  height: 6,
+                  margin: const EdgeInsets.only(right: 6),
+                  decoration: const BoxDecoration(color: Colors.blueGrey, shape: BoxShape.circle),
+                )
+              else if (subtitleColor == const Color(0xFF00FF87))
+                const Padding(
+                  padding: EdgeInsets.only(right: 2.0),
+                  child: Icon(Icons.arrow_drop_up, color: Color(0xFF00FF87), size: 16),
                 ),
-              ),
-              const SizedBox(height: 4),
-              Row(
-                children: [
-                  if (subtitleColor == AppColors.success)
-                    const Icon(Icons.arrow_drop_up, color: AppColors.success, size: 16)
-                  else if (subtitleColor == AppColors.textHint)
-                    Container(
-                      width: 6,
-                      height: 6,
-                      margin: const EdgeInsets.only(right: 6),
-                      decoration: BoxDecoration(
-                        color: AppColors.textHint,
-                        shape: BoxShape.circle,
-                      ),
-                    ),
-                  Text(
-                    subtitle,
-                    style: AppTextStyles.interCaption.copyWith(
-                      color: subtitleColor,
-                      fontSize: 10,
-                      fontStyle: subtitleColor == AppColors.primary ? FontStyle.italic : FontStyle.normal,
-                    ),
+              Expanded(
+                child: Text(
+                  subtitle,
+                  style: AppTextStyles.interCaption.copyWith(
+                    color: subtitleColor,
+                    fontSize: 8,
+                    fontStyle: FontStyle.italic,
                   ),
-                ],
+                ),
               ),
             ],
           ),
@@ -226,48 +249,58 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
             Text(
               'Analisis Pendapatan',
               style: AppTextStyles.poppinsTitleSmall.copyWith(
-                color: AppColors.textPrimary,
+                color: Colors.white,
                 fontWeight: FontWeight.bold,
+                fontSize: 14,
               ),
             ),
             Text(
               '6 Bulan terakhir',
               style: AppTextStyles.interCaption.copyWith(
-                color: AppColors.primary,
+                color: const Color(0xFFFFD700),
                 fontWeight: FontWeight.bold,
+                fontSize: 10,
               ),
             ),
           ],
         ),
         const SizedBox(height: 16),
         Container(
-          height: 180,
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+          height: 160,
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
           decoration: BoxDecoration(
-            color: AppColors.backgroundCard,
+            color: const Color(0xFF131F2D),
             borderRadius: BorderRadius.circular(16),
           ),
           child: Column(
             children: [
               Expanded(
-                child: Stack(
-                  children: [
-                    // Grid lines
-                    Column(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: List.generate(3, (index) => const Divider(color: AppColors.divider)),
+                child: Center(
+                  // Safe mockup line chart instead of CustomPaint
+                  child: Container(
+                    width: double.infinity,
+                    height: 2,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFFD700).withValues(alpha: 0.3),
+                      boxShadow: [
+                        BoxShadow(
+                          color: const Color(0xFFFFD700).withValues(alpha: 0.2),
+                          blurRadius: 10,
+                          spreadRadius: 2,
+                        ),
+                      ],
                     ),
-                    // Placeholder Curve
-                    CustomPaint(
-                      size: const Size(double.infinity, double.infinity),
-                      painter: _CurvePainter(),
-                    ),
-                  ],
+                  ),
                 ),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 12),
+              Container(
+                height: 1,
+                color: Colors.white24,
+                margin: const EdgeInsets.only(bottom: 8),
+              ),
               Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                mainAxisAlignment: MainAxisAlignment.spaceAround,
                 children: [
                   _buildChartLabel('Jan'),
                   _buildChartLabel('Feb'),
@@ -285,7 +318,7 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
   Widget _buildChartLabel(String text) {
     return Text(
       text,
-      style: AppTextStyles.interCaption.copyWith(color: AppColors.textSecondary),
+      style: AppTextStyles.interCaption.copyWith(color: Colors.white70, fontSize: 11),
     );
   }
 
@@ -296,45 +329,46 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
         Text(
           'Perlu Tindakan Owner',
           style: AppTextStyles.poppinsTitleSmall.copyWith(
-            color: AppColors.textPrimary,
+            color: Colors.white,
             fontWeight: FontWeight.bold,
+            fontSize: 14,
           ),
         ),
         const SizedBox(height: 16),
         _buildActionCard(
           title: 'Tagihan Menunggu Verifikasi',
           badgeText: '8 Menunggu',
-          description: 'Admin sudah upload\nbukti',
-          borderColor: AppColors.primary,
-          badgeColor: AppColors.primary.withOpacity(0.2),
-          badgeTextColor: AppColors.primary,
+          description: 'Admin sudah upload bukti',
+          borderColor: const Color(0xFFFFD700),
+          badgeColor: const Color(0xFFFFD700).withValues(alpha: 0.15),
+          badgeTextColor: const Color(0xFFFFD700),
           buttonText: 'VERIFIKASI',
-          buttonColor: AppColors.primary,
-          buttonTextColor: AppColors.black,
+          buttonColor: const Color(0xFFFFD700),
+          buttonTextColor: Colors.black,
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 16),
         _buildActionCard(
           title: 'Admin Melewati Limit Utang',
           badgeText: '3 Admin',
           description: 'Admin melewati limit',
-          borderColor: AppColors.error,
-          badgeColor: AppColors.error.withOpacity(0.2),
-          badgeTextColor: AppColors.textSecondary,
+          borderColor: Colors.redAccent,
+          badgeColor: Colors.redAccent.withValues(alpha: 0.15),
+          badgeTextColor: Colors.redAccent,
           buttonText: 'LIHAT',
-          buttonColor: AppColors.surfaceVariant,
-          buttonTextColor: AppColors.textSecondary,
+          buttonColor: Colors.white12,
+          buttonTextColor: Colors.white70,
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 16),
         _buildActionCard(
           title: 'Paket Premium Menunggu Aktivasi',
           badgeText: '8 Menunggu',
-          description: 'Pembayaran Premium\nperlu dicek',
-          borderColor: AppColors.success,
-          badgeColor: AppColors.success.withOpacity(0.2),
-          badgeTextColor: AppColors.success,
+          description: 'perlu dicek',
+          borderColor: const Color(0xFF00FF87),
+          badgeColor: const Color(0xFF00FF87).withValues(alpha: 0.15),
+          badgeTextColor: const Color(0xFF00FF87),
           buttonText: 'LIHAT',
-          buttonColor: AppColors.surfaceVariant,
-          buttonTextColor: AppColors.textSecondary,
+          buttonColor: Colors.white12,
+          buttonTextColor: Colors.white70,
         ),
       ],
     );
@@ -353,169 +387,94 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
   }) {
     return Container(
       decoration: BoxDecoration(
-        color: AppColors.backgroundCard,
+        color: const Color(0xFF131F2D),
         borderRadius: BorderRadius.circular(8),
-        border: Border(
-          left: BorderSide(color: borderColor, width: 4),
-        ),
       ),
-      padding: const EdgeInsets.all(16),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: AppTextStyles.interBody.copyWith(
-                    color: AppColors.textPrimary,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Row(
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(8),
+        child: Container(
+          decoration: BoxDecoration(
+            border: Border(
+              left: BorderSide(color: borderColor, width: 4),
+            ),
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Expanded(
+                child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: badgeColor,
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: Text(
-                        badgeText,
-                        style: AppTextStyles.interCaption.copyWith(
-                          color: badgeTextColor,
-                          fontSize: 10,
-                          fontWeight: FontWeight.bold,
-                        ),
+                    Text(
+                      title,
+                      style: AppTextStyles.interBody.copyWith(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 12,
                       ),
                     ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        description,
-                        style: AppTextStyles.interCaption.copyWith(
-                          color: AppColors.textSecondary,
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: badgeColor,
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(
+                            badgeText,
+                            style: AppTextStyles.interCaption.copyWith(
+                              color: badgeTextColor,
+                              fontSize: 9,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
                         ),
-                      ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            description,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: AppTextStyles.interCaption.copyWith(
+                              color: Colors.white54,
+                              fontSize: 11,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
-              ],
-            ),
+              ),
+              const SizedBox(width: 16),
+              ElevatedButton(
+                onPressed: () {},
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: buttonColor,
+                  foregroundColor: buttonTextColor,
+                  elevation: 0,
+                  minimumSize: const Size(80, 36),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                ),
+                child: Text(
+                  buttonText,
+                  style: AppTextStyles.interCaption.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: buttonTextColor,
+                    fontSize: 10,
+                  ),
+                ),
+              ),
+            ],
           ),
-          const SizedBox(width: 12),
-          ElevatedButton(
-            onPressed: () {},
-            style: ElevatedButton.styleFrom(
-              backgroundColor: buttonColor,
-              foregroundColor: buttonTextColor,
-              elevation: 0,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(6),
-              ),
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            ),
-            child: Text(
-              buttonText,
-              style: AppTextStyles.interCaption.copyWith(
-                fontWeight: FontWeight.bold,
-                color: buttonTextColor,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildBottomNavigationBar() {
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColors.background,
-        border: Border(top: BorderSide(color: AppColors.divider)),
-      ),
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
-        children: [
-          _buildNavItem(Icons.dashboard, 'DASHBOARD', 0),
-          _buildNavItem(Icons.people, 'ADMIN', 1),
-          _buildNavItem(Icons.receipt_long, 'TAGIHAN', 2),
-          _buildNavItem(Icons.stars, 'BANNER/PREMIUM', 3),
-          _buildNavItem(Icons.person, 'PROFIL', 4),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildNavItem(IconData icon, String label, int index) {
-    final isSelected = _selectedIndex == index;
-    final color = isSelected ? AppColors.primary : AppColors.textSecondary;
-
-    return GestureDetector(
-      onTap: () {
-        setState(() {
-          _selectedIndex = index;
-        });
-      },
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        decoration: isSelected
-            ? BoxDecoration(
-                color: AppColors.primary.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(12),
-              )
-            : null,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, color: color, size: 24),
-            const SizedBox(height: 4),
-            Text(
-              label,
-              style: AppTextStyles.interCaption.copyWith(
-                color: color,
-                fontSize: 8,
-                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-              ),
-            ),
-          ],
         ),
       ),
     );
   }
-}
-
-class _CurvePainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = AppColors.primary
-      ..strokeWidth = 3
-      ..style = PaintingStyle.stroke
-      ..strokeCap = StrokeCap.round;
-
-    final glowPaint = Paint()
-      ..color = AppColors.primary.withOpacity(0.3)
-      ..strokeWidth = 10
-      ..style = PaintingStyle.stroke
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8);
-
-    final path = Path();
-    path.moveTo(0, size.height * 0.8);
-    path.quadraticBezierTo(size.width * 0.2, size.height * 0.6, size.width * 0.4, size.height * 0.5);
-    path.quadraticBezierTo(size.width * 0.6, size.height * 0.3, size.width * 0.7, size.height * 0.7);
-    path.quadraticBezierTo(size.width * 0.8, size.height * 0.9, size.width * 0.9, size.height * 0.3);
-    path.quadraticBezierTo(size.width * 0.95, size.height * 0.1, size.width, size.height * 0.4);
-
-    canvas.drawPath(path, glowPaint);
-    canvas.drawPath(path, paint);
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
