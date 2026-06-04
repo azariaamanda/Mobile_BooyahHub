@@ -83,61 +83,66 @@
     }
 
     Future<void> _kirimBuktiPembayaran() async {
-    if (_buktiFile == null) return;
+      if (_buktiFile == null) return;
 
-    try {
-      final supabase = Supabase.instance.client;
+      try {
+        final supabase = Supabase.instance.client;
+        final pendaftaranId = widget.pendaftaranId;
+        final timestamp = DateTime.now().millisecondsSinceEpoch;
+        final fileName = 'bukti_${pendaftaranId}_$timestamp.jpg';
+        
+        print('Uploading: $fileName'); // Debug
 
-      final fileExt = _buktiFile!.path.split('.').last;
-      final fileName =
-          'bukti_${widget.pendaftaranId}_${DateTime.now().millisecondsSinceEpoch}.$fileExt';
-      final filePath = 'bukti_pembayaran/$fileName';
+        // Tentukan content type
+        String contentType = 'image/jpeg';
+        if (_buktiFile!.path.endsWith('.png')) {
+          contentType = 'image/png';
+        }
+        await supabase.storage
+            .from('bukti_bayar')
+            .upload(
+              fileName,
+              _buktiFile!,
+              fileOptions: FileOptions(contentType: contentType),
+            );
 
-      String contentType = 'image/jpeg';
+        // Buat signed URL (karena bucket tidak public)
+        final signedUrl = await supabase.storage
+            .from('bukti_bayar')
+            .createSignedUrl(fileName, 3600);
 
-      if (_buktiFile!.path.endsWith('.png')) {
-        contentType = 'image/png';
+        // Update database dengan signed URL
+        await supabase
+            .from('pendaftaran_tim')
+            .update({
+              'bukti_pembayaran': signedUrl,
+              'status_pembayaran': 'menunggu',
+            })
+            .eq('id_pendaftaran', pendaftaranId);
+
+        print('Upload success: $signedUrl');
+
+        if (!mounted) return;
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Bukti transfer berhasil dikirim! Menunggu verifikasi admin.'),
+            backgroundColor: AppColors.success,
+          ),
+        );
+
+        context.go('/user/home');
+      } catch (e) {
+        print('Upload error: $e');
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Gagal upload bukti pembayaran: $e'),
+            backgroundColor: AppColors.error,
+          ),
+        );
       }
-
-      await supabase.storage
-          .from('bukti_bayar')
-          .upload(
-            filePath,
-            _buktiFile!,
-            fileOptions: FileOptions(
-              contentType: contentType,
-            ),
-      );
-
-      final publicUrl = supabase.storage
-          .from('bukti_bayar')
-          .getPublicUrl(filePath);
-
-      await supabase
-          .from('pendaftaran_tim')
-          .update({
-            'bukti_pembayaran': publicUrl,
-            'status_pembayaran': 'menunggu',
-          })
-          .eq('id_pendaftaran', widget.pendaftaranId);
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Bukti transfer berhasil dikirim! Menunggu verifikasi admin.'),
-          backgroundColor: AppColors.success,
-        ),
-      );
-
-      context.go('/user/home');
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Gagal upload bukti pembayaran: $e'),
-          backgroundColor: AppColors.error,
-        ),
-      );
     }
-  }
 
     @override
     Widget build(BuildContext context) {
