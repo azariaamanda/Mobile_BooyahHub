@@ -277,9 +277,15 @@ class AppRouter {
         builder: (context, state) => const HistoryScrimPage(),
       ),
       GoRoute(
-        path: '/user/history-detail',
-        name: 'history_detail',
-        builder: (context, state) => const HistoryDetailScrimPage(),
+      path: '/user/history-detail',
+      name: 'history_detail',
+      builder: (context, state) {
+        // 1. Ambil data ID pendaftaran dari extra yang dikirim
+        final idPendaftaran = state.extra as int;
+        
+        // 2. Return halamannya dengan mengoper ID tersebut (hapus keyword const)
+        return HistoryDetailScrimPage(idPendaftaran: idPendaftaran);
+        },
       ),
       GoRoute(
         path: '/user/klaim/:idPendaftaran',
