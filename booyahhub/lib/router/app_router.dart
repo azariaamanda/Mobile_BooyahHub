@@ -8,6 +8,7 @@ import '../presentation/owner/premium_management_screen.dart';
 import '../presentation/owner/edit_profile_screen.dart';
 import '../presentation/owner/edit_premium_package_screen.dart';
 import '../presentation/owner/manage_fee_screen.dart';
+import '../data/models/paket_premium_model.dart';
 import '../presentation/owner/owner_main_navigator.dart';
 import '../presentation/owner/admin_verification_page.dart';
 import '../presentation/owner/financial_report_page.dart';
@@ -95,7 +96,10 @@ class AppRouter {
       GoRoute(
         path: '/owner/edit-premium',
         name: 'owner_edit_premium',
-        builder: (context, state) => const EditPremiumPackageScreen(),
+        builder: (context, state) {
+          final pkg = state.extra as PaketPremiumModel?;
+          return EditPremiumPackageScreen(package: pkg);
+        },
       ),
       GoRoute(
         path: '/owner/verifikasi-admin',
