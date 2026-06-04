@@ -1,7 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:image_picker/image_picker.dart';
 import '../../config/app_color.dart';
 import '../../config/app_constants.dart';
 import '../../config/app_text_styles.dart';
@@ -16,7 +15,6 @@ class RegisterOwnerPage extends StatefulWidget {
 
 class _RegisterOwnerPageState extends State<RegisterOwnerPage> {
   final _formKey = GlobalKey<FormState>();
-  final ImagePicker _picker = ImagePicker();
   final _authService = AuthService();
 
   final _namaController = TextEditingController();
@@ -30,8 +28,6 @@ class _RegisterOwnerPageState extends State<RegisterOwnerPage> {
   bool _isLoading = false;
   bool _setujuiSyarat = false;
 
-  String? _fotoPath;
-
   @override
   void dispose() {
     _namaController.dispose();
@@ -40,17 +36,6 @@ class _RegisterOwnerPageState extends State<RegisterOwnerPage> {
     _passwordController.dispose();
     _konfirmasiPasswordController.dispose();
     super.dispose();
-  }
-
-  Future<void> _pickFoto() async {
-    final XFile? image = await _picker.pickImage(
-      source: ImageSource.gallery,
-      maxWidth: 500,
-      imageQuality: 80,
-    );
-    if (image != null) {
-      setState(() => _fotoPath = image.path);
-    }
   }
 
   Future<void> _submit() async {
@@ -322,49 +307,6 @@ class _RegisterOwnerPageState extends State<RegisterOwnerPage> {
                       },
                     ),
                     const SizedBox(height: AppConstants.paddingXL),
-                    GestureDetector(
-                      onTap: _pickFoto,
-                      child: Container(
-                        width: double.infinity,
-                        height: 100,
-                        decoration: BoxDecoration(
-                          color: AppColors.backgroundInput,
-                          borderRadius: BorderRadius.circular(
-                            AppConstants.radiusM,
-                          ),
-                          border: Border.all(
-                            color: _fotoPath != null
-                                ? AppColors.primary
-                                : AppColors.primary.withOpacity(0.4),
-                            width: 1.5,
-                          ),
-                        ),
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              _fotoPath != null
-                                  ? Icons.check_circle_outline_rounded
-                                  : Icons.image_outlined,
-                              color: AppColors.primary,
-                              size: 28,
-                            ),
-                            const SizedBox(height: 6),
-                            Text(
-                              _fotoPath != null
-                                  ? 'Foto diunggah'
-                                  : 'UPLOAD FOTO',
-                              style: AppTextStyles.interLabel.copyWith(
-                                color: AppColors.primary,
-                                fontSize: 11,
-                                fontWeight: FontWeight.w600,
-                                letterSpacing: 1,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
                   ],
                 ),
               ),
