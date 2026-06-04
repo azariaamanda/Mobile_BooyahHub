@@ -3,6 +3,7 @@ import '../presentation/auth/splash_screen.dart';
 import '../presentation/auth/login_screen.dart';
 import '../presentation/auth/register_admin_page.dart';
 import '../presentation/auth/register_user_page.dart';
+import '../presentation/auth/register_owner_page.dart';
 import '../presentation/owner/owner_dashboard_screen.dart';
 import '../presentation/owner/admin_verification_page.dart';
 import '../presentation/owner/financial_report_page.dart';
@@ -74,6 +75,11 @@ class AppRouter {
         path: '/register/admin',
         name: 'register_admin',
         builder: (context, state) => const RegisterAdminPage(),
+      ),
+      GoRoute(
+        path: '/register/owner',
+        name: 'register_owner',
+        builder: (context, state) => const RegisterOwnerPage(),
       ),
 
       // ─── OWNER ─────────────────────────────────────────────────
@@ -281,9 +287,9 @@ class AppRouter {
       name: 'history_detail',
       builder: (context, state) {
         // 1. Ambil data ID pendaftaran dari extra yang dikirim
-        final idPendaftaran = state.extra as int;
+        final idPendaftaran = int.tryParse(state.extra?.toString() ?? '0') ?? 0;
         
-        // 2. Return halamannya dengan mengoper ID tersebut (hapus keyword const)
+        // 2. Return halamannya dengan mengoper ID tersebut
         return HistoryDetailScrimPage(idPendaftaran: idPendaftaran);
         },
       ),
