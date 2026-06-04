@@ -316,7 +316,7 @@ class _HistoryScrimPageState extends State<HistoryScrimPage> {
 
                           return GestureDetector(
                             onTap: () {
-                              context.push('/user/history-detail', extra: history['id_scrim']);
+                              context.push('/user/history-detail', extra: history['id_scrim']);   
                             },
                             child: Container(
                               margin: const EdgeInsets.only(bottom: AppConstants.paddingM),
