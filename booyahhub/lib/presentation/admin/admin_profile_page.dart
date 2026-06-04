@@ -18,7 +18,7 @@ class _AdminProfilePageState extends State<AdminProfilePage> {
   bool _isLoading = true;
   Map<String, dynamic>? _akun;
   Map<String, dynamic>? _profil;
-  
+
   // State untuk toggle notifikasi
   bool _notificationEnabled = true;
 
@@ -67,9 +67,7 @@ class _AdminProfilePageState extends State<AdminProfilePage> {
         titlePadding: const EdgeInsets.only(top: 16, bottom: 4),
         contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
         actionsPadding: const EdgeInsets.only(bottom: 16),
-        title: Center(
-          child: Text('Logout', style: AppTextStyles.poppinsTitle),
-        ),
+        title: Center(child: Text('Logout', style: AppTextStyles.poppinsTitle)),
         content: Center(
           child: Text(
             'Yakin ingin logout?',
@@ -86,23 +84,43 @@ class _AdminProfilePageState extends State<AdminProfilePage> {
               OutlinedButton(
                 style: OutlinedButton.styleFrom(
                   side: BorderSide(color: AppColors.divider, width: 1),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 10,
+                  ),
                   minimumSize: const Size(100, 40),
                 ),
                 onPressed: () => Navigator.pop(ctx, false),
-                child: Text('Batal', style: AppTextStyles.interLabel.copyWith(color: AppColors.textSecondary)),
+                child: Text(
+                  'Batal',
+                  style: AppTextStyles.interLabel.copyWith(
+                    color: AppColors.textSecondary,
+                  ),
+                ),
               ),
               const SizedBox(width: 12),
               ElevatedButton(
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.error,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 10,
+                  ),
                   minimumSize: const Size(100, 40),
                 ),
                 onPressed: () => Navigator.pop(ctx, true),
-                child: Text('Logout', style: AppTextStyles.poppinsButton.copyWith(color: Colors.white)),
+                child: Text(
+                  'Logout',
+                  style: AppTextStyles.poppinsButton.copyWith(
+                    color: Colors.white,
+                  ),
+                ),
               ),
             ],
           ),
@@ -125,19 +143,29 @@ class _AdminProfilePageState extends State<AdminProfilePage> {
     if (_isLoading) {
       return Scaffold(
         backgroundColor: AppColors.background,
-        body: const Center(child: CircularProgressIndicator(color: AppColors.primary)),
+        body: const Center(
+          child: CircularProgressIndicator(color: AppColors.primary),
+        ),
       );
     }
 
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: Text('Profil', style: AppTextStyles.poppinsTitle.copyWith(color: AppColors.primary)),
-        backgroundColor: AppColors.background,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, color: AppColors.primary),
-          onPressed: () => context.pop(),
+        title: Text(
+          'Profil',
+          style: AppTextStyles.poppinsTitle.copyWith(color: AppColors.primary),
         ),
+        backgroundColor: AppColors.background,
+        leading: Navigator.canPop(context)
+            ? IconButton(
+                icon: const Icon(
+                  Icons.arrow_back_ios,
+                  color: AppColors.primary,
+                ),
+                onPressed: () => context.pop(),
+              )
+            : null,
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(AppConstants.paddingM),
@@ -149,7 +177,7 @@ class _AdminProfilePageState extends State<AdminProfilePage> {
 
             _buildSectionTitle('PENGATURAN AKUN'),
             const SizedBox(height: 8),
-            
+
             // Edit Profil (dengan chevron)
             _buildMenuItem(
               icon: Icons.edit_outlined,
@@ -158,7 +186,7 @@ class _AdminProfilePageState extends State<AdminProfilePage> {
               showSwitch: false,
             ),
             const SizedBox(height: 8),
-            
+
             // Notifikasi (dengan Switch toggle)
             _buildMenuItemWithSwitch(
               icon: Icons.notifications_outlined,
@@ -170,13 +198,6 @@ class _AdminProfilePageState extends State<AdminProfilePage> {
             const SizedBox(height: 24),
 
             _buildSectionTitle('PUSAT KONTROL'),
-            const SizedBox(height: 8),
-            _buildMenuItem(
-              icon: Icons.bar_chart_outlined,
-              title: 'Laporan & Rekapitulasi',
-              onTap: () => _navigateTo('/admin/laporan'),
-              showSwitch: false,
-            ),
             const SizedBox(height: 8),
             _buildMenuItem(
               icon: Icons.star_outline,
@@ -211,15 +232,21 @@ class _AdminProfilePageState extends State<AdminProfilePage> {
                     width: 100,
                     height: 100,
                     fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => Text(
+                    errorBuilder: (_, _, _) => Text(
                       initial,
-                      style: AppTextStyles.poppinsHeadline.copyWith(fontSize: 36, color: AppColors.primary),
+                      style: AppTextStyles.poppinsHeadline.copyWith(
+                        fontSize: 36,
+                        color: AppColors.primary,
+                      ),
                     ),
                   ),
                 )
               : Text(
                   initial,
-                  style: AppTextStyles.poppinsHeadline.copyWith(fontSize: 36, color: AppColors.primary),
+                  style: AppTextStyles.poppinsHeadline.copyWith(
+                    fontSize: 36,
+                    color: AppColors.primary,
+                  ),
                 ),
         ),
         const SizedBox(height: 12),
@@ -288,7 +315,11 @@ class _AdminProfilePageState extends State<AdminProfilePage> {
                   style: AppTextStyles.interBody.copyWith(fontSize: 15),
                 ),
               ),
-              Icon(Icons.chevron_right, size: 20, color: AppColors.textSecondary),
+              Icon(
+                Icons.chevron_right,
+                size: 20,
+                color: AppColors.textSecondary,
+              ),
             ],
           ),
         ),
@@ -324,7 +355,7 @@ class _AdminProfilePageState extends State<AdminProfilePage> {
             Switch(
               value: value,
               onChanged: onChanged,
-              activeColor: AppColors.primary,
+              activeThumbColor: AppColors.primary,
               inactiveThumbColor: AppColors.textSecondary,
               inactiveTrackColor: AppColors.surfaceVariant,
             ),

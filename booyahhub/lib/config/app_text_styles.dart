@@ -27,6 +27,12 @@ class AppTextStyles {
     color: AppColors.textPrimary,
   );
 
+  static TextStyle poppinsSubtitle = GoogleFonts.poppins(
+    fontSize: 14,
+    fontWeight: FontWeight.w500,
+    color: AppColors.textSecondary,
+  );
+
   static TextStyle poppinsButton = GoogleFonts.poppins(
     fontSize: 16,
     fontWeight: FontWeight.w600,

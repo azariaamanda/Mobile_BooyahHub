@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../config/app_color.dart';
-import '../../config/app_constants.dart';
 import '../../config/app_text_styles.dart';
 
 class AddSessionPage extends StatefulWidget {
@@ -25,14 +24,20 @@ class _AddSessionPageState extends State<AddSessionPage> {
     setState(() => _isLoading = true);
     try {
       final startDateTime = DateTime(
-        _selectedDate.year, _selectedDate.month, _selectedDate.day,
-        _startTime.hour, _startTime.minute,
+        _selectedDate.year,
+        _selectedDate.month,
+        _selectedDate.day,
+        _startTime.hour,
+        _startTime.minute,
       );
       final endDateTime = DateTime(
-        _selectedDate.year, _selectedDate.month, _selectedDate.day,
-        _endTime.hour, _endTime.minute,
+        _selectedDate.year,
+        _selectedDate.month,
+        _selectedDate.day,
+        _endTime.hour,
+        _endTime.minute,
       );
-      
+
       await _supabase.from('sesi_scrim').insert({
         'id_scrim': widget.scrimId,
         'nama_sesi': 'Sesi Baru',
@@ -40,7 +45,7 @@ class _AddSessionPageState extends State<AddSessionPage> {
         'waktu_selesai': endDateTime.toIso8601String(),
         'slot_maksimal': _slot,
       });
-      
+
       if (mounted) context.pop(true);
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -76,16 +81,29 @@ class _AddSessionPageState extends State<AddSessionPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('WAKTU SESI', style: AppTextStyles.interLabel.copyWith(color: AppColors.primary)),
+                  Text(
+                    'WAKTU SESI',
+                    style: AppTextStyles.interLabel.copyWith(
+                      color: AppColors.primary,
+                    ),
+                  ),
                   const SizedBox(height: 16),
                   Row(
                     children: [
                       Expanded(
-                        child: _timePickerField('MULAI', _startTime, (t) => setState(() => _startTime = t)),
+                        child: _timePickerField(
+                          'MULAI',
+                          _startTime,
+                          (t) => setState(() => _startTime = t),
+                        ),
                       ),
                       const SizedBox(width: 16),
                       Expanded(
-                        child: _timePickerField('SELESAI', _endTime, (t) => setState(() => _endTime = t)),
+                        child: _timePickerField(
+                          'SELESAI',
+                          _endTime,
+                          (t) => setState(() => _endTime = t),
+                        ),
                       ),
                     ],
                   ),
@@ -101,10 +119,19 @@ class _AddSessionPageState extends State<AddSessionPage> {
               width: double.infinity,
               child: ElevatedButton(
                 onPressed: _isLoading ? null : _saveSession,
-                style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                ),
                 child: _isLoading
-                    ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2))
-                    : Text('SIMPAN PERUBAHAN', style: AppTextStyles.poppinsButton),
+                    ? const SizedBox(
+                        width: 24,
+                        height: 24,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : Text(
+                        'SIMPAN PERUBAHAN',
+                        style: AppTextStyles.poppinsButton,
+                      ),
               ),
             ),
             const SizedBox(height: 12),
@@ -112,7 +139,12 @@ class _AddSessionPageState extends State<AddSessionPage> {
               width: double.infinity,
               child: OutlinedButton(
                 onPressed: () => context.pop(),
-                child: Text('BATAL', style: AppTextStyles.poppinsButton.copyWith(color: AppColors.primary)),
+                child: Text(
+                  'BATAL',
+                  style: AppTextStyles.poppinsButton.copyWith(
+                    color: AppColors.primary,
+                  ),
+                ),
               ),
             ),
           ],
@@ -121,7 +153,11 @@ class _AddSessionPageState extends State<AddSessionPage> {
     );
   }
 
-  Widget _timePickerField(String label, TimeOfDay time, Function(TimeOfDay) onChanged) {
+  Widget _timePickerField(
+    String label,
+    TimeOfDay time,
+    Function(TimeOfDay) onChanged,
+  ) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -129,7 +165,10 @@ class _AddSessionPageState extends State<AddSessionPage> {
         const SizedBox(height: 4),
         GestureDetector(
           onTap: () async {
-            final picked = await showTimePicker(context: context, initialTime: time);
+            final picked = await showTimePicker(
+              context: context,
+              initialTime: time,
+            );
             if (picked != null) onChanged(picked);
           },
           child: Container(
@@ -177,7 +216,10 @@ class _AddSessionPageState extends State<AddSessionPage> {
               children: [
                 const Icon(Icons.calendar_today, color: AppColors.primary),
                 const SizedBox(width: 8),
-                Text(_formatDate(_selectedDate), style: AppTextStyles.interInput),
+                Text(
+                  _formatDate(_selectedDate),
+                  style: AppTextStyles.interInput,
+                ),
               ],
             ),
           ),
@@ -202,7 +244,8 @@ class _AddSessionPageState extends State<AddSessionPage> {
             children: [
               IconButton(
                 icon: const Icon(Icons.remove, color: AppColors.primary),
-                onPressed: () => setState(() => _slot = (_slot > 1 ? _slot - 1 : 1)),
+                onPressed: () =>
+                    setState(() => _slot = (_slot > 1 ? _slot - 1 : 1)),
               ),
               Expanded(
                 child: Text(
@@ -213,7 +256,8 @@ class _AddSessionPageState extends State<AddSessionPage> {
               ),
               IconButton(
                 icon: const Icon(Icons.add, color: AppColors.primary),
-                onPressed: () => setState(() => _slot = (_slot < 50 ? _slot + 1 : 50)),
+                onPressed: () =>
+                    setState(() => _slot = (_slot < 50 ? _slot + 1 : 50)),
               ),
             ],
           ),
@@ -223,5 +267,18 @@ class _AddSessionPageState extends State<AddSessionPage> {
   }
 
   String _formatDate(DateTime d) => '${d.day} ${_getMonth(d.month)} ${d.year}';
-  String _getMonth(int m) => ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'][m - 1];
+  String _getMonth(int m) => [
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'Mei',
+    'Jun',
+    'Jul',
+    'Agu',
+    'Sep',
+    'Okt',
+    'Nov',
+    'Des',
+  ][m - 1];
 }

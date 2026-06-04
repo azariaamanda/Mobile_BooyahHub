@@ -73,7 +73,6 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      // AppBar dengan judul BOOYAHHUB di tengah
       appBar: AppBar(
         backgroundColor: Colors.black,
         elevation: 0,
@@ -92,16 +91,13 @@ class _LoginScreenState extends State<LoginScreen> {
           child: Container(height: 1, color: Colors.white.withOpacity(0.15)),
         ),
       ),
-
       backgroundColor: Colors.black,
-
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 28),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Heading "Masuk" di kiri atas
               Text(
                 'Masuk',
                 style: AppTextStyles.poppinsHeadline.copyWith(
@@ -110,9 +106,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   color: Colors.white,
                 ),
               ),
-
               const SizedBox(height: 4),
-
               Text(
                 'Selamat datang kembali!',
                 style: AppTextStyles.interBody.copyWith(
@@ -120,10 +114,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   color: Colors.white.withOpacity(0.5),
                 ),
               ),
-
               const SizedBox(height: 28),
-
-              // Card container form
               Container(
                 decoration: BoxDecoration(
                   color: const Color(0xFF111B25),
@@ -135,20 +126,16 @@ class _LoginScreenState extends State<LoginScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Label EMAIL
                       Text(
                         'EMAIL',
                         style: AppTextStyles.interCaption.copyWith(
                           fontSize: 11,
                           fontWeight: FontWeight.w600,
-                          color: AppColors.primary, // warna kuning
+                          color: AppColors.primary,
                           letterSpacing: 1.0,
                         ),
                       ),
-
                       const SizedBox(height: 8),
-
-                      // Email field
                       TextFormField(
                         controller: _emailController,
                         keyboardType: TextInputType.emailAddress,
@@ -199,15 +186,13 @@ class _LoginScreenState extends State<LoginScreen> {
                         validator: (value) {
                           final v = value?.trim() ?? '';
                           if (v.isEmpty) return 'Email wajib diisi';
-                          if (!v.contains('@'))
+                          if (!v.contains('@')) {
                             return 'Format email tidak valid';
+                          }
                           return null;
                         },
                       ),
-
                       const SizedBox(height: 20),
-
-                      // Label KATA SANDI + LUPA PASSWORD? berdampingan
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
@@ -216,12 +201,14 @@ class _LoginScreenState extends State<LoginScreen> {
                             style: AppTextStyles.interCaption.copyWith(
                               fontSize: 11,
                               fontWeight: FontWeight.w600,
-                              color: AppColors.primary, // warna kuning
+                              color: AppColors.primary,
                               letterSpacing: 1.0,
                             ),
                           ),
                           GestureDetector(
-                            onTap: () {},
+                            onTap: () {
+                              // TODO: Implement forgot password
+                            },
                             child: Text(
                               'LUPA PASSWORD?',
                               style: AppTextStyles.interCaption.copyWith(
@@ -234,10 +221,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                         ],
                       ),
-
                       const SizedBox(height: 8),
-
-                      // Password field
                       TextFormField(
                         controller: _passwordController,
                         obscureText: _obscurePassword,
@@ -302,13 +286,12 @@ class _LoginScreenState extends State<LoginScreen> {
                         validator: (value) {
                           final v = value ?? '';
                           if (v.isEmpty) return 'Kata sandi wajib diisi';
-                          if (v.length < 6)
+                          if (v.length < 6) {
                             return 'Kata sandi minimal 6 karakter';
+                          }
                           return null;
                         },
                       ),
-
-                      // Error message
                       if (_errorText != null) ...[
                         const SizedBox(height: 16),
                         Container(
@@ -341,16 +324,13 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                         ),
                       ],
-
                       const SizedBox(height: 24),
-
-                      // Tombol MASUK
                       SizedBox(
                         width: double.infinity,
                         height: 52,
                         child: ElevatedButton(
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.primary, // kuning
+                            backgroundColor: AppColors.primary,
                             foregroundColor: Colors.black,
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(10),
@@ -372,13 +352,12 @@ class _LoginScreenState extends State<LoginScreen> {
                                   children: [
                                     Text(
                                       'MASUK',
-                                      style: AppTextStyles.poppinsButton
-                                          .copyWith(
-                                            fontSize: 15,
-                                            fontWeight: FontWeight.w700,
-                                            letterSpacing: 1.2,
-                                            color: Colors.black,
-                                          ),
+                                      style: AppTextStyles.poppinsButton.copyWith(
+                                        fontSize: 15,
+                                        fontWeight: FontWeight.w700,
+                                        letterSpacing: 1.2,
+                                        color: Colors.black,
+                                      ),
                                     ),
                                     const SizedBox(width: 8),
                                     const Icon(
@@ -394,10 +373,9 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                 ),
               ),
-
               const SizedBox(height: 28),
-
-              // Daftar link
+              
+              // 🟢 DAFTAR SEBAGAI PENGGUNA
               Center(
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -427,10 +405,9 @@ class _LoginScreenState extends State<LoginScreen> {
                   ],
                 ),
               ),
-
               const SizedBox(height: 12),
-
-              // Daftar link regis admin
+              
+              // 🟢 DAFTAR SEBAGAI ADMIN
               Center(
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -445,6 +422,42 @@ class _LoginScreenState extends State<LoginScreen> {
                     GestureDetector(
                       onTap: () {
                         context.go('/register/admin');
+                      },
+                      child: Text(
+                        'Daftar',
+                        style: AppTextStyles.interLink.copyWith(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.primary,
+                          decoration: TextDecoration.underline,
+                          decorationColor: AppColors.primary,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              
+              // 🆕 TAMBAHKAN: DAFTAR SEBAGAI OWNER
+              const SizedBox(height: 12),
+              Center(
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      'Daftar Sebagai Owner? ',
+                      style: AppTextStyles.interBody.copyWith(
+                        fontSize: 13,
+                        color: Colors.white.withOpacity(0.5),
+                      ),
+                    ),
+                    GestureDetector(
+                      onTap: () {
+                        // TODO: Buat halaman register owner jika diperlukan
+                        // Sementara arahkan ke register admin dulu
+                        context.go('/register/admin');
+                        // Atau jika punya halaman khusus:
+                        // context.go('/register/owner');
                       },
                       child: Text(
                         'Daftar',

@@ -1,27 +1,374 @@
-// lib/presentation/admin/claim_detail_page.dart
-//
-// Layar "Klaim Hadiah" — admin memverifikasi klaim hadiah tiap pemenang
-// lalu meneruskannya ke Owner.
-//
-// Layar ini menangani DUA kondisi dalam satu halaman:
-//  - "Klaim Hadiah"  : sebelum diteruskan — tiap pemenang punya tombol
-//                      Tolak / Setujui, badge BELUM/SUDAH VERIFIKASI.
-//  - "Sesudah Klaim" : setelah diteruskan — badge SEDANG DICAIRKAN,
-//                      tombol bawah berubah jadi non-aktif.
-
 import 'package:flutter/material.dart';
-
 import '../../config/app_color.dart';
 import '../../config/app_constants.dart';
 import '../../config/app_text_styles.dart';
-import '../../data/models/keuangan_admin_model.dart';
 
-/// Warna khusus status "sedang dicairkan" (teal) — tidak ada di AppColors.
 const Color _kTeal = Color(0xFF14B8A6);
 
+String _rp(int v) {
+  final s = v.abs().toString();
+  final b = StringBuffer();
+  for (int i = 0; i < s.length; i++) {
+    if (i > 0 && (s.length - i) % 3 == 0) b.write('.');
+    b.write(s[i]);
+  }
+  return 'Rp $b';
+}
+
+String _rpShort(int v) {
+  if (v >= 1000000000) return 'Rp ${(v / 1000000000).toStringAsFixed(1)}B';
+  if (v >= 1000000) return 'Rp ${(v / 1000000).toStringAsFixed(1)}M';
+  if (v >= 1000) return 'Rp ${(v / 1000).toStringAsFixed(0)}K';
+  return _rp(v);
+}
+
+enum _WinStatus { belum, sudah, ditolak, dicairkan }
+
+class _Winner {
+  final int rank;
+  final String tim, metode, rek, atas;
+  final int nominal;
+  _WinStatus status;
+  _Winner(this.rank, this.tim, this.nominal, this.metode, this.rek, this.atas)
+    : status = _WinStatus.belum;
+}
+
+// ============================================================
+// TAB "KLAIM" — layar Keuangan
+// Pakai Scaffold + ListView supaya RENDER STABIL di IndexedStack.
+// ============================================================
+class AdminClaimListPage extends StatelessWidget {
+  const AdminClaimListPage({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      body: ListView(
+        padding: const EdgeInsets.fromLTRB(16, 56, 16, 110),
+        children: [
+          Text('Keuangan', style: AppTextStyles.poppinsHeadline),
+          const SizedBox(height: 4),
+          Text(
+            'Ringkasan pendapatan & klaim hadiah',
+            style: AppTextStyles.interBody,
+          ),
+          const SizedBox(height: 20),
+          _totalPendapatanCard(),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: _miniStat(
+                  'DANA KELUAR',
+                  _rpShort(10200000),
+                  '80% Tersalurkan',
+                  AppColors.textHint,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _miniStat(
+                  'KLAIM PENDING',
+                  '12',
+                  'Segera Proses',
+                  AppColors.warning,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 24),
+          Text('Daftar Klaim Aktif', style: AppTextStyles.poppinsSectionTitle),
+          const SizedBox(height: 12),
+          _kartuUrgent(
+            context,
+            tanggal: '24 Okt 2023',
+            namaScrim: 'Ultimate Pro League - S12',
+            jumlahPending: 12,
+            jumlahTim: 8,
+            nominal: 600000,
+          ),
+          const SizedBox(height: 12),
+          _kartuCompleted(
+            tanggal: '25 Okt 2023',
+            namaScrim: 'Elite Weekly Cup',
+            nominal: 1200000,
+            catatan: 'Selesai dalam 45 menit',
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _totalPendapatanCard() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(AppConstants.radiusM),
+        border: Border.all(color: AppColors.divider),
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [AppColors.surface, AppColors.backgroundCard],
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'TOTAL PENDAPATAN',
+            style: AppTextStyles.interCaption.copyWith(
+              color: AppColors.textHint,
+              letterSpacing: 1,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(_rpShort(12400000), style: AppTextStyles.poppinsMoneyLarge),
+          const SizedBox(height: 4),
+          Row(
+            children: [
+              Icon(Icons.trending_up, size: 14, color: AppColors.success),
+              const SizedBox(width: 4),
+              Text('+4.2% bln ini', style: AppTextStyles.percentageUp),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _miniStat(String label, String value, String caption, Color cc) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.backgroundCard,
+        borderRadius: BorderRadius.circular(AppConstants.radiusM),
+        border: Border.all(color: AppColors.divider),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: AppTextStyles.interCaption.copyWith(
+              color: AppColors.textHint,
+              letterSpacing: 0.5,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            value,
+            style: AppTextStyles.poppinsTitle.copyWith(
+              color: AppColors.textPrimary,
+              fontSize: 22,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(caption, style: AppTextStyles.interCaption.copyWith(color: cc)),
+        ],
+      ),
+    );
+  }
+
+  Widget _kartuUrgent(
+    BuildContext context, {
+    required String tanggal,
+    required String namaScrim,
+    required int jumlahPending,
+    required int jumlahTim,
+    required int nominal,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.backgroundCard,
+        borderRadius: BorderRadius.circular(AppConstants.radiusM),
+        border: Border.all(color: AppColors.primary.withOpacity(0.35)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: AppColors.primary,
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  'URGENT',
+                  style: AppTextStyles.interStatus.copyWith(
+                    color: AppColors.buttonText,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+              const Spacer(),
+              Text(
+                tanggal,
+                style: AppTextStyles.interCaption.copyWith(
+                  color: AppColors.textSecondary,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: Text(namaScrim, style: AppTextStyles.poppinsTitleSmall),
+              ),
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: AppColors.warning.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  '$jumlahPending Pending',
+                  style: AppTextStyles.interStatus.copyWith(
+                    color: AppColors.warning,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Row(
+            children: [
+              Icon(Icons.groups_outlined, size: 14, color: AppColors.textHint),
+              const SizedBox(width: 4),
+              Text('$jumlahTim Tim', style: AppTextStyles.interCaption),
+              Text(
+                '   •   ',
+                style: AppTextStyles.interCaption.copyWith(
+                  color: AppColors.textDisabled,
+                ),
+              ),
+              Text(_rp(nominal), style: AppTextStyles.goldHighlight),
+            ],
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            height: 44,
+            child: ElevatedButton.icon(
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => ClaimDetailPage(namaScrim: namaScrim),
+                ),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.buttonPrimary,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(6),
+                ),
+              ),
+              icon: const Icon(
+                Icons.receipt_long,
+                size: 18,
+                color: AppColors.buttonText,
+              ),
+              label: Text(
+                'Detail Klaim',
+                style: AppTextStyles.poppinsButton.copyWith(fontSize: 14),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _kartuCompleted({
+    required String tanggal,
+    required String namaScrim,
+    required int nominal,
+    required String catatan,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.backgroundCard,
+        borderRadius: BorderRadius.circular(AppConstants.radiusM),
+        border: Border.all(color: AppColors.divider),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Text(tanggal, style: AppTextStyles.interCaption),
+              Text(
+                '  •  ',
+                style: AppTextStyles.interCaption.copyWith(
+                  color: AppColors.textDisabled,
+                ),
+              ),
+              Icon(Icons.check_circle, size: 12, color: AppColors.success),
+              const SizedBox(width: 4),
+              Text(
+                'COMPLETED',
+                style: AppTextStyles.interStatus.copyWith(
+                  color: AppColors.success,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(namaScrim, style: AppTextStyles.poppinsTitleSmall),
+          const SizedBox(height: 4),
+          Text(_rp(nominal), style: AppTextStyles.poppinsMoney),
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 12),
+            child: Divider(height: 1, color: AppColors.divider),
+          ),
+          Row(
+            children: [
+              Expanded(child: Text(catatan, style: AppTextStyles.interCaption)),
+              OutlinedButton.icon(
+                onPressed: () {},
+                style: OutlinedButton.styleFrom(
+                  side: const BorderSide(color: AppColors.divider),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                ),
+                icon: const Icon(
+                  Icons.history,
+                  size: 14,
+                  color: AppColors.textSecondary,
+                ),
+                label: Text(
+                  'Lihat Riwayat',
+                  style: AppTextStyles.interLabel.copyWith(
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ============================================================
+// LAYAR KLAIM HADIAH (full screen, dibuka via Navigator.push)
+// Menangani 2 kondisi: sebelum & sesudah diteruskan ke Owner.
+// ============================================================
 class ClaimDetailPage extends StatefulWidget {
   final String namaScrim;
-
   const ClaimDetailPage({super.key, this.namaScrim = 'Ultimate Pro League'});
 
   @override
@@ -29,33 +376,44 @@ class ClaimDetailPage extends StatefulWidget {
 }
 
 class _ClaimDetailPageState extends State<ClaimDetailPage> {
-  late SesiOption _sesi = mockSesiList.first;
-  late final List<WinnerClaim> _winners = buildMockWinners();
+  String _sesi = 'Sesi 1: 08.00 - 09.00';
   bool _diteruskan = false;
+  late final List<_Winner> _winners = [
+    _Winner(1, 'Evos Glory', 255000, 'BCA', '8821 0941 12', 'MUHAMMAD RIDWAN'),
+    _Winner(2, 'RRQ Hoshi', 153000, 'DANA', '0812 9342 123', 'ANDIKA PRATAMA'),
+    _Winner(
+      3,
+      'Bigetron Alpha',
+      102000,
+      'GoPay',
+      '8857 1123 661',
+      'RIZKY FAUZI',
+    ),
+  ];
 
-  // Rincian keuangan dihitung dari total pendapatan sesi.
-  RincianKeuanganSesi get _rincian => RincianKeuanganSesi.hitung(600000, 12);
+  static const int _total = 600000;
+  static const int _jmlTim = 12;
+  int get _feePlatform => (_total * 0.05).round();
+  int get _feeAdmin => (_total * 0.10).round();
+  int get _sisa => _total - _feePlatform - _feeAdmin;
+  int get _juara1 => (_sisa * 0.50).round();
+  int get _juara2 => (_sisa * 0.30).round();
+  int get _juara3 => (_sisa * 0.20).round();
 
-  int get _jumlahTerverifikasi => _winners
-      .where((w) => w.status == WinnerClaimStatus.sudahVerifikasi)
-      .length;
+  int get _verified =>
+      _winners.where((w) => w.status == _WinStatus.sudah).length;
+  bool get _allVerified => _winners.every((w) => w.status == _WinStatus.sudah);
 
-  bool get _semuaTerverifikasi =>
-      _winners.every((w) => w.status == WinnerClaimStatus.sudahVerifikasi);
+  void _setujui(_Winner w) => setState(() => w.status = _WinStatus.sudah);
 
-  // ---- Aksi admin -------------------------------------------------
-  void _setujui(WinnerClaim w) {
-    setState(() => w.status = WinnerClaimStatus.sudahVerifikasi);
-  }
-
-  void _tolak(WinnerClaim w) {
+  void _tolak(_Winner w) {
     showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: AppColors.backgroundCard,
         title: Text('Tolak Klaim?', style: AppTextStyles.poppinsTitleSmall),
         content: Text(
-          'Klaim hadiah ${w.namaTim} akan ditandai ditolak.',
+          'Klaim hadiah ${w.tim} akan ditandai ditolak.',
           style: AppTextStyles.interBody,
         ),
         actions: [
@@ -71,7 +429,7 @@ class _ClaimDetailPageState extends State<ClaimDetailPage> {
           TextButton(
             onPressed: () {
               Navigator.pop(ctx);
-              setState(() => w.status = WinnerClaimStatus.ditolak);
+              setState(() => w.status = _WinStatus.ditolak);
             },
             child: Text(
               'Tolak',
@@ -83,119 +441,70 @@ class _ClaimDetailPageState extends State<ClaimDetailPage> {
     );
   }
 
-  void _teruskanKeOwner() {
+  void _teruskan() {
     setState(() {
       _diteruskan = true;
       for (final w in _winners) {
-        w.status = WinnerClaimStatus.sedangDicairkan;
+        w.status = _WinStatus.dicairkan;
       }
     });
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        backgroundColor: _kTeal,
-        content: Text('Klaim diteruskan ke Owner'),
-      ),
-    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      body: SafeArea(
-        bottom: false,
-        child: Column(
-          children: [
-            _buildAppBar(),
-            Expanded(
-              child: SingleChildScrollView(
-                physics: const BouncingScrollPhysics(),
-                padding: const EdgeInsets.fromLTRB(
-                  AppConstants.paddingM,
-                  AppConstants.paddingS,
-                  AppConstants.paddingM,
-                  AppConstants.paddingL,
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _buildInfoBiaya(),
-                    const SizedBox(height: AppConstants.paddingL),
-                    _sectionLabel('PILIH SESI SCRIM'),
-                    _buildSesiDropdown(),
-                    const SizedBox(height: AppConstants.paddingL),
-                    _buildRincianKeuangan(),
-                    const SizedBox(height: AppConstants.paddingL),
-                    _sectionLabel('STATUS KLAIM PEMENANG'),
-                    ..._winners.map(
-                      (w) => Padding(
-                        padding: const EdgeInsets.only(
-                          bottom: AppConstants.paddingM,
-                        ),
-                        child: _WinnerCard(
-                          winner: w,
-                          locked: _diteruskan,
-                          onSetuju: () => _setujui(w),
-                          onTolak: () => _tolak(w),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
+      appBar: AppBar(
+        backgroundColor: AppColors.background,
+        elevation: 0,
+        leading: IconButton(
+          onPressed: () => Navigator.maybePop(context),
+          icon: const Icon(Icons.arrow_back, color: AppColors.primary),
+        ),
+        title: Text(
+          'Klaim Hadiah',
+          style: AppTextStyles.poppinsTitleSmall.copyWith(
+            color: AppColors.primary,
+          ),
         ),
       ),
-      bottomNavigationBar: _buildForwardButton(),
-    );
-  }
-
-  // ===================== APP BAR =====================
-  Widget _buildAppBar() {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(
-        AppConstants.paddingS,
-        AppConstants.paddingS,
-        AppConstants.paddingM,
-        AppConstants.paddingS,
-      ),
-      child: Row(
+      body: ListView(
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
         children: [
-          IconButton(
-            onPressed: () => Navigator.maybePop(context),
-            icon: const Icon(Icons.arrow_back, color: AppColors.primary),
-          ),
-          Text(
-            'Klaim Hadiah',
-            style: AppTextStyles.poppinsTitleSmall.copyWith(
-              color: AppColors.primary,
-            ),
-          ),
+          _infoBiaya(),
+          const SizedBox(height: 20),
+          _label('PILIH SESI SCRIM'),
+          _sesiDropdown(),
+          const SizedBox(height: 20),
+          _rincianKeuangan(),
+          const SizedBox(height: 20),
+          _label('STATUS KLAIM PEMENANG'),
+          for (final w in _winners) ...[
+            _winnerCard(w),
+            const SizedBox(height: 12),
+          ],
         ],
       ),
+      bottomNavigationBar: _forwardButton(),
     );
   }
 
-  Widget _sectionLabel(String text) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: AppConstants.paddingS),
-      child: Text(
-        text,
-        style: AppTextStyles.interCaption.copyWith(
-          color: AppColors.textHint,
-          fontWeight: FontWeight.w600,
-          letterSpacing: 1,
-        ),
+  Widget _label(String t) => Padding(
+    padding: const EdgeInsets.only(bottom: 8),
+    child: Text(
+      t,
+      style: AppTextStyles.interCaption.copyWith(
+        color: AppColors.textHint,
+        fontWeight: FontWeight.w600,
+        letterSpacing: 1,
       ),
-    );
-  }
+    ),
+  );
 
-  // ===================== INFORMASI BIAYA =====================
-  Widget _buildInfoBiaya() {
+  Widget _infoBiaya() {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(AppConstants.paddingM),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: AppColors.info.withOpacity(0.08),
         borderRadius: BorderRadius.circular(AppConstants.radiusM),
@@ -218,7 +527,7 @@ class _ClaimDetailPageState extends State<ClaimDetailPage> {
               ),
             ],
           ),
-          const SizedBox(height: AppConstants.paddingS),
+          const SizedBox(height: 8),
           _bullet('Fee Platform: 5% dari total pendaftaran'),
           _bullet('Fee Admin: 10% dari total pendaftaran'),
           _bullet('Hadiah: Juara 1 = 50%, Juara 2 = 30%, Juara 3 = 20%'),
@@ -235,67 +544,61 @@ class _ClaimDetailPageState extends State<ClaimDetailPage> {
     );
   }
 
-  Widget _bullet(String text) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 2),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.only(top: 6, right: 8),
-            child: Container(
-              width: 4,
-              height: 4,
-              decoration: const BoxDecoration(
-                color: AppColors.textHint,
-                shape: BoxShape.circle,
-              ),
+  Widget _bullet(String t) => Padding(
+    padding: const EdgeInsets.symmetric(vertical: 2),
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(top: 6, right: 8),
+          child: Container(
+            width: 4,
+            height: 4,
+            decoration: const BoxDecoration(
+              color: AppColors.textHint,
+              shape: BoxShape.circle,
             ),
           ),
-          Expanded(child: Text(text, style: AppTextStyles.interCaption)),
-        ],
-      ),
-    );
-  }
+        ),
+        Expanded(child: Text(t, style: AppTextStyles.interCaption)),
+      ],
+    ),
+  );
 
-  // ===================== DROPDOWN SESI =====================
-  Widget _buildSesiDropdown() {
+  Widget _sesiDropdown() {
+    const sesi = [
+      'Sesi 1: 08.00 - 09.00',
+      'Sesi 2: 10.00 - 11.00',
+      'Sesi 3: 13.00 - 14.00',
+    ];
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: AppConstants.paddingM),
+      padding: const EdgeInsets.symmetric(horizontal: 12),
       decoration: BoxDecoration(
         color: AppColors.backgroundInput,
         borderRadius: BorderRadius.circular(AppConstants.radiusM),
         border: Border.all(color: AppColors.inputBorder),
       ),
       child: DropdownButtonHideUnderline(
-        child: DropdownButton<SesiOption>(
+        child: DropdownButton<String>(
           value: _sesi,
           isExpanded: true,
           dropdownColor: AppColors.surface,
-          borderRadius: BorderRadius.circular(AppConstants.radiusM),
           icon: const Icon(Icons.keyboard_arrow_down, color: AppColors.primary),
           style: AppTextStyles.interInput,
-          items: mockSesiList
-              .map(
-                (s) => DropdownMenuItem(
-                  value: s,
-                  child: Text(s.label, style: AppTextStyles.interInput),
-                ),
-              )
+          items: sesi
+              .map((s) => DropdownMenuItem(value: s, child: Text(s)))
               .toList(),
           onChanged: _diteruskan
               ? null
-              : (val) {
-                  if (val != null) setState(() => _sesi = val);
+              : (v) {
+                  if (v != null) setState(() => _sesi = v);
                 },
         ),
       ),
     );
   }
 
-  // ===================== RINCIAN KEUANGAN =====================
-  Widget _buildRincianKeuangan() {
-    final r = _rincian;
+  Widget _rincianKeuangan() {
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
@@ -306,10 +609,9 @@ class _ClaimDetailPageState extends State<ClaimDetailPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header
           Container(
             width: double.infinity,
-            padding: const EdgeInsets.all(AppConstants.paddingM),
+            padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
               color: AppColors.primary.withOpacity(0.10),
               borderRadius: const BorderRadius.vertical(
@@ -336,15 +638,14 @@ class _ClaimDetailPageState extends State<ClaimDetailPage> {
             ),
           ),
           Padding(
-            padding: const EdgeInsets.all(AppConstants.paddingM),
+            padding: const EdgeInsets.all(12),
             child: Column(
               children: [
-                // Total pendapatan
                 Container(
-                  padding: const EdgeInsets.all(AppConstants.paddingM),
+                  padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
                     color: AppColors.surface,
-                    borderRadius: BorderRadius.circular(AppConstants.radiusS),
+                    borderRadius: BorderRadius.circular(6),
                   ),
                   child: Row(
                     children: [
@@ -353,33 +654,25 @@ class _ClaimDetailPageState extends State<ClaimDetailPage> {
                         size: 16,
                         color: AppColors.textHint,
                       ),
-                      const SizedBox(width: AppConstants.paddingS),
+                      const SizedBox(width: 8),
                       Expanded(
                         child: Text(
-                          'Total Pendapatan (${r.jumlahTim} tim)',
+                          'Total Pendapatan ($_jmlTim tim)',
                           style: AppTextStyles.interBodyMedium.copyWith(
                             color: AppColors.textSecondary,
                           ),
                         ),
                       ),
-                      Text(
-                        formatRupiah(r.totalPendapatan),
-                        style: AppTextStyles.goldHighlight,
-                      ),
+                      Text(_rp(_total), style: AppTextStyles.goldHighlight),
                     ],
                   ),
                 ),
-                const SizedBox(height: AppConstants.paddingM),
-                _feeRow(
-                  'Fee Platform (5%)',
-                  '- ${formatRupiah(r.feePlatform)}',
-                ),
+                const SizedBox(height: 12),
+                _feeRow('Fee Platform (5%)', '- ${_rp(_feePlatform)}'),
                 const SizedBox(height: 8),
-                _feeRow('Fee Admin (10%)', '- ${formatRupiah(r.feeAdmin)}'),
+                _feeRow('Fee Admin (10%)', '- ${_rp(_feeAdmin)}'),
                 const Padding(
-                  padding: EdgeInsets.symmetric(
-                    vertical: AppConstants.paddingM,
-                  ),
+                  padding: EdgeInsets.symmetric(vertical: 12),
                   child: Divider(height: 1, color: AppColors.divider),
                 ),
                 Row(
@@ -392,14 +685,11 @@ class _ClaimDetailPageState extends State<ClaimDetailPage> {
                         fontWeight: FontWeight.w600,
                       ),
                     ),
-                    Text(
-                      formatRupiah(r.sisaHadiah),
-                      style: AppTextStyles.poppinsTitleSmall,
-                    ),
+                    Text(_rp(_sisa), style: AppTextStyles.poppinsTitleSmall),
                   ],
                 ),
-                const SizedBox(height: AppConstants.paddingM),
-                _buildAlokasiHadiah(r),
+                const SizedBox(height: 12),
+                _alokasiBox(),
               ],
             ),
           ),
@@ -408,37 +698,49 @@ class _ClaimDetailPageState extends State<ClaimDetailPage> {
     );
   }
 
-  Widget _feeRow(String label, String value) {
-    return Row(
+  Widget _feeRow(String l, String v) => Row(
+    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    children: [
+      Row(
+        children: [
+          Icon(
+            Icons.remove_circle_outline,
+            size: 13,
+            color: AppColors.textHint,
+          ),
+          const SizedBox(width: 6),
+          Text(l, style: AppTextStyles.interBody),
+        ],
+      ),
+      Text(
+        v,
+        style: AppTextStyles.interBodyMedium.copyWith(
+          color: AppColors.textSecondary,
+        ),
+      ),
+    ],
+  );
+
+  Widget _alokasiBox() {
+    Widget row(String l, int n, Color c) => Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Row(
-          children: [
-            Icon(
-              Icons.remove_circle_outline,
-              size: 13,
-              color: AppColors.textHint,
-            ),
-            const SizedBox(width: 6),
-            Text(label, style: AppTextStyles.interBody),
-          ],
-        ),
+        Text(l, style: AppTextStyles.interBody),
         Text(
-          value,
+          _rp(n),
           style: AppTextStyles.interBodyMedium.copyWith(
-            color: AppColors.textSecondary,
+            color: c,
+            fontWeight: FontWeight.w700,
           ),
         ),
       ],
     );
-  }
 
-  Widget _buildAlokasiHadiah(RincianKeuanganSesi r) {
     return Container(
-      padding: const EdgeInsets.all(AppConstants.paddingM),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: AppColors.surface,
-        borderRadius: BorderRadius.circular(AppConstants.radiusS),
+        borderRadius: BorderRadius.circular(6),
         border: Border.all(color: AppColors.divider),
       ),
       child: Column(
@@ -452,49 +754,333 @@ class _ClaimDetailPageState extends State<ClaimDetailPage> {
               letterSpacing: 0.5,
             ),
           ),
-          const SizedBox(height: AppConstants.paddingS),
-          _juaraRow('Juara 1 (50%)', r.juara1, AppColors.primary),
           const SizedBox(height: 8),
-          _juaraRow('Juara 2 (30%)', r.juara2, AppColors.textPrimary),
+          row('Juara 1 (50%)', _juara1, AppColors.primary),
           const SizedBox(height: 8),
-          _juaraRow('Juara 3 (20%)', r.juara3, AppColors.textPrimary),
+          row('Juara 2 (30%)', _juara2, AppColors.textPrimary),
+          const SizedBox(height: 8),
+          row('Juara 3 (20%)', _juara3, AppColors.textPrimary),
         ],
       ),
     );
   }
 
-  Widget _juaraRow(String label, int nominal, Color valueColor) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Text(label, style: AppTextStyles.interBody),
-        Text(
-          formatRupiah(nominal),
-          style: AppTextStyles.interBodyMedium.copyWith(
-            color: valueColor,
-            fontWeight: FontWeight.w700,
+  Widget _winnerCard(_Winner w) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.backgroundCard,
+        borderRadius: BorderRadius.circular(AppConstants.radiusM),
+        border: Border.all(color: AppColors.divider),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 30,
+                height: 30,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: AppColors.primary.withOpacity(0.4)),
+                ),
+                child: Text(
+                  '${w.rank}',
+                  style: AppTextStyles.poppinsTitleSmall.copyWith(
+                    color: AppColors.primary,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            w.tim,
+                            style: AppTextStyles.poppinsTitleSmall,
+                          ),
+                        ),
+                        Text(
+                          _rp(w.nominal),
+                          style: AppTextStyles.goldHighlight,
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      '${w.metode} • ${w.rek}',
+                      style: AppTextStyles.interCaption.copyWith(
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                    Text('A/N: ${w.atas}', style: AppTextStyles.interCaption),
+                    const SizedBox(height: 6),
+                    _statusChip(w.status),
+                  ],
+                ),
+              ),
+            ],
           ),
-        ),
-      ],
+          const SizedBox(height: 12),
+          _timeline(w),
+          const SizedBox(height: 12),
+          _winnerAction(w),
+        ],
+      ),
     );
   }
 
-  // ===================== TOMBOL TERUSKAN =====================
-  Widget _buildForwardButton() {
-    final bool aktif = _semuaTerverifikasi && !_diteruskan;
+  Widget _statusChip(_WinStatus s) {
+    late final String label;
+    late final Color c;
+    switch (s) {
+      case _WinStatus.belum:
+        label = 'BELUM VERIFIKASI';
+        c = AppColors.warning;
+        break;
+      case _WinStatus.sudah:
+        label = 'SUDAH VERIFIKASI';
+        c = AppColors.success;
+        break;
+      case _WinStatus.ditolak:
+        label = 'DITOLAK';
+        c = AppColors.error;
+        break;
+      case _WinStatus.dicairkan:
+        label = 'SEDANG DICAIRKAN';
+        c = _kTeal;
+        break;
+    }
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: c.withOpacity(0.15),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: c.withOpacity(0.5)),
+      ),
+      child: Text(label, style: AppTextStyles.interStatus.copyWith(color: c)),
+    );
+  }
 
-    final String caption = _diteruskan
+  Widget _timeline(_Winner w) {
+    final List<List<dynamic>> rows;
+    switch (w.status) {
+      case _WinStatus.belum:
+        rows = [
+          ['Klaim Diajukan', '12 Okt, 14:20', AppColors.success],
+          ['Menunggu Verifikasi Admin', null, AppColors.warning],
+        ];
+        break;
+      case _WinStatus.sudah:
+        rows = [
+          ['Klaim Diajukan', '12 Okt, 14:20', AppColors.success],
+          ['Disetujui Admin', '12 Okt, 14:45', AppColors.success],
+        ];
+        break;
+      case _WinStatus.ditolak:
+        rows = [
+          ['Klaim Diajukan', '12 Okt, 14:20', AppColors.success],
+          ['Ditolak Admin', '12 Okt, 14:45', AppColors.error],
+        ];
+        break;
+      case _WinStatus.dicairkan:
+        rows = [
+          ['Klaim Diajukan', '12 Okt, 14:20', AppColors.success],
+          ['Disetujui Admin', '12 Okt, 14:45', AppColors.success],
+          ['Diteruskan ke Owner', '13 Okt, 08:15', AppColors.success],
+        ];
+        break;
+    }
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(left: 4, bottom: 8),
+            child: Text(
+              'RIWAYAT STATUS',
+              style: AppTextStyles.interCaption.copyWith(
+                color: AppColors.textHint,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 0.5,
+              ),
+            ),
+          ),
+          for (int i = 0; i < rows.length; i++)
+            IntrinsicHeight(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Column(
+                    children: [
+                      const SizedBox(height: 2),
+                      Container(
+                        width: 9,
+                        height: 9,
+                        decoration: BoxDecoration(
+                          color: rows[i][2] as Color,
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: AppColors.background,
+                            width: 1.5,
+                          ),
+                        ),
+                      ),
+                      if (i != rows.length - 1)
+                        Expanded(
+                          child: Container(
+                            width: 1.5,
+                            color: AppColors.divider,
+                          ),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Padding(
+                      padding: EdgeInsets.only(
+                        bottom: i == rows.length - 1 ? 2 : 12,
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            rows[i][0] as String,
+                            style: AppTextStyles.interCaption.copyWith(
+                              color: AppColors.textSecondary,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          if (rows[i][1] != null)
+                            Text(
+                              rows[i][1] as String,
+                              style: AppTextStyles.interCaption.copyWith(
+                                color: AppColors.textDisabled,
+                                fontSize: 11,
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _winnerAction(_Winner w) {
+    Widget bar(IconData ic, String t, Color c) => Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(vertical: 12),
+      decoration: BoxDecoration(
+        color: c.withOpacity(0.10),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: c.withOpacity(0.35)),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(ic, size: 15, color: c),
+          const SizedBox(width: 6),
+          Text(
+            t,
+            style: AppTextStyles.interStatus.copyWith(
+              color: c,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
+    );
+
+    switch (w.status) {
+      case _WinStatus.belum:
+        return Row(
+          children: [
+            Expanded(
+              child: OutlinedButton(
+                onPressed: _diteruskan ? null : () => _tolak(w),
+                style: OutlinedButton.styleFrom(
+                  side: const BorderSide(color: AppColors.error),
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                ),
+                child: Text(
+                  'TOLAK',
+                  style: AppTextStyles.interStatus.copyWith(
+                    color: AppColors.error,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: ElevatedButton(
+                onPressed: _diteruskan ? null : () => _setujui(w),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.buttonPrimary,
+                  disabledBackgroundColor: AppColors.surfaceVariant,
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                ),
+                child: Text(
+                  'SETUJUI',
+                  style: AppTextStyles.interStatus.copyWith(
+                    color: AppColors.buttonText,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        );
+      case _WinStatus.sudah:
+        return bar(Icons.verified, 'DATA TERVALIDASI', AppColors.success);
+      case _WinStatus.ditolak:
+        return bar(Icons.block, 'KLAIM DITOLAK', AppColors.error);
+      case _WinStatus.dicairkan:
+        return bar(
+          Icons.payments_outlined,
+          'SEDANG DICAIRKAN OLEH OWNER',
+          _kTeal,
+        );
+    }
+  }
+
+  Widget _forwardButton() {
+    final bool aktif = _allVerified && !_diteruskan;
+    final caption = _diteruskan
         ? 'MENUNGGU KONFIRMASI PEMBAYARAN DARI OWNER'
-        : 'MENUNGGU VERIFIKASI SEMUA PEMENANG '
-              '$_jumlahTerverifikasi/${_winners.length}';
-
-    final String label = _diteruskan
+        : 'MENUNGGU VERIFIKASI SEMUA PEMENANG $_verified/${_winners.length}';
+    final label = _diteruskan
         ? 'Sudah Diteruskan ke Owner'
         : 'Teruskan ke Owner';
-
     return SafeArea(
       child: Container(
-        padding: const EdgeInsets.all(AppConstants.paddingM),
+        padding: const EdgeInsets.all(16),
         decoration: const BoxDecoration(
           color: AppColors.background,
           border: Border(top: BorderSide(color: AppColors.divider)),
@@ -506,7 +1092,7 @@ class _ClaimDetailPageState extends State<ClaimDetailPage> {
               width: double.infinity,
               height: AppConstants.buttonHeight,
               child: ElevatedButton.icon(
-                onPressed: aktif ? _teruskanKeOwner : null,
+                onPressed: aktif ? _teruskan : null,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.buttonPrimary,
                   disabledBackgroundColor: AppColors.surfaceVariant,
@@ -529,7 +1115,7 @@ class _ClaimDetailPageState extends State<ClaimDetailPage> {
                 ),
               ),
             ),
-            const SizedBox(height: AppConstants.paddingS),
+            const SizedBox(height: 8),
             Text(
               caption,
               textAlign: TextAlign.center,
@@ -540,355 +1126,6 @@ class _ClaimDetailPageState extends State<ClaimDetailPage> {
             ),
           ],
         ),
-      ),
-    );
-  }
-}
-
-// ============================================================
-// KARTU PEMENANG
-// ============================================================
-class _WinnerCard extends StatelessWidget {
-  final WinnerClaim winner;
-  final bool locked; // true bila klaim sudah diteruskan ke owner
-  final VoidCallback onSetuju;
-  final VoidCallback onTolak;
-
-  const _WinnerCard({
-    required this.winner,
-    required this.locked,
-    required this.onSetuju,
-    required this.onTolak,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(AppConstants.paddingM),
-      decoration: BoxDecoration(
-        color: AppColors.backgroundCard,
-        borderRadius: BorderRadius.circular(AppConstants.radiusM),
-        border: Border.all(color: AppColors.divider),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _buildHeader(),
-          const SizedBox(height: AppConstants.paddingM),
-          _RiwayatStatus(entries: winner.timeline),
-          const SizedBox(height: AppConstants.paddingM),
-          _buildActionArea(),
-        ],
-      ),
-    );
-  }
-
-  // ---- Header: peringkat, tim, rekening, badge ----
-  Widget _buildHeader() {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Lencana peringkat
-        Container(
-          width: 30,
-          height: 30,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            color: AppColors.primary.withOpacity(0.15),
-            borderRadius: BorderRadius.circular(AppConstants.radiusS),
-            border: Border.all(color: AppColors.primary.withOpacity(0.4)),
-          ),
-          child: Text(
-            '${winner.rank}',
-            style: AppTextStyles.poppinsTitleSmall.copyWith(
-              color: AppColors.primary,
-            ),
-          ),
-        ),
-        const SizedBox(width: AppConstants.paddingM),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      winner.namaTim,
-                      style: AppTextStyles.poppinsTitleSmall,
-                    ),
-                  ),
-                  Text(
-                    formatRupiah(winner.nominal),
-                    style: AppTextStyles.goldHighlight,
-                  ),
-                ],
-              ),
-              const SizedBox(height: 4),
-              Text(
-                '${winner.metode} • ${winner.nomorRekening}',
-                style: AppTextStyles.interCaption.copyWith(
-                  color: AppColors.textSecondary,
-                ),
-              ),
-              Text(
-                'A/N: ${winner.namaPemilik}',
-                style: AppTextStyles.interCaption,
-              ),
-              const SizedBox(height: 6),
-              _StatusChip(status: winner.status),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  // ---- Area aksi sesuai status ----
-  Widget _buildActionArea() {
-    switch (winner.status) {
-      case WinnerClaimStatus.belumVerifikasi:
-        // Sebelum diteruskan: tombol Tolak / Setujui.
-        return Row(
-          children: [
-            Expanded(
-              child: OutlinedButton(
-                onPressed: locked ? null : onTolak,
-                style: OutlinedButton.styleFrom(
-                  side: const BorderSide(color: AppColors.error),
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(AppConstants.radiusS),
-                  ),
-                ),
-                child: Text(
-                  'TOLAK',
-                  style: AppTextStyles.interStatus.copyWith(
-                    color: locked ? AppColors.textDisabled : AppColors.error,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(width: AppConstants.paddingS),
-            Expanded(
-              child: ElevatedButton(
-                onPressed: locked ? null : onSetuju,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.buttonPrimary,
-                  disabledBackgroundColor: AppColors.surfaceVariant,
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(AppConstants.radiusS),
-                  ),
-                ),
-                child: Text(
-                  'SETUJUI',
-                  style: AppTextStyles.interStatus.copyWith(
-                    color: locked
-                        ? AppColors.textDisabled
-                        : AppColors.buttonText,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ),
-            ),
-          ],
-        );
-
-      case WinnerClaimStatus.sudahVerifikasi:
-        // Sudah diverifikasi admin: tombol non-aktif "Data Tervalidasi".
-        return _doneBar(
-          icon: Icons.verified,
-          text: 'DATA TERVALIDASI',
-          color: AppColors.success,
-        );
-
-      case WinnerClaimStatus.ditolak:
-        return _doneBar(
-          icon: Icons.block,
-          text: 'KLAIM DITOLAK',
-          color: AppColors.error,
-        );
-
-      case WinnerClaimStatus.sedangDicairkan:
-        // Sudah diteruskan ke owner.
-        return _doneBar(
-          icon: Icons.payments_outlined,
-          text: 'SEDANG DICAIRKAN OLEH OWNER',
-          color: _kTeal,
-        );
-    }
-  }
-
-  Widget _doneBar({
-    required IconData icon,
-    required String text,
-    required Color color,
-  }) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(vertical: 12),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.10),
-        borderRadius: BorderRadius.circular(AppConstants.radiusS),
-        border: Border.all(color: color.withOpacity(0.35)),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(icon, size: 15, color: color),
-          const SizedBox(width: 6),
-          Text(
-            text,
-            style: AppTextStyles.interStatus.copyWith(
-              color: color,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ============================================================
-// CHIP STATUS PEMENANG
-// ============================================================
-class _StatusChip extends StatelessWidget {
-  final WinnerClaimStatus status;
-  const _StatusChip({required this.status});
-
-  @override
-  Widget build(BuildContext context) {
-    late final Color color;
-    switch (status) {
-      case WinnerClaimStatus.belumVerifikasi:
-        color = AppColors.warning;
-        break;
-      case WinnerClaimStatus.sudahVerifikasi:
-        color = AppColors.success;
-        break;
-      case WinnerClaimStatus.ditolak:
-        color = AppColors.error;
-        break;
-      case WinnerClaimStatus.sedangDicairkan:
-        color = _kTeal;
-        break;
-    }
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.15),
-        borderRadius: BorderRadius.circular(AppConstants.radiusS),
-        border: Border.all(color: color.withOpacity(0.5)),
-      ),
-      child: Text(
-        status.label,
-        style: AppTextStyles.interStatus.copyWith(color: color),
-      ),
-    );
-  }
-}
-
-// ============================================================
-// TIMELINE "RIWAYAT STATUS"
-// ============================================================
-class _RiwayatStatus extends StatelessWidget {
-  final List<TimelineEntry> entries;
-  const _RiwayatStatus({required this.entries});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(AppConstants.paddingS),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(AppConstants.radiusS),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.only(
-              left: 4,
-              bottom: AppConstants.paddingS,
-            ),
-            child: Text(
-              'RIWAYAT STATUS',
-              style: AppTextStyles.interCaption.copyWith(
-                color: AppColors.textHint,
-                fontWeight: FontWeight.w600,
-                letterSpacing: 0.5,
-              ),
-            ),
-          ),
-          for (int i = 0; i < entries.length; i++)
-            _buildRow(entries[i], isLast: i == entries.length - 1),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildRow(TimelineEntry e, {required bool isLast}) {
-    final Color dotColor = e.pending
-        ? AppColors.warning
-        : (e.done ? AppColors.success : AppColors.textDisabled);
-
-    return IntrinsicHeight(
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Garis + titik
-          Column(
-            children: [
-              const SizedBox(height: 2),
-              Container(
-                width: 9,
-                height: 9,
-                decoration: BoxDecoration(
-                  color: dotColor,
-                  shape: BoxShape.circle,
-                  border: Border.all(color: AppColors.background, width: 1.5),
-                ),
-              ),
-              if (!isLast)
-                Expanded(
-                  child: Container(width: 1.5, color: AppColors.divider),
-                ),
-            ],
-          ),
-          const SizedBox(width: AppConstants.paddingS),
-          // Teks
-          Expanded(
-            child: Padding(
-              padding: EdgeInsets.only(bottom: isLast ? 2 : 12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    e.label,
-                    style: AppTextStyles.interCaption.copyWith(
-                      color: e.pending
-                          ? AppColors.warning
-                          : AppColors.textSecondary,
-                      fontWeight: e.pending ? FontWeight.w600 : FontWeight.w500,
-                    ),
-                  ),
-                  if (e.waktu != null)
-                    Text(
-                      e.waktu!,
-                      style: AppTextStyles.interCaption.copyWith(
-                        color: AppColors.textDisabled,
-                        fontSize: 11,
-                      ),
-                    ),
-                ],
-              ),
-            ),
-          ),
-        ],
       ),
     );
   }

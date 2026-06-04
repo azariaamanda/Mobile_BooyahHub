@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../config/app_color.dart';
-import '../../config/app_constants.dart';
 import '../../config/app_text_styles.dart';
 
 class EditSessionPage extends StatefulWidget {
@@ -19,7 +17,7 @@ class _EditSessionPageState extends State<EditSessionPage> {
   bool _isSaving = false;
   Map<String, dynamic>? _session;
   int _currentParticipants = 0;
-  
+
   DateTime _selectedDate = DateTime.now();
   TimeOfDay _startTime = const TimeOfDay(hour: 8, minute: 0);
   TimeOfDay _endTime = const TimeOfDay(hour: 9, minute: 0);
@@ -40,21 +38,21 @@ class _EditSessionPageState extends State<EditSessionPage> {
           .eq('id_sesi', widget.sesiId)
           .single();
       _session = data;
-      
+
       final dateTime = DateTime.parse(data['waktu_mulai']);
       _selectedDate = dateTime;
       _startTime = TimeOfDay(hour: dateTime.hour, minute: dateTime.minute);
       final endDateTime = DateTime.parse(data['waktu_selesai']);
       _endTime = TimeOfDay(hour: endDateTime.hour, minute: endDateTime.minute);
       _slot = data['slot_maksimal'] ?? 12;
-      
+
       // Perbaikan: Ambil jumlah peserta dengan .select() lalu hitung length
       final pesertaData = await _supabase
           .from('pendaftaran_tim')
           .select('id_pendaftaran')
           .eq('id_sesi', widget.sesiId)
           .eq('status_pembayaran', 'dikonfirmasi');
-      
+
       _currentParticipants = pesertaData.length; // <-- PERBAIKAN
     } catch (e) {
       print('Error: $e');
@@ -67,20 +65,29 @@ class _EditSessionPageState extends State<EditSessionPage> {
     setState(() => _isSaving = true);
     try {
       final startDateTime = DateTime(
-        _selectedDate.year, _selectedDate.month, _selectedDate.day,
-        _startTime.hour, _startTime.minute,
+        _selectedDate.year,
+        _selectedDate.month,
+        _selectedDate.day,
+        _startTime.hour,
+        _startTime.minute,
       );
       final endDateTime = DateTime(
-        _selectedDate.year, _selectedDate.month, _selectedDate.day,
-        _endTime.hour, _endTime.minute,
+        _selectedDate.year,
+        _selectedDate.month,
+        _selectedDate.day,
+        _endTime.hour,
+        _endTime.minute,
       );
-      
-      await _supabase.from('sesi_scrim').update({
-        'waktu_mulai': startDateTime.toIso8601String(),
-        'waktu_selesai': endDateTime.toIso8601String(),
-        'slot_maksimal': _slot,
-      }).eq('id_sesi', widget.sesiId);
-      
+
+      await _supabase
+          .from('sesi_scrim')
+          .update({
+            'waktu_mulai': startDateTime.toIso8601String(),
+            'waktu_selesai': endDateTime.toIso8601String(),
+            'slot_maksimal': _slot,
+          })
+          .eq('id_sesi', widget.sesiId);
+
       if (mounted) Navigator.of(context).pop(true);
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -96,7 +103,9 @@ class _EditSessionPageState extends State<EditSessionPage> {
     if (_isLoading) {
       return Scaffold(
         backgroundColor: AppColors.background,
-        body: const Center(child: CircularProgressIndicator(color: AppColors.primary)),
+        body: const Center(
+          child: CircularProgressIndicator(color: AppColors.primary),
+        ),
       );
     }
 
@@ -123,13 +132,30 @@ class _EditSessionPageState extends State<EditSessionPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('WAKTU SESI', style: AppTextStyles.interLabel.copyWith(color: AppColors.primary)),
+                  Text(
+                    'WAKTU SESI',
+                    style: AppTextStyles.interLabel.copyWith(
+                      color: AppColors.primary,
+                    ),
+                  ),
                   const SizedBox(height: 16),
                   Row(
                     children: [
-                      Expanded(child: _timePickerField('MULAI', _startTime, (t) => setState(() => _startTime = t))),
+                      Expanded(
+                        child: _timePickerField(
+                          'MULAI',
+                          _startTime,
+                          (t) => setState(() => _startTime = t),
+                        ),
+                      ),
                       const SizedBox(width: 16),
-                      Expanded(child: _timePickerField('SELESAI', _endTime, (t) => setState(() => _endTime = t))),
+                      Expanded(
+                        child: _timePickerField(
+                          'SELESAI',
+                          _endTime,
+                          (t) => setState(() => _endTime = t),
+                        ),
+                      ),
                     ],
                   ),
                   const SizedBox(height: 16),
@@ -146,15 +172,23 @@ class _EditSessionPageState extends State<EditSessionPage> {
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text('KAPASITAS SAAT INI', style: AppTextStyles.interLabel),
-                        Text('$_currentParticipants/$_slot Tim', style: AppTextStyles.poppinsMoneySmall),
+                        Text(
+                          'KAPASITAS SAAT INI',
+                          style: AppTextStyles.interLabel,
+                        ),
+                        Text(
+                          '$_currentParticipants/$_slot Tim',
+                          style: AppTextStyles.poppinsMoneySmall,
+                        ),
                       ],
                     ),
                   ),
                   const SizedBox(height: 8),
                   Text(
                     'Mengubah waktu akan memberitahu peserta yang sudah terdaftar.',
-                    style: AppTextStyles.interCaption.copyWith(color: AppColors.textHint),
+                    style: AppTextStyles.interCaption.copyWith(
+                      color: AppColors.textHint,
+                    ),
                   ),
                 ],
               ),
@@ -164,10 +198,19 @@ class _EditSessionPageState extends State<EditSessionPage> {
               width: double.infinity,
               child: ElevatedButton(
                 onPressed: _isSaving ? null : _saveChanges,
-                style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                ),
                 child: _isSaving
-                    ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2))
-                    : Text('SIMPAN PERUBAHAN', style: AppTextStyles.poppinsButton),
+                    ? const SizedBox(
+                        width: 24,
+                        height: 24,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : Text(
+                        'SIMPAN PERUBAHAN',
+                        style: AppTextStyles.poppinsButton,
+                      ),
               ),
             ),
             const SizedBox(height: 12),
@@ -175,7 +218,12 @@ class _EditSessionPageState extends State<EditSessionPage> {
               width: double.infinity,
               child: OutlinedButton(
                 onPressed: () => Navigator.of(context).pop(),
-                child: Text('BATAL', style: AppTextStyles.poppinsButton.copyWith(color: AppColors.primary)),
+                child: Text(
+                  'BATAL',
+                  style: AppTextStyles.poppinsButton.copyWith(
+                    color: AppColors.primary,
+                  ),
+                ),
               ),
             ),
           ],
@@ -184,7 +232,11 @@ class _EditSessionPageState extends State<EditSessionPage> {
     );
   }
 
-  Widget _timePickerField(String label, TimeOfDay time, Function(TimeOfDay) onChanged) {
+  Widget _timePickerField(
+    String label,
+    TimeOfDay time,
+    Function(TimeOfDay) onChanged,
+  ) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -192,7 +244,10 @@ class _EditSessionPageState extends State<EditSessionPage> {
         const SizedBox(height: 4),
         GestureDetector(
           onTap: () async {
-            final picked = await showTimePicker(context: context, initialTime: time);
+            final picked = await showTimePicker(
+              context: context,
+              initialTime: time,
+            );
             if (picked != null) onChanged(picked);
           },
           child: Container(
@@ -240,7 +295,10 @@ class _EditSessionPageState extends State<EditSessionPage> {
               children: [
                 const Icon(Icons.calendar_today, color: AppColors.primary),
                 const SizedBox(width: 8),
-                Text(_formatDate(_selectedDate), style: AppTextStyles.interInput),
+                Text(
+                  _formatDate(_selectedDate),
+                  style: AppTextStyles.interInput,
+                ),
               ],
             ),
           ),
@@ -259,7 +317,8 @@ class _EditSessionPageState extends State<EditSessionPage> {
           children: [
             IconButton(
               icon: const Icon(Icons.remove, color: AppColors.primary),
-              onPressed: () => setState(() => _slot = (_slot > 1 ? _slot - 1 : 1)),
+              onPressed: () =>
+                  setState(() => _slot = (_slot > 1 ? _slot - 1 : 1)),
             ),
             Expanded(
               child: Text(
@@ -270,7 +329,8 @@ class _EditSessionPageState extends State<EditSessionPage> {
             ),
             IconButton(
               icon: const Icon(Icons.add, color: AppColors.primary),
-              onPressed: () => setState(() => _slot = (_slot < 50 ? _slot + 1 : 50)),
+              onPressed: () =>
+                  setState(() => _slot = (_slot < 50 ? _slot + 1 : 50)),
             ),
           ],
         ),
@@ -279,5 +339,18 @@ class _EditSessionPageState extends State<EditSessionPage> {
   }
 
   String _formatDate(DateTime d) => '${d.day} ${_getMonth(d.month)} ${d.year}';
-  String _getMonth(int m) => ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'][m - 1];
+  String _getMonth(int m) => [
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'Mei',
+    'Jun',
+    'Jul',
+    'Agu',
+    'Sep',
+    'Okt',
+    'Nov',
+    'Des',
+  ][m - 1];
 }

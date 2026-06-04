@@ -8,6 +8,7 @@ import '../presentation/owner/admin_verification_page.dart';
 import '../presentation/owner/financial_report_page.dart';
 import '../presentation/owner/prize_approval_page.dart';
 import '../presentation/admin/admin_main_navigator.dart';
+import '../presentation/admin/admin_scrim_page.dart';
 import '../presentation/admin/create_scrim_page.dart';
 import '../presentation/admin/detail_scrim_page.dart';
 import '../presentation/admin/edit_scrim_page.dart';
@@ -15,6 +16,7 @@ import '../presentation/admin/edit_profile_page.dart';
 import '../presentation/admin/scrim_sessions_page.dart';
 import '../presentation/admin/scrim_points_page.dart';
 import '../presentation/admin/scrim_leaderboard_page.dart';
+import '../presentation/admin/detail_session_page.dart';
 import '../presentation/admin/add_session_page.dart';
 import '../presentation/admin/edit_session_page.dart';
 import '../presentation/admin/admin_notification_page.dart';
@@ -34,6 +36,15 @@ import '../presentation/user/history_scrim_page.dart';
 import '../presentation/user/history_detail_scrim_page.dart';
 import '../presentation/user/claim_prize_page.dart';
 import '../presentation/user/user_main_navigator.dart';
+import '../presentation/user/user_premium_page.dart';
+import '../presentation/user/user_claim_rewards_page.dart';
+import '../presentation/user/user_notification_page.dart';
+import '../presentation/user/user_financial_screen.dart';
+import '../presentation/user/user_financial_withdraw_page.dart';
+import '../presentation/user/user_financial_detail_page.dart';
+import '../presentation/user/user_financial_history_page.dart';
+import '../data/models/saldo_pengguna_model.dart';
+import '../data/models/transaksi_keuangan_model.dart';
 
 class AppRouter {
   AppRouter._();
@@ -91,6 +102,12 @@ class AppRouter {
         name: 'admin_dashboard',
         builder: (context, state) => const AdminMainNavigator(),
       ),
+      // TAMBAHKAN ROUTE UNTUK LIST SCRIM (PENTING!)
+      GoRoute(
+        path: '/admin/scrim',
+        name: 'admin_scrim',
+        builder: (context, state) => const AdminScrimPage(),
+      ),
       GoRoute(
         path: '/admin/scrim/buat',
         name: 'buat_scrim',
@@ -112,7 +129,6 @@ class AppRouter {
           return EditScrimPage(scrimId: id);
         },
       ),
-      // ==================== ROUTE TAMBAHAN ====================
       GoRoute(
         path: '/admin/scrim/:id/sessions',
         name: 'scrim_sessions',
@@ -122,19 +138,11 @@ class AppRouter {
         },
       ),
       GoRoute(
-        path: '/admin/scrim/:id/points',
-        name: 'scrim_points',
+        path: '/admin/sesi/detail/:id',
+        name: 'detail_session',
         builder: (context, state) {
-          final id = int.parse(state.pathParameters['id']!);
-          return ScrimPointsPage(scrimId: id);
-        },
-      ),
-      GoRoute(
-        path: '/admin/scrim/:id/leaderboard',
-        name: 'scrim_leaderboard',
-        builder: (context, state) {
-          final id = int.parse(state.pathParameters['id']!);
-          return ScrimLeaderboardPage(scrimId: id);
+          final sesiId = int.parse(state.pathParameters['id']!);
+          return DetailSessionPage(sesiId: sesiId);
         },
       ),
       GoRoute(
@@ -153,7 +161,6 @@ class AppRouter {
           return EditSessionPage(sesiId: sesiId);
         },
       ),
-      // ========================================================
       GoRoute(
         path: '/admin/scrim/:idScrim/sesi',
         name: 'atur_sesi',
@@ -194,6 +201,11 @@ class AppRouter {
         path: '/admin/peserta',
         name: 'peserta',
         builder: (context, state) => const PesertaManagementPage(),
+      ),
+      GoRoute(
+        path: '/admin/premium',
+        name: 'admin_premium',
+        builder: (context, state) => const UserPremiumPage(),
       ),
 
       // ─── USER (PELANGGAN) ──────────────────────────────────────
@@ -264,6 +276,47 @@ class AppRouter {
           final idPendaftaran = int.parse(state.pathParameters['idPendaftaran']!);
           return ClaimPrizePage(pendaftaranId: idPendaftaran);
         },
+      ),
+      GoRoute(
+        path: '/user/premium',
+        name: 'premium',
+        builder: (context, state) => const UserPremiumPage(),
+      ),
+      GoRoute(
+        path: '/user/klaim-hadiah',
+        name: 'klaim_hadiah',
+        builder: (context, state) => const UserClaimRewardsPage(),
+      ),
+      GoRoute(
+        path: '/user/notifikasi',
+        name: 'notifikasi',
+        builder: (context, state) => const UserNotificationPage(),
+      ),
+      GoRoute(
+        path: '/user/financial',
+        name: 'financial',
+        builder: (context, state) => const UserFinancialScreen(),
+      ),
+      GoRoute(
+        path: '/financial/withdraw',
+        name: 'withdraw',
+        builder: (context, state) {
+          final saldo = state.extra as SaldoPengguna;
+          return WithdrawPage(saldo: saldo);
+        },
+      ),
+      GoRoute(
+        path: '/financial/detail',
+        name: 'financial_detail',
+        builder: (context, state) {
+          final transaksi = state.extra as TransaksiKeuangan;
+          return TransactionDetailPage(transaksi: transaksi);
+        },
+      ),
+      GoRoute(
+        path: '/financial/history',
+        name: 'financial_history',
+        builder: (context, state) => const TransactionHistoryPage(),
       ),
     ],
   );

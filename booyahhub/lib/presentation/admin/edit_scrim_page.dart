@@ -50,7 +50,7 @@ class _EditScrimPageState extends State<EditScrimPage> {
           .select()
           .eq('id_scrim', widget.scrimId)
           .single();
-      
+
       _namaScrimController.text = scrimData['nama_scrim'] ?? '';
       _deskripsiController.text = scrimData['deskripsi'] ?? '';
       _syaratController.text = scrimData['syarat_ketentuan'] ?? '';
@@ -74,7 +74,7 @@ class _EditScrimPageState extends State<EditScrimPage> {
           .from('master_mode_pertandingan')
           .select('id_mode, nama_mode')
           .order('id_mode', ascending: true);
-      
+
       if (response.isEmpty) {
         setState(() {
           _modes = [
@@ -114,11 +114,11 @@ class _EditScrimPageState extends State<EditScrimPage> {
 
   Future<String?> _uploadPoster() async {
     if (_newPosterPath == null) return _posterUrl;
-    
+
     final file = File(_newPosterPath!);
     final fileName = '${DateTime.now().millisecondsSinceEpoch}.jpg';
     final path = 'posters/$fileName';
-    
+
     await _supabase.storage.from('posters').upload(path, file);
     return _supabase.storage.from('posters').getPublicUrl(path);
   }
@@ -143,18 +143,21 @@ class _EditScrimPageState extends State<EditScrimPage> {
       final maksPeserta = int.tryParse(_maksPesertaController.text) ?? 16;
       final totalHadiah = (biaya * maksPeserta) * 85 ~/ 100;
 
-      await _supabase.from('scrim').update({
-        'id_mode': _selectedModeId,
-        'nama_scrim': _namaScrimController.text,
-        'biaya_pendaftaran': biaya,
-        'total_hadiah': totalHadiah,
-        'maks_peserta': maksPeserta,
-        'jumlah_match': int.tryParse(_jumlahMatchController.text) ?? 3,
-        'deskripsi': _deskripsiController.text,
-        'syarat_ketentuan': _syaratController.text,
-        'poster': posterUrl,
-        'status_scrim': _statusScrim,
-      }).eq('id_scrim', widget.scrimId);
+      await _supabase
+          .from('scrim')
+          .update({
+            'id_mode': _selectedModeId,
+            'nama_scrim': _namaScrimController.text,
+            'biaya_pendaftaran': biaya,
+            'total_hadiah': totalHadiah,
+            'maks_peserta': maksPeserta,
+            'jumlah_match': int.tryParse(_jumlahMatchController.text) ?? 3,
+            'deskripsi': _deskripsiController.text,
+            'syarat_ketentuan': _syaratController.text,
+            'poster': posterUrl,
+            'status_scrim': _statusScrim,
+          })
+          .eq('id_scrim', widget.scrimId);
 
       _showSnackBar('Scrim berhasil diperbarui!');
       if (mounted) context.go('/admin/dashboard');
@@ -198,7 +201,9 @@ class _EditScrimPageState extends State<EditScrimPage> {
         ),
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
+          ? const Center(
+              child: CircularProgressIndicator(color: AppColors.primary),
+            )
           : SingleChildScrollView(
               padding: const EdgeInsets.all(AppConstants.paddingM),
               child: Form(
@@ -206,7 +211,11 @@ class _EditScrimPageState extends State<EditScrimPage> {
                 child: Column(
                   children: [
                     _buildSection('IDENTITAS UTAMA', [
-                      _buildTextField('NAMA SCRIM', _namaScrimController, hint: 'Contoh: Ultimate Pro League S3'),
+                      _buildTextField(
+                        'NAMA SCRIM',
+                        _namaScrimController,
+                        hint: 'Contoh: Ultimate Pro League S3',
+                      ),
                       const SizedBox(height: 16),
                       _buildDropdown(),
                       const SizedBox(height: 16),
@@ -216,19 +225,52 @@ class _EditScrimPageState extends State<EditScrimPage> {
                     ]),
                     const SizedBox(height: 24),
                     _buildSection('KONTEN', [
-                      _buildTextField('DESKRIPSI SCRIM', _deskripsiController, maxLines: 4, hint: 'Jelaskan mengenai format dan tujuan turnamen...'),
+                      _buildTextField(
+                        'DESKRIPSI SCRIM',
+                        _deskripsiController,
+                        maxLines: 4,
+                        hint: 'Jelaskan mengenai format dan tujuan turnamen...',
+                      ),
                       const SizedBox(height: 16),
-                      _buildTextField('SYARAT & KETENTUAN', _syaratController, maxLines: 5, hint: '1. Dilarang menggunakan emulator\n2. Dilarang cheat\n3. Harus tepat waktu...'),
+                      _buildTextField(
+                        'SYARAT & KETENTUAN',
+                        _syaratController,
+                        maxLines: 5,
+                        hint:
+                            '1. Dilarang menggunakan emulator\n2. Dilarang cheat\n3. Harus tepat waktu...',
+                      ),
                     ]),
                     const SizedBox(height: 24),
                     _buildSection('KEUANGAN & PESERTA', [
-                      _buildTextField('BIAYA PENDAFTARAN', _biayaController, hint: '50000', keyboardType: TextInputType.number, onChanged: (_) => setState(() {})),
+                      _buildTextField(
+                        'BIAYA PENDAFTARAN',
+                        _biayaController,
+                        hint: '50000',
+                        keyboardType: TextInputType.number,
+                        onChanged: (_) => setState(() {}),
+                      ),
                       const SizedBox(height: 16),
-                      _buildTextField('MAKS PESERTA', _maksPesertaController, hint: '16', keyboardType: TextInputType.number, onChanged: (_) => setState(() {})),
+                      _buildTextField(
+                        'MAKS PESERTA',
+                        _maksPesertaController,
+                        hint: '16',
+                        keyboardType: TextInputType.number,
+                        onChanged: (_) => setState(() {}),
+                      ),
                       const SizedBox(height: 16),
-                      _buildTextField('JUMLAH MATCH', _jumlahMatchController, hint: '3', keyboardType: TextInputType.number),
+                      _buildTextField(
+                        'JUMLAH MATCH',
+                        _jumlahMatchController,
+                        hint: '3',
+                        keyboardType: TextInputType.number,
+                      ),
                       const SizedBox(height: 16),
-                      _buildTotalHadiahInfo(totalPendaftaran, totalHadiah, feePlatform, feeAdmin),
+                      _buildTotalHadiahInfo(
+                        totalPendaftaran,
+                        totalHadiah,
+                        feePlatform,
+                        feeAdmin,
+                      ),
                     ]),
                     const SizedBox(height: 32),
                     SizedBox(
@@ -242,10 +284,17 @@ class _EditScrimPageState extends State<EditScrimPage> {
                         ),
                         child: _isLoading
                             ? const SizedBox(
-                                width: 24, height: 24,
-                                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black),
+                                width: 24,
+                                height: 24,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.black,
+                                ),
                               )
-                            : Text('SIMPAN PERUBAHAN', style: AppTextStyles.poppinsButton),
+                            : Text(
+                                'SIMPAN PERUBAHAN',
+                                style: AppTextStyles.poppinsButton,
+                              ),
                       ),
                     ),
                     const SizedBox(height: 20),
@@ -260,7 +309,13 @@ class _EditScrimPageState extends State<EditScrimPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(title, style: AppTextStyles.poppinsTitleSmall.copyWith(color: AppColors.primary, fontSize: 14)),
+        Text(
+          title,
+          style: AppTextStyles.poppinsTitleSmall.copyWith(
+            color: AppColors.primary,
+            fontSize: 14,
+          ),
+        ),
         const SizedBox(height: 12),
         Container(
           padding: const EdgeInsets.all(16),
@@ -274,11 +329,23 @@ class _EditScrimPageState extends State<EditScrimPage> {
     );
   }
 
-  Widget _buildTextField(String label, TextEditingController controller, {String? hint, int maxLines = 1, TextInputType? keyboardType, Function(String)? onChanged}) {
+  Widget _buildTextField(
+    String label,
+    TextEditingController controller, {
+    String? hint,
+    int maxLines = 1,
+    TextInputType? keyboardType,
+    Function(String)? onChanged,
+  }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: AppTextStyles.interLabel.copyWith(color: AppColors.textSecondary)),
+        Text(
+          label,
+          style: AppTextStyles.interLabel.copyWith(
+            color: AppColors.textSecondary,
+          ),
+        ),
         const SizedBox(height: 6),
         TextFormField(
           controller: controller,
@@ -291,10 +358,17 @@ class _EditScrimPageState extends State<EditScrimPage> {
             hintStyle: AppTextStyles.interHint,
             filled: true,
             fillColor: AppColors.inputFill,
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide.none,
+            ),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 14,
+            ),
           ),
-          validator: (v) => v == null || v.isEmpty ? '$label wajib diisi' : null,
+          validator: (v) =>
+              v == null || v.isEmpty ? '$label wajib diisi' : null,
         ),
       ],
     );
@@ -305,7 +379,12 @@ class _EditScrimPageState extends State<EditScrimPage> {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('MODE PERTANDINGAN', style: AppTextStyles.interLabel.copyWith(color: AppColors.textSecondary)),
+          Text(
+            'MODE PERTANDINGAN',
+            style: AppTextStyles.interLabel.copyWith(
+              color: AppColors.textSecondary,
+            ),
+          ),
           const SizedBox(height: 6),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
@@ -315,9 +394,19 @@ class _EditScrimPageState extends State<EditScrimPage> {
             ),
             child: Row(
               children: [
-                const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary)),
+                const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: AppColors.primary,
+                  ),
+                ),
                 const SizedBox(width: 12),
-                Text('Memuat mode pertandingan...', style: AppTextStyles.interHint),
+                Text(
+                  'Memuat mode pertandingan...',
+                  style: AppTextStyles.interHint,
+                ),
               ],
             ),
           ),
@@ -328,18 +417,29 @@ class _EditScrimPageState extends State<EditScrimPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('MODE PERTANDINGAN', style: AppTextStyles.interLabel.copyWith(color: AppColors.textSecondary)),
+        Text(
+          'MODE PERTANDINGAN',
+          style: AppTextStyles.interLabel.copyWith(
+            color: AppColors.textSecondary,
+          ),
+        ),
         const SizedBox(height: 6),
         DropdownButtonFormField<int>(
-          value: _selectedModeId,
+          initialValue: _selectedModeId,
           dropdownColor: AppColors.backgroundCard,
           style: AppTextStyles.interInput,
           isExpanded: true,
           decoration: InputDecoration(
             filled: true,
             fillColor: AppColors.inputFill,
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide.none,
+            ),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 14,
+            ),
           ),
           items: _modes.map((mode) {
             final id = mode['id_mode'] as int;
@@ -360,26 +460,44 @@ class _EditScrimPageState extends State<EditScrimPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('STATUS SCRIM', style: AppTextStyles.interLabel.copyWith(color: AppColors.textSecondary)),
+        Text(
+          'STATUS SCRIM',
+          style: AppTextStyles.interLabel.copyWith(
+            color: AppColors.textSecondary,
+          ),
+        ),
         const SizedBox(height: 6),
         DropdownButtonFormField<String>(
-          value: _statusScrim,
+          initialValue: _statusScrim,
           dropdownColor: AppColors.backgroundCard,
           style: AppTextStyles.interInput,
           isExpanded: true,
           decoration: InputDecoration(
             filled: true,
             fillColor: AppColors.inputFill,
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide.none,
+            ),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 14,
+            ),
           ),
           items: ['aktif', 'selesai', 'dibatalkan'].map((status) {
             String label;
             switch (status) {
-              case 'aktif': label = 'AKTIF'; break;
-              case 'selesai': label = 'SELESAI'; break;
-              case 'dibatalkan': label = 'DIBATALKAN'; break;
-              default: label = status.toUpperCase();
+              case 'aktif':
+                label = 'AKTIF';
+                break;
+              case 'selesai':
+                label = 'SELESAI';
+                break;
+              case 'dibatalkan':
+                label = 'DIBATALKAN';
+                break;
+              default:
+                label = status.toUpperCase();
             }
             return DropdownMenuItem<String>(
               value: status,
@@ -396,7 +514,12 @@ class _EditScrimPageState extends State<EditScrimPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('MEDIA POSTER', style: AppTextStyles.interLabel.copyWith(color: AppColors.textSecondary)),
+        Text(
+          'MEDIA POSTER',
+          style: AppTextStyles.interLabel.copyWith(
+            color: AppColors.textSecondary,
+          ),
+        ),
         const SizedBox(height: 6),
         GestureDetector(
           onTap: _pickPoster,
@@ -406,24 +529,32 @@ class _EditScrimPageState extends State<EditScrimPage> {
             decoration: BoxDecoration(
               color: AppColors.inputFill,
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: _newPosterPath != null || _posterUrl != null ? AppColors.primary : AppColors.inputBorder),
+              border: Border.all(
+                color: _newPosterPath != null || _posterUrl != null
+                    ? AppColors.primary
+                    : AppColors.inputBorder,
+              ),
             ),
             child: _newPosterPath != null
                 ? ClipRRect(
                     borderRadius: BorderRadius.circular(12),
-                    child: Image.file(File(_newPosterPath!), fit: BoxFit.cover, width: double.infinity),
+                    child: Image.file(
+                      File(_newPosterPath!),
+                      fit: BoxFit.cover,
+                      width: double.infinity,
+                    ),
                   )
                 : _posterUrl != null && _posterUrl!.isNotEmpty
-                    ? ClipRRect(
-                        borderRadius: BorderRadius.circular(12),
-                        child: Image.network(
-                          _posterUrl!,
-                          fit: BoxFit.cover,
-                          width: double.infinity,
-                          errorBuilder: (_, __, ___) => _uploadPlaceholder(),
-                        ),
-                      )
-                    : _uploadPlaceholder(),
+                ? ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: Image.network(
+                      _posterUrl!,
+                      fit: BoxFit.cover,
+                      width: double.infinity,
+                      errorBuilder: (_, _, _) => _uploadPlaceholder(),
+                    ),
+                  )
+                : _uploadPlaceholder(),
           ),
         ),
       ],
@@ -436,14 +567,25 @@ class _EditScrimPageState extends State<EditScrimPage> {
       children: [
         Icon(Icons.cloud_upload_outlined, color: AppColors.primary, size: 32),
         const SizedBox(height: 8),
-        Text('GANTI POSTER', style: AppTextStyles.interLabel.copyWith(color: AppColors.primary)),
+        Text(
+          'GANTI POSTER',
+          style: AppTextStyles.interLabel.copyWith(color: AppColors.primary),
+        ),
         const SizedBox(height: 4),
-        Text('Klik untuk mengganti poster', style: AppTextStyles.interCaption.copyWith(color: AppColors.textHint)),
+        Text(
+          'Klik untuk mengganti poster',
+          style: AppTextStyles.interCaption.copyWith(color: AppColors.textHint),
+        ),
       ],
     );
   }
 
-  Widget _buildTotalHadiahInfo(int totalPendaftaran, int totalHadiah, int feePlatform, int feeAdmin) {
+  Widget _buildTotalHadiahInfo(
+    int totalPendaftaran,
+    int totalHadiah,
+    int feePlatform,
+    int feeAdmin,
+  ) {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -452,24 +594,48 @@ class _EditScrimPageState extends State<EditScrimPage> {
       ),
       child: Column(
         children: [
-          Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-            Text('Total Pendaftaran', style: AppTextStyles.interBody),
-            Text(_formatRupiah(totalPendaftaran), style: AppTextStyles.poppinsMoney.copyWith(fontSize: 14)),
-          ]),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text('Total Pendaftaran', style: AppTextStyles.interBody),
+              Text(
+                _formatRupiah(totalPendaftaran),
+                style: AppTextStyles.poppinsMoney.copyWith(fontSize: 14),
+              ),
+            ],
+          ),
           const SizedBox(height: 4),
-          Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-            Text('Fee Platform (5%)', style: AppTextStyles.interBody),
-            Text('- ${_formatRupiah(feePlatform)}', style: AppTextStyles.interBody.copyWith(color: AppColors.error)),
-          ]),
-          Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-            Text('Fee Admin (10%)', style: AppTextStyles.interBody),
-            Text('- ${_formatRupiah(feeAdmin)}', style: AppTextStyles.interBody.copyWith(color: AppColors.error)),
-          ]),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text('Fee Platform (5%)', style: AppTextStyles.interBody),
+              Text(
+                '- ${_formatRupiah(feePlatform)}',
+                style: AppTextStyles.interBody.copyWith(color: AppColors.error),
+              ),
+            ],
+          ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text('Fee Admin (10%)', style: AppTextStyles.interBody),
+              Text(
+                '- ${_formatRupiah(feeAdmin)}',
+                style: AppTextStyles.interBody.copyWith(color: AppColors.error),
+              ),
+            ],
+          ),
           const Divider(height: 16, color: AppColors.divider),
-          Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-            Text('TOTAL HADIAH (85%)', style: AppTextStyles.goldHighlight),
-            Text(_formatRupiah(totalHadiah), style: AppTextStyles.poppinsMoneyLarge.copyWith(fontSize: 18)),
-          ]),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text('TOTAL HADIAH (85%)', style: AppTextStyles.goldHighlight),
+              Text(
+                _formatRupiah(totalHadiah),
+                style: AppTextStyles.poppinsMoneyLarge.copyWith(fontSize: 18),
+              ),
+            ],
+          ),
         ],
       ),
     );

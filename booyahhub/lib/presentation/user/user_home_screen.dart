@@ -19,7 +19,7 @@ class UserHomeScreen extends StatefulWidget {
 }
 
 class _UserHomeScreenState extends State<UserHomeScreen> {
-  int _selectedModeId = 0;
+  final int _selectedModeId = 0;
   String _selectedSort = 'terbaru';
   final _supabase = Supabase.instance.client;
 
@@ -29,6 +29,11 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
     {'value': 'terlama', 'label': 'Terlama'},
     {'value': 'terbaru', 'label': 'Terkini'},
   ];
+
+  @override
+  void initState() {
+    super.initState();
+  }
 
   // ─── FUNGSI AMBIL DATA PROFIL DARI DATABASE ───
   Future<Map<String, dynamic>?> fetchUserData() async {
@@ -116,10 +121,7 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
           children: [
             Container(width: 4, height: 20, color: AppColors.primary),
             const SizedBox(width: AppConstants.paddingS),
-            Text(
-              'Scrim Terkini',
-              style: AppTextStyles.poppinsSectionTitle,
-            ),
+            Text('Scrim Terkini', style: AppTextStyles.poppinsSectionTitle),
           ],
         ),
         TextButton(
@@ -127,11 +129,7 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
           child: Row(
             children: [
               Text('Lihat Lainnya', style: AppTextStyles.interLink),
-              Icon(
-                Icons.arrow_forward_ios,
-                size: 12,
-                color: AppColors.primary,
-              ),
+              Icon(Icons.arrow_forward_ios, size: 12, color: AppColors.primary),
             ],
           ),
         ),
@@ -218,20 +216,23 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
           itemBuilder: (context, index) {
             final scrim = listScrim[index];
 
-            final double biaya = double.tryParse(scrim['biaya_pendaftaran'].toString()) ?? 0;
-            final double hadiah = double.tryParse(scrim['total_hadiah'].toString()) ?? 0;
+            final double biaya =
+                double.tryParse(scrim['biaya_pendaftaran'].toString()) ?? 0;
+            final double hadiah =
+                double.tryParse(scrim['total_hadiah'].toString()) ?? 0;
             final int maksPeserta = scrim['maks_peserta'] ?? 16;
 
             // Memanggil fungsi penanganan gambar dinamis
-            final String posterUrl = _getPosterUrl(scrim['poster'] as String?, scrim['id_scrim'])!;
+            final String? posterUrl = _getPosterUrl(
+              scrim['poster'] as String?,
+              scrim['id_scrim'],
+            );
 
             return GestureDetector(
               onTap: () {
                 context.pushNamed(
                   'detail_scrim',
-                  pathParameters: {
-                    'idScrim': scrim['id_scrim'].toString(),
-                  },
+                  pathParameters: {'idScrim': scrim['id_scrim'].toString()},
                 );
               },
               child: ScrimItemCard(
@@ -240,7 +241,7 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
                 prize: _formatRupiah(hadiah),
                 fee: biaya == 0 ? 'Free' : _formatRupiah(biaya),
                 slotsInfo: '0/$maksPeserta terisi',
-                posterImage: posterUrl, 
+                posterImage: posterUrl ?? '', // Berikan string kosong jika null
                 primaryYellow: AppColors.primary,
               ),
             );
@@ -272,20 +273,18 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
                     if (snapshot.connectionState == ConnectionState.waiting) {
                       return const TeamProfileHeader(
                         namaTim: "Memuat...",
-                        fotoProfilName: "loading...",
+                        fotoProfilUrl: null,
                       );
                     }
 
                     final userData = snapshot.data;
-                    final String namaTim = userData?['nama_tim'] ?? "No Team Name";
-                    
-                    // Mengambil email dari hasil inner join relation 'akun'
-                    final Map<String, dynamic>? akunData = userData?['akun'] as Map<String, dynamic>?;
-                    final String emailUser = akunData?['email'] ?? "No Email";
+                    final String namaTim =
+                        userData?['nama_tim'] ?? "No Team Name";
+                    final String? fotoProfil = userData?['foto_profil'];
 
                     return TeamProfileHeader(
                       namaTim: namaTim,
-                      fotoProfilName: emailUser,
+                      fotoProfilUrl: fotoProfil,
                     );
                   },
                 ),
@@ -323,10 +322,10 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
 class HomeBannerSlider extends StatefulWidget {
   final List<Map<String, dynamic>> banners;
   final String? Function(String?, dynamic) getPosterUrl;
-  
+
   const HomeBannerSlider({
-    super.key, 
-    required this.banners, 
+    super.key,
+    required this.banners,
     required this.getPosterUrl,
   });
 
@@ -342,20 +341,17 @@ class _HomeBannerSliderState extends State<HomeBannerSlider> {
   @override
   void initState() {
     super.initState();
-    _bannerTimer = Timer.periodic(
-      const Duration(seconds: 7),
-      (_) {
-        if (!_bannerController.hasClients) return;
+    _bannerTimer = Timer.periodic(const Duration(seconds: 7), (_) {
+      if (!_bannerController.hasClients) return;
 
-        final nextPage = (_currentBanner + 1) % widget.banners.length;
+      final nextPage = (_currentBanner + 1) % widget.banners.length;
 
-        _bannerController.animateToPage(
-          nextPage,
-          duration: const Duration(milliseconds: 500),
-          curve: Curves.easeInOut,
-        );
-      },
-    );
+      _bannerController.animateToPage(
+        nextPage,
+        duration: const Duration(milliseconds: 500),
+        curve: Curves.easeInOut,
+      );
+    });
   }
 
   @override
@@ -386,9 +382,9 @@ class _HomeBannerSliderState extends State<HomeBannerSlider> {
             },
             itemBuilder: (context, index) {
               final bannerScrim = widget.banners[index];
-              
+
               final String bannerImageUrl = widget.getPosterUrl(
-                bannerScrim['poster'] as String?, 
+                bannerScrim['poster'] as String?,
                 bannerScrim['id_scrim'],
               )!;
 
@@ -434,7 +430,9 @@ class _HomeBannerSliderState extends State<HomeBannerSlider> {
                           ),
                           decoration: BoxDecoration(
                             color: AppColors.primary,
-                            borderRadius: BorderRadius.circular(AppConstants.radiusXL),
+                            borderRadius: BorderRadius.circular(
+                              AppConstants.radiusXL,
+                            ),
                           ),
                           child: Text(
                             'Rekomendasi Scrim',
@@ -465,23 +463,20 @@ class _HomeBannerSliderState extends State<HomeBannerSlider> {
         const SizedBox(height: AppConstants.paddingM),
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
-          children: List.generate(
-            widget.banners.length,
-            (index) {
-              final bool isActive = index == _currentBanner;
+          children: List.generate(widget.banners.length, (index) {
+            final bool isActive = index == _currentBanner;
 
-              return AnimatedContainer(
-                duration: const Duration(milliseconds: 300),
-                margin: const EdgeInsets.symmetric(horizontal: 3),
-                width: isActive ? 24 : 8,
-                height: 8,
-                decoration: BoxDecoration(
-                  color: isActive ? AppColors.primary : AppColors.textDisabled,
-                  borderRadius: BorderRadius.circular(4),
-                ),
-              );
-            },
-          ),
+            return AnimatedContainer(
+              duration: const Duration(milliseconds: 300),
+              margin: const EdgeInsets.symmetric(horizontal: 3),
+              width: isActive ? 24 : 8,
+              height: 8,
+              decoration: BoxDecoration(
+                color: isActive ? AppColors.primary : AppColors.textDisabled,
+                borderRadius: BorderRadius.circular(4),
+              ),
+            );
+          }),
         ),
       ],
     );

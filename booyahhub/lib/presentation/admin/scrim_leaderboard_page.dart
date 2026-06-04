@@ -1,27 +1,121 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../config/app_color.dart';
 import '../../config/app_text_styles.dart';
 
 class ScrimLeaderboardPage extends StatefulWidget {
-  final int scrimId;
-  const ScrimLeaderboardPage({super.key, required this.scrimId});
+  final int sesiId;
+  const ScrimLeaderboardPage({super.key, required this.sesiId});
 
   @override
   State<ScrimLeaderboardPage> createState() => _ScrimLeaderboardPageState();
 }
 
 class _ScrimLeaderboardPageState extends State<ScrimLeaderboardPage> {
-  final List<Map<String, dynamic>> _leaderboardData = [
-    {'pos': 1, 'team': 'TEAM RUU',      'player': 'RRQKAZU',         'kills': 185, 'poin': 150, 'isMyTeam': false},
-    {'pos': 2, 'team': 'RRQ KAZU',      'player': null,               'kills': null,'poin': 150, 'isMyTeam': false},
-    {'pos': 3, 'team': 'GENESIS DOGMA', 'player': null,               'kills': null,'poin': 142, 'isMyTeam': false},
-    {'pos': 4, 'team': 'EVOS Divine',   'player': 'Capt: Sam13',      'kills': 15,  'poin': 130, 'isMyTeam': false},
-    {'pos': 5, 'team': 'Team Evos C',   'player': 'YOUR TEAM',        'kills': 15,  'poin': 125, 'isMyTeam': true},
-    {'pos': 6, 'team': 'Team Ganteng B','player': 'Capt: Admin_01',   'kills': 12,  'poin': 110, 'isMyTeam': false},
-    {'pos': 7, 'team': 'Team Liquid',   'player': 'Capt: Horseman',   'kills': 10,  'poin': 98,  'isMyTeam': false},
-  ];
+  final _supabase = Supabase.instance.client;
+  bool _isLoading = true;
+  List<Map<String, dynamic>> _leaderboardData = [];
+  int? _currentUserId;
 
-  // ── Avatar placeholder dengan inisial tim ───────────────────────────────
+  @override
+  void initState() {
+    super.initState();
+    _fetchLeaderboard();
+  }
+
+  Future<void> _fetchLeaderboard() async {
+    setState(() => _isLoading = true);
+    try {
+      // Ambil current user
+      final userEmail = _supabase.auth.currentUser?.email;
+      if (userEmail != null) {
+        final userData = await _supabase
+            .from('akun')
+            .select('id_akun')
+            .eq('email', userEmail)
+            .maybeSingle();
+        _currentUserId = userData?['id_akun'];
+      }
+
+      // Ambil semua pendaftaran tim untuk sesi ini
+      final pendaftaranList = await _supabase
+          .from('pendaftaran_tim')
+          .select('id_pendaftaran, akun_id, nama_kapten')
+          .eq('id_sesi', widget.sesiId)
+          .eq('status_pembayaran', 'dikonfirmasi');
+
+      if (pendaftaranList.isEmpty) {
+        _leaderboardData = [];
+        setState(() => _isLoading = false);
+        return;
+      }
+
+      // Ambil semua hasil pertandingan untuk sesi ini
+      final results = await _supabase
+          .from('hasil_pertandingan')
+          .select('total_poin, total_kill, id_pendaftaran')
+          .eq('id_sesi', widget.sesiId);
+
+      // Buat mapping pendaftaran_id ke hasil
+      final Map<int, Map<String, dynamic>> hasilMap = {};
+      for (var r in results) {
+        hasilMap[r['id_pendaftaran']] = r;
+      }
+
+      // Aggregate data per tim
+      Map<int, Map<String, dynamic>> teamAggregate = {};
+      
+      for (var p in pendaftaranList) {
+        final akunId = p['akun_id'] as int?;
+        if (akunId == null) continue;
+        
+        final hasil = hasilMap[p['id_pendaftaran']] ?? {};
+        
+        String namaTim = 'Tim $akunId';
+        
+        // Ambil nama tim dari profil_pengguna
+        final profilData = await _supabase
+            .from('profil_pengguna')
+            .select('nama_tim')
+            .eq('akun_id', akunId)
+            .maybeSingle();
+        
+        if (profilData != null && profilData['nama_tim'] != null) {
+          namaTim = profilData['nama_tim'];
+        }
+        
+        if (!teamAggregate.containsKey(akunId)) {
+          teamAggregate[akunId] = {
+            'akun_id': akunId,
+            'nama_tim': namaTim,
+            'kapten': p['nama_kapten'] ?? '',
+            'total_poin': 0,
+            'total_kill': 0,
+          };
+        }
+        
+        teamAggregate[akunId]!['total_poin'] = (teamAggregate[akunId]!['total_poin'] ?? 0) + (hasil['total_poin'] ?? 0);
+        teamAggregate[akunId]!['total_kill'] = (teamAggregate[akunId]!['total_kill'] ?? 0) + (hasil['total_kill'] ?? 0);
+      }
+      
+      // Konversi ke list dan urutkan
+      List<Map<String, dynamic>> leaderboard = teamAggregate.values.toList();
+      leaderboard.sort((a, b) => (b['total_poin'] ?? 0).compareTo(a['total_poin'] ?? 0));
+      
+      // Tambahkan posisi
+      for (int i = 0; i < leaderboard.length; i++) {
+        leaderboard[i]['pos'] = i + 1;
+        leaderboard[i]['isMyTeam'] = (_currentUserId != null && leaderboard[i]['akun_id'] == _currentUserId);
+      }
+      
+      setState(() => _leaderboardData = leaderboard);
+    } catch (e) {
+      print('Error: $e');
+    } finally {
+      setState(() => _isLoading = false);
+    }
+  }
+
   Widget _avatar(String teamName, double size, {Color? borderColor}) {
     final initials = teamName.trim().split(' ')
         .take(2)
@@ -41,7 +135,7 @@ class _ScrimLeaderboardPageState extends State<ScrimLeaderboardPage> {
       ),
       child: Center(
         child: Text(
-          initials,
+          initials.isNotEmpty ? initials : '?',
           style: TextStyle(
             color: borderColor ?? AppColors.textSecondary,
             fontWeight: FontWeight.w700,
@@ -55,40 +149,64 @@ class _ScrimLeaderboardPageState extends State<ScrimLeaderboardPage> {
 
   @override
   Widget build(BuildContext context) {
+    if (_isLoading) {
+      return const Center(child: CircularProgressIndicator(color: AppColors.primary));
+    }
+
+    if (_leaderboardData.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.emoji_events_outlined, size: 48, color: AppColors.textSecondary),
+            const SizedBox(height: 16),
+            Text('Belum ada data leaderboard', style: AppTextStyles.interBody),
+          ],
+        ),
+      );
+    }
+
+    // Pastikan data cukup untuk podium
+    final hasPodium = _leaderboardData.length >= 3;
+    
+    if (!hasPodium) {
+      // Hanya tampilkan tabel jika kurang dari 3 tim
+      return Scaffold(
+        backgroundColor: AppColors.background,
+        body: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
+          child: _buildTable(_leaderboardData),
+        ),
+      );
+    }
+
     final top3 = _leaderboardData.take(3).toList();
     final rest = _leaderboardData.skip(3).toList();
 
-    // Urutan podium: [1]=rank2(kiri), [0]=rank1(tengah), [2]=rank3(kanan)
     final podiumOrder = [top3[1], top3[0], top3[2]];
     final podiumColors = [
-      const Color(0xFFC0C0C0), // silver - kiri
-      const Color(0xFFC9A227), // gold  - tengah
-      const Color(0xFFCD7F32), // bronze- kanan
+      const Color(0xFFC0C0C0),
+      const Color(0xFFC9A227),
+      const Color(0xFFCD7F32),
     ];
     final podiumRanks = [2, 1, 3];
-    final podiumHeights = [90.0, 120.0, 75.0]; // tinggi podium bawah avatar
+    final podiumHeights = [90.0, 120.0, 75.0];
 
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(16, 32, 16, 32),
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // ── PODIUM TOP 3 ───────────────────────────────────────────────
             _buildPodium(podiumOrder, podiumColors, podiumRanks, podiumHeights),
-
             const SizedBox(height: 28),
-
-            // ── TABEL SISA ─────────────────────────────────────────────────
             if (rest.isNotEmpty) _buildTable(rest),
           ],
         ),
       ),
     );
   }
-
-  // ─── PODIUM ──────────────────────────────────────────────────────────────
 
   Widget _buildPodium(
     List<Map<String, dynamic>> order,
@@ -101,37 +219,35 @@ class _ScrimLeaderboardPageState extends State<ScrimLeaderboardPage> {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.end,
         children: List.generate(3, (i) {
-          final item   = order[i];
-          final color  = colors[i];
-          final rank   = ranks[i];
+          final item = order[i];
+          final color = colors[i];
+          final rank = ranks[i];
           final isCenter = rank == 1;
+          final teamName = item['nama_tim'] ?? 'Team';
+          final totalPoin = item['total_poin'] ?? 0;
 
           return Expanded(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
-                // ── Avatar + mahkota (hanya rank 1) ──────────────────────
                 Stack(
                   clipBehavior: Clip.none,
                   alignment: Alignment.topCenter,
                   children: [
-                    // Avatar
                     _avatar(
-                      item['team'],
+                      teamName,
                       isCenter ? 72 : 52,
                       borderColor: color,
                     ),
-                    // Mahkota rank 1
                     if (isCenter)
                       Positioned(
                         top: -22,
-                        child: _crownIcon(color),
+                        child: Icon(Icons.workspace_premium_rounded, color: color, size: 28),
                       ),
-                    // Badge nomor rank 2 & 3
                     if (!isCenter)
                       Positioned(
                         bottom: -2,
-                        right: isCenter ? null : 8,
+                        right: 8,
                         child: Container(
                           width: 20,
                           height: 20,
@@ -154,14 +270,11 @@ class _ScrimLeaderboardPageState extends State<ScrimLeaderboardPage> {
                       ),
                   ],
                 ),
-
                 const SizedBox(height: 8),
-
-                // ── Nama Tim ─────────────────────────────────────────────
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 4),
                   child: Text(
-                    item['team'],
+                    teamName,
                     style: AppTextStyles.poppinsTitleSmall.copyWith(
                       fontSize: isCenter ? 13 : 11,
                       fontWeight: FontWeight.w700,
@@ -172,38 +285,27 @@ class _ScrimLeaderboardPageState extends State<ScrimLeaderboardPage> {
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
-
                 const SizedBox(height: 4),
-
-                // ── Poin / kills ──────────────────────────────────────────
                 Text(
-                  '${item['kills'] ?? item['poin']}',
+                  '$totalPoin',
                   style: AppTextStyles.poppinsMoneyLarge.copyWith(
                     fontSize: isCenter ? 28 : 20,
                     color: AppColors.textPrimary,
                     fontWeight: FontWeight.w800,
                   ),
                 ),
-
                 const SizedBox(height: 6),
-
-                // ── Podium blok ───────────────────────────────────────────
                 Container(
                   height: podiumHeights[i],
                   width: double.infinity,
-                  margin: EdgeInsets.only(
-                    left: isCenter ? 0 : (i == 0 ? 0 : 0),
-                  ),
                   decoration: BoxDecoration(
                     color: color.withOpacity(0.12),
                     border: Border(
-                      top:   BorderSide(color: color, width: 2),
-                      left:  BorderSide(color: color.withOpacity(0.3), width: 1),
+                      top: BorderSide(color: color, width: 2),
+                      left: BorderSide(color: color.withOpacity(0.3), width: 1),
                       right: BorderSide(color: color.withOpacity(0.3), width: 1),
                     ),
-                    borderRadius: const BorderRadius.vertical(
-                      top: Radius.circular(6),
-                    ),
+                    borderRadius: const BorderRadius.vertical(top: Radius.circular(6)),
                   ),
                   child: Center(
                     child: Text(
@@ -225,13 +327,6 @@ class _ScrimLeaderboardPageState extends State<ScrimLeaderboardPage> {
     );
   }
 
-  // Mahkota SVG-like pakai CustomPaint
-  Widget _crownIcon(Color color) {
-    return Icon(Icons.workspace_premium_rounded, color: color, size: 28);
-  }
-
-  // ─── TABEL ───────────────────────────────────────────────────────────────
-
   Widget _buildTable(List<Map<String, dynamic>> items) {
     return Container(
       decoration: BoxDecoration(
@@ -241,15 +336,12 @@ class _ScrimLeaderboardPageState extends State<ScrimLeaderboardPage> {
       ),
       child: Column(
         children: [
-          // Header
           Container(
             padding: const EdgeInsets.symmetric(vertical: 11, horizontal: 12),
             decoration: BoxDecoration(
               color: AppColors.primary.withOpacity(0.08),
               borderRadius: const BorderRadius.vertical(top: Radius.circular(13)),
-              border: Border(
-                bottom: BorderSide(color: AppColors.surfaceVariant),
-              ),
+              border: Border(bottom: BorderSide(color: AppColors.surfaceVariant)),
             ),
             child: Row(
               children: [
@@ -262,32 +354,21 @@ class _ScrimLeaderboardPageState extends State<ScrimLeaderboardPage> {
               ],
             ),
           ),
-
-          // Rows
           ...items.asMap().entries.map((e) {
-            final i    = e.key;
+            final i = e.key;
             final item = e.value;
-            final isLast    = i == items.length - 1;
-            final isMyTeam  = item['isMyTeam'] == true;
+            final isLast = i == items.length - 1;
+            final isMyTeam = item['isMyTeam'] == true;
 
             return Container(
               padding: const EdgeInsets.symmetric(vertical: 11, horizontal: 12),
               decoration: BoxDecoration(
-                color: isMyTeam
-                    ? AppColors.primary.withOpacity(0.07)
-                    : Colors.transparent,
-                borderRadius: isLast
-                    ? const BorderRadius.vertical(bottom: Radius.circular(13))
-                    : BorderRadius.zero,
-                border: !isLast
-                    ? Border(
-                        bottom: BorderSide(color: AppColors.surfaceVariant),
-                      )
-                    : null,
+                color: isMyTeam ? AppColors.primary.withOpacity(0.07) : Colors.transparent,
+                borderRadius: isLast ? const BorderRadius.vertical(bottom: Radius.circular(13)) : BorderRadius.zero,
+                border: !isLast ? Border(bottom: BorderSide(color: AppColors.surfaceVariant)) : null,
               ),
               child: Row(
                 children: [
-                  // POS
                   SizedBox(
                     width: 38,
                     child: Center(
@@ -302,19 +383,14 @@ class _ScrimLeaderboardPageState extends State<ScrimLeaderboardPage> {
                     ),
                   ),
                   const SizedBox(width: 12),
-
-                  // Avatar
-                  _avatar(item['team'], 34,
-                      borderColor: isMyTeam ? AppColors.primary : null),
+                  _avatar(item['nama_tim'], 34, borderColor: isMyTeam ? AppColors.primary : null),
                   const SizedBox(width: 10),
-
-                  // Team + player
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          item['team'],
+                          item['nama_tim'],
                           style: AppTextStyles.poppinsTitleSmall.copyWith(
                             fontSize: 13,
                             fontWeight: FontWeight.w700,
@@ -322,15 +398,13 @@ class _ScrimLeaderboardPageState extends State<ScrimLeaderboardPage> {
                           ),
                           overflow: TextOverflow.ellipsis,
                         ),
-                        if (item['player'] != null && (item['player'] as String).isNotEmpty) ...[
+                        if (item['kapten'] != null && item['kapten'].isNotEmpty) ...[
                           const SizedBox(height: 2),
                           Text(
-                            item['player'],
+                            'Capt: ${item['kapten']}',
                             style: AppTextStyles.interCaption.copyWith(
                               fontSize: 10.5,
-                              color: isMyTeam
-                                  ? AppColors.primary
-                                  : AppColors.textSecondary,
+                              color: isMyTeam ? AppColors.primary : AppColors.textSecondary,
                               fontWeight: isMyTeam ? FontWeight.w700 : FontWeight.w400,
                             ),
                           ),
@@ -338,13 +412,11 @@ class _ScrimLeaderboardPageState extends State<ScrimLeaderboardPage> {
                       ],
                     ),
                   ),
-
-                  // KILLS
                   SizedBox(
                     width: 46,
                     child: Center(
                       child: Text(
-                        item['kills'] != null ? '${item['kills']}' : '-',
+                        '${item['total_kill']}',
                         style: AppTextStyles.interBody.copyWith(
                           fontWeight: FontWeight.w600,
                           fontSize: 13,
@@ -354,13 +426,11 @@ class _ScrimLeaderboardPageState extends State<ScrimLeaderboardPage> {
                     ),
                   ),
                   const SizedBox(width: 8),
-
-                  // POIN
                   SizedBox(
                     width: 46,
                     child: Center(
                       child: Text(
-                        '${item['poin']}',
+                        '${item['total_poin']}',
                         style: AppTextStyles.poppinsMoneySmall.copyWith(
                           fontSize: 14,
                           fontWeight: FontWeight.w700,
