@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:intl/intl.dart'; // Jangan lupaastiin package intl ada di pubspec.yaml bray
+
 import '../../config/app_color.dart';
 import '../../config/app_constants.dart';
 import '../../config/app_text_styles.dart';
@@ -13,52 +16,95 @@ class HistoryScrimPage extends StatefulWidget {
 
 class _HistoryScrimPageState extends State<HistoryScrimPage> {
   String _selectedStatusFilter = 'all'; // 'all', 'selesai', 'dibatalkan'
+  
+  // Inisialisasi Future secara aman tanpa keyword 'late' buat menghindari LateInitializationError bray
+  Future<List<Map<String, dynamic>>>? _historyFuture;
 
-  // ─── DATA HARDCODE STRUKTUR MIRIP SUPABASE ──────────────────────────────────
-  final List<Map<String, dynamic>> _dummyHistory = [
-    {
-      'id_scrim': 101,
-      'nama_scrim': 'Scrim Ganteng',
-      'tanggal': '18 Apr 2023',
-      'jam': '19:00 WIB',
-      'status': 'selesai', // selesai / dibatalkan
-      'badge_text': 'JUARA 1',
-      'peringkat_info': 'Peringkat 1 dari 12 tim',
-      'has_rank': true,
-    },
-    {
-      'id_scrim': 102,
-      'nama_scrim': 'Scrim Ganteng',
-      'tanggal': '18 Apr 2023',
-      'jam': '19:00 WIB',
-      'status': 'selesai',
-      'badge_text': 'JUARA 2',
-      'peringkat_info': 'Peringkat 3 dari 12 tim',
-      'has_rank': true,
-    },
-    {
-      'id_scrim': 103,
-      'nama_scrim': 'Scrim Ganteng',
-      'tanggal': '18 Apr 2023',
-      'jam': '19:00 WIB',
-      'status': 'dibatalkan',
-      'badge_text': 'CANCELLED',
-      'peringkat_info': '',
-      'has_rank': false,
-    },
-  ];
+  @override
+  void initState() {
+    super.initState();
+    _historyFuture = _fetchHistoryScrim();
+  }
+
+  // ─── AMBIL DATA DARI REAL DATABASE SUPABASE ────────────────────────────────
+  Future<List<Map<String, dynamic>>> _fetchHistoryScrim() async {
+    try {
+      final supabase = Supabase.instance.client;
+      final userEmail = supabase.auth.currentUser?.email;
+
+      if (userEmail == null) {
+        throw 'User belum login bray, silakan login dulu.';
+      }
+
+      // 1. PASTIKAN DI SINI PAKAI 'dibuat_pada' (Pake huruf I bray)
+      final response = await supabase
+          .from('pendaftaran_tim')
+          .select('''
+            id_pendaftaran,
+            dibuat_pada, 
+            status_pertandingan,
+            akun!inner(email),
+            hasil_pertandingan(peringkat, total_poin)
+          ''')
+          .eq('akun.email', userEmail)
+          .order('dibuat_pada', ascending: false); // 2. DI SINI JUGA GANTI JADI 'dibuat_pada'
+
+      List<Map<String, dynamic>> loadedHistory = [];
+
+      for (var item in response) {
+        final String statusPertandingan = item['status_pertandingan'] ?? 'dibatalkan';
+        final List<dynamic> hasilList = item['hasil_pertandingan'] ?? [];
+        
+        bool hasRank = false;
+        String badgeText = 'NO RANK';
+        String peringkatInfo = '';
+
+        if (statusPertandingan == 'selesai' && hasilList.isNotEmpty) {
+          hasRank = true;
+          final int peringkat = hasilList[0]['peringkat'] ?? 0;
+          peringkatInfo = 'Peringkat $peringkat';
+          
+          if (peringkat == 1) {
+            badgeText = 'JUARA 1';
+          } else if (peringkat == 2) {
+            badgeText = 'JUARA 2';
+          } else if (peringkat == 3) {
+            badgeText = 'JUARA 3';
+          } else {
+            badgeText = 'RANK $peringkat';
+          }
+        } else if (statusPertandingan == 'dibatalkan') {
+          badgeText = 'CANCELLED';
+        }
+
+        // 3. DI SINI JUGA JANGAN LUPA DIGANTI JADI item['dibuat_pada'] bray!
+        DateTime dateParsed = DateTime.parse(item['dibuat_pada']);
+        String formattedDate = DateFormat('dd MMM yyyy').format(dateParsed);
+        String formattedTime = '${DateFormat('HH:mm').format(dateParsed)} WIB';
+
+        loadedHistory.add({
+          'id_scrim': item['id_pendaftaran'],
+          'nama_scrim': 'Scrim Match #${item['id_pendaftaran']}', 
+          'tanggal': formattedDate,
+          'jam': formattedTime,
+          'status': statusPertandingan, 
+          'badge_text': badgeText,
+          'peringkat_info': peringkatInfo,
+          'has_rank': hasRank,
+        });
+      }
+
+      return loadedHistory;
+    } catch (e) {
+      print('Eror ambil riwayat bray: $e');
+      rethrow;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    // Logika menyaring data lokal berdasarkan tombol filter yang aktif bray
-    final filteredList = _dummyHistory.where((item) {
-      if (_selectedStatusFilter == 'all') return true;
-      return item['status'] == _selectedStatusFilter;
-    }).toList();
-
     return Scaffold(
       backgroundColor: AppColors.background,
-      // ─── APP BAR SESUAI GAMBAR ─────────────────────────────────────────────
       appBar: AppBar(
         backgroundColor: AppColors.background,
         elevation: 0,
@@ -92,9 +138,9 @@ class _HistoryScrimPageState extends State<HistoryScrimPage> {
                   children: [
                     Icon(Icons.calendar_today, size: 16, color: AppColors.primary),
                     const SizedBox(width: 8),
-                    const Text(
-                      'Oct 2023',
-                      style: TextStyle(color: AppColors.textPrimary, fontSize: 13, fontWeight: FontWeight.w500),
+                    Text(
+                      DateFormat('MMM yyyy').format(DateTime.now()),
+                      style: const TextStyle(color: AppColors.textPrimary, fontSize: 13, fontWeight: FontWeight.w500),
                     ),
                   ],
                 ),
@@ -113,16 +159,51 @@ class _HistoryScrimPageState extends State<HistoryScrimPage> {
               ),
               const SizedBox(height: AppConstants.paddingL),
 
-              // ─── 3. LIST HISTORY CARDS ─────────────────────────────────────
+              // ─── 3. FUTUREBUILDER UNTUK LIST HISTORY REAL ──────────────────
               Expanded(
-                child: filteredList.isEmpty
-                    ? Center(
+                child: FutureBuilder<List<Map<String, dynamic>>>(
+                  future: _historyFuture,
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return const Center(
+                        child: CircularProgressIndicator(color: AppColors.primary),
+                      );
+                    }
+
+                    if (snapshot.hasError) {
+                      return Center(
+                        child: Text(
+                          'Gagal memuat data: ${snapshot.error}',
+                          style: AppTextStyles.interBody.copyWith(color: Colors.redAccent),
+                          textAlign: TextAlign.center,
+                        ),
+                      );
+                    }
+
+                    final allHistory = snapshot.data ?? [];
+
+                    // Filter data berdasarkan chip yang aktif
+                    final filteredList = allHistory.where((item) {
+                      if (_selectedStatusFilter == 'all') return true;
+                      return item['status'] == _selectedStatusFilter;
+                    }).toList();
+
+                    if (filteredList.isEmpty) {
+                      return Center(
                         child: Text(
                           'Tidak ada riwayat pada kategori ini bray.',
                           style: AppTextStyles.interBody,
                         ),
-                      )
-                    : ListView.builder(
+                      );
+                    }
+
+                    return RefreshIndicator(
+                      onRefresh: () async {
+                        setState(() {
+                          _historyFuture = _fetchHistoryScrim();
+                        });
+                      },
+                      child: ListView.builder(
                         itemCount: filteredList.length,
                         itemBuilder: (context, index) {
                           final history = filteredList[index];
@@ -131,155 +212,150 @@ class _HistoryScrimPageState extends State<HistoryScrimPage> {
 
                           return GestureDetector(
                             onTap: () {
-                              context.push('/user/history-detail');
+                              context.push('/user/history-detail', extra: history['id_scrim']);
                             },
                             child: Container(
-                            margin: const EdgeInsets.only(bottom: AppConstants.paddingM),
-                            decoration: BoxDecoration(
-                              color: AppColors.backgroundCard,
-                              borderRadius: BorderRadius.circular(AppConstants.radiusL),
-                            ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                // Bagian Atas: Info Utama Scrim
-                                Padding(
-                                  padding: const EdgeInsets.all(AppConstants.paddingM),
-                                  child: Row(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      // Foto Banner / Avatar Bulat Kotak
-                                      Container(
-                                        width: 65,
-                                        height: 65,
-                                        decoration: BoxDecoration(
-                                          color: isCancelled ? Colors.grey.shade300 : Colors.black26,
-                                          borderRadius: BorderRadius.circular(20),
-                                          image: isCancelled
-                                              ? null
-                                              : const DecorationImage(
-                                                  image: NetworkImage('https://via.placeholder.com/150'), // Nanti ganti AppImageHelper bray
-                                                  fit: BoxFit.cover,
-                                                ),
-                                        ),
-                                        child: isCancelled
-                                            ? const Icon(Icons.person, color: Colors.grey, size: 30)
-                                            : null,
-                                      ),
-                                      const SizedBox(width: AppConstants.paddingM),
-
-                                      // Teks Detail Tengah
-                                      Expanded(
-                                        child: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
-                                          children: [
-                                            Text(
-                                              history['nama_scrim'],
-                                              style: AppTextStyles.poppinsSectionTitle.copyWith(fontSize: 16),
-                                            ),
-                                            const SizedBox(height: 4),
-                                            Text(
-                                              history['tanggal'],
-                                              style: AppTextStyles.interBodyMedium.copyWith(color: AppColors.textSecondary, fontSize: 13),
-                                            ),
-                                            Text(
-                                              history['jam'],
-                                              style: AppTextStyles.interBodyMedium.copyWith(color: AppColors.textSecondary, fontSize: 13),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-
-                                      // Badge Juara / Status Sebelah Kanan
-                                      Column(
-                                        crossAxisAlignment: CrossAxisAlignment.end,
-                                        children: [
-                                          Container(
-                                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                                            decoration: BoxDecoration(
-                                              color: isCancelled
-                                                  ? const Color(0xFF4A2829) // Merah redup kalem
-                                                  : (isJuara1 ? AppColors.primary : Colors.white),
-                                              borderRadius: BorderRadius.circular(AppConstants.radiusM),
-                                            ),
-                                            child: Text(
-                                              history['badge_text'],
-                                              style: TextStyle(
-                                                color: isCancelled
-                                                    ? Colors.redAccent
-                                                    : (isJuara1 ? AppColors.buttonText : Colors.black),
-                                                fontWeight: FontWeight.bold,
-                                                fontSize: 10,
-                                              ),
-                                            ),
+                              margin: const EdgeInsets.only(bottom: AppConstants.paddingM),
+                              decoration: BoxDecoration(
+                                color: AppColors.backgroundCard,
+                                borderRadius: BorderRadius.circular(AppConstants.radiusL),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Padding(
+                                    padding: const EdgeInsets.all(AppConstants.paddingM),
+                                    child: Row(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Container(
+                                          width: 65,
+                                          height: 65,
+                                          decoration: BoxDecoration(
+                                            color: isCancelled ? Colors.grey.shade800 : Colors.black26,
+                                            borderRadius: BorderRadius.circular(20),
+                                            image: isCancelled
+                                                ? null
+                                                : const DecorationImage(
+                                                    image: NetworkImage('https://via.placeholder.com/150'),
+                                                    fit: BoxFit.cover,
+                                                  ),
                                           ),
-                                          const SizedBox(height: 12),
-                                          Row(
+                                          child: isCancelled
+                                              ? const Icon(Icons.cancel_outlined, color: Colors.grey, size: 30)
+                                              : null,
+                                        ),
+                                        const SizedBox(width: AppConstants.paddingM),
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
                                             children: [
-                                              Container(
-                                                width: 6,
-                                                height: 6,
-                                                decoration: BoxDecoration(
-                                                  shape: BoxShape.circle,
-                                                  color: isCancelled ? Colors.red : Colors.green,
-                                                ),
-                                              ),
-                                              const SizedBox(width: 6),
                                               Text(
-                                                isCancelled ? 'Dibatalkan' : 'Selesai',
-                                                style: TextStyle(
-                                                  color: AppColors.textSecondary,
-                                                  fontSize: 11,
-                                                ),
+                                                history['nama_scrim'],
+                                                style: AppTextStyles.poppinsSectionTitle.copyWith(fontSize: 16),
+                                              ),
+                                              const SizedBox(height: 4),
+                                              Text(
+                                                history['tanggal'],
+                                                style: AppTextStyles.interBodyMedium.copyWith(color: AppColors.textSecondary, fontSize: 13),
+                                              ),
+                                              Text(
+                                                history['jam'],
+                                                style: AppTextStyles.interBodyMedium.copyWith(color: AppColors.textSecondary, fontSize: 13),
                                               ),
                                             ],
-                                          )
-                                        ],
-                                      ),
-                                    ],
-                                  ),
-                                ),
-
-                                // Garis Pembatas Menengah & Info Peringkat Bawah (Jika Ada)
-                                if (history['has_rank']) ...[
-                                  Padding(
-                                    padding: const EdgeInsets.symmetric(horizontal: AppConstants.paddingM),
-                                    child: Divider(color: AppColors.inputBorder, thickness: 1),
-                                  ),
-                                  Padding(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: AppConstants.paddingM,
-                                      vertical: AppConstants.paddingS,
-                                    ),
-                                    child: Row(
-                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                      children: [
-                                        Row(
+                                          ),
+                                        ),
+                                        Column(
+                                          crossAxisAlignment: CrossAxisAlignment.end,
                                           children: [
-                                            Icon(Icons.keyboard_double_arrow_up, color: AppColors.textSecondary, size: 18),
-                                            const SizedBox(width: 8),
-                                            Text(
-                                              history['peringkat_info'],
-                                              style: const TextStyle(
-                                                color: AppColors.textPrimary,
-                                                fontSize: 13,
-                                                fontWeight: FontWeight.w500,
+                                            Container(
+                                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                              decoration: BoxDecoration(
+                                                color: isCancelled
+                                                    ? const Color(0xFF4A2829)
+                                                    : (isJuara1 ? AppColors.primary : Colors.white24),
+                                                borderRadius: BorderRadius.circular(AppConstants.radiusM),
+                                              ),
+                                              child: Text(
+                                                history['badge_text'],
+                                                style: TextStyle(
+                                                  color: isCancelled
+                                                      ? Colors.redAccent
+                                                      : (isJuara1 ? AppColors.buttonText : Colors.white),
+                                                  fontWeight: FontWeight.bold,
+                                                  fontSize: 10,
+                                                ),
                                               ),
                                             ),
+                                            const SizedBox(height: 12),
+                                            Row(
+                                              children: [
+                                                Container(
+                                                  width: 6,
+                                                  height: 6,
+                                                  decoration: BoxDecoration(
+                                                    shape: BoxShape.circle,
+                                                    color: isCancelled ? Colors.red : Colors.green,
+                                                  ),
+                                                ),
+                                                const SizedBox(width: 6),
+                                                Text(
+                                                  isCancelled ? 'Dibatalkan' : 'Selesai',
+                                                  style: const TextStyle(
+                                                    color: AppColors.textSecondary,
+                                                    fontSize: 11,
+                                                  ),
+                                                ),
+                                              ],
+                                            )
                                           ],
                                         ),
-                                        Icon(Icons.arrow_forward_ios, color: AppColors.textSecondary, size: 14),
                                       ],
                                     ),
                                   ),
-                                  const SizedBox(height: 4),
-                                ]
-                              ],
+                                  if (history['has_rank']) ...[
+                                    Padding(
+                                      padding: const EdgeInsets.symmetric(horizontal: AppConstants.paddingM),
+                                      child: Divider(color: AppColors.inputBorder, thickness: 1),
+                                    ),
+                                    Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: AppConstants.paddingM,
+                                        vertical: AppConstants.paddingS,
+                                      ),
+                                      child: Row(
+                                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                        children: [
+                                          Row(
+                                            children: [
+                                              Icon(Icons.keyboard_double_arrow_up, color: AppColors.textSecondary, size: 18),
+                                              const SizedBox(width: 8),
+                                              Text(
+                                                history['peringkat_info'],
+                                                style: const TextStyle(
+                                                  color: AppColors.textPrimary,
+                                                  fontSize: 13,
+                                                  fontWeight: FontWeight.w500,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                          Icon(Icons.arrow_forward_ios, color: AppColors.textSecondary, size: 14),
+                                        ],
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                  ]
+                                ],
+                              ),
                             ),
-                          ),
                           );
                         },
                       ),
+                    );
+                  },
+                ),
               ),
             ],
           ),
@@ -288,7 +364,6 @@ class _HistoryScrimPageState extends State<HistoryScrimPage> {
     );
   }
 
-  // ─── WIDGET BUILDER UNTUK FILTER CHIP ATAS ──────────────────────────────────
   Widget _buildStatusChip(String label, String value) {
     final bool isSelected = _selectedStatusFilter == value;
 
