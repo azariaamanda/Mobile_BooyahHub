@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:intl/intl.dart'; // Jangan lupaastiin package intl ada di pubspec.yaml bray
+import 'package:intl/intl.dart'; // Pastiin package intl terpasang di pubspec.yaml bray
 
 import '../../config/app_color.dart';
 import '../../config/app_constants.dart';
@@ -19,11 +19,50 @@ class _HistoryScrimPageState extends State<HistoryScrimPage> {
   
   // Inisialisasi Future secara aman tanpa keyword 'late' buat menghindari LateInitializationError bray
   Future<List<Map<String, dynamic>>>? _historyFuture;
+  
+  // Daftarkan channel subscription Supabase agar bisa di-dispose bray
+  RealtimeChannel? _scrimRealtimeChannel;
 
   @override
   void initState() {
     super.initState();
     _historyFuture = _fetchHistoryScrim();
+    _listenToScrimChanges(); // Jalankan fungsi pemantau database bray!
+  }
+
+  @override
+  void dispose() {
+    // Pastikan channel ditutup pas pindah halaman biar ga bocor memorinya (memory leak)
+    if (_scrimRealtimeChannel != null) {
+      Supabase.instance.client.removeChannel(_scrimRealtimeChannel!);
+    }
+    super.dispose();
+  }
+
+  // ─── REALTIME LISTENER (TUGASNYA NYURUH REFRESH PAS STATUS BERUBAH) ──────
+  void _listenToScrimChanges() {
+    final supabase = Supabase.instance.client;
+
+    // Membuat channel khusus buat mantengin perubahan di tabel pendaftaran_tim bray
+    _scrimRealtimeChannel = supabase
+        .channel('public:pendaftaran_tim_changes')
+        .onPostgresChanges(
+          event: PostgresChangeEvent.all, // Pantau jika ada INSERT, UPDATE, atau DELETE
+          schema: 'public',
+          table: 'pendaftaran_tim',
+          callback: (payload) {
+            print('Ada perubahan data di Supabase bray! Mengupdate UI...');
+            // Begitu status di DB berubah, kita panggil fungsi fetch ulang secara otomatis!
+            if (mounted) {
+              setState(() {
+                _historyFuture = _fetchHistoryScrim();
+              });
+            }
+          },
+        );
+
+    // Aktifkan kran pendengarnya bray
+    _scrimRealtimeChannel?.subscribe();
   }
 
   // ─── AMBIL DATA DARI REAL DATABASE SUPABASE ────────────────────────────────
@@ -36,7 +75,7 @@ class _HistoryScrimPageState extends State<HistoryScrimPage> {
         throw 'User belum login bray, silakan login dulu.';
       }
 
-      // 1. PASTIKAN DI SINI PAKAI 'dibuat_pada' (Pake huruf I bray)
+      // Menarik data pendaftaran_tim yang akun_id nya punya email cocok dengan auth user
       final response = await supabase
           .from('pendaftaran_tim')
           .select('''
@@ -47,37 +86,46 @@ class _HistoryScrimPageState extends State<HistoryScrimPage> {
             hasil_pertandingan(peringkat, total_poin)
           ''')
           .eq('akun.email', userEmail)
-          .order('dibuat_pada', ascending: false); // 2. DI SINI JUGA GANTI JADI 'dibuat_pada'
+          .order('dibuat_pada', ascending: false);
 
       List<Map<String, dynamic>> loadedHistory = [];
 
       for (var item in response) {
-        final String statusPertandingan = item['status_pertandingan'] ?? 'dibatalkan';
+        final String statusPertandingan = item['status_pertandingan'] ?? 'belum_mulai';
         final List<dynamic> hasilList = item['hasil_pertandingan'] ?? [];
         
         bool hasRank = false;
-        String badgeText = 'NO RANK';
+        String badgeText = 'BELUM MULAI';
         String peringkatInfo = '';
 
-        if (statusPertandingan == 'selesai' && hasilList.isNotEmpty) {
-          hasRank = true;
-          final int peringkat = hasilList[0]['peringkat'] ?? 0;
-          peringkatInfo = 'Peringkat $peringkat';
-          
-          if (peringkat == 1) {
-            badgeText = 'JUARA 1';
-          } else if (peringkat == 2) {
-            badgeText = 'JUARA 2';
-          } else if (peringkat == 3) {
-            badgeText = 'JUARA 3';
+        // Logika pembacaan status yang sinkron ama ENUM DB bray
+        if (statusPertandingan == 'selesai') {
+          if (hasilList.isNotEmpty) {
+            hasRank = true;
+            final int peringkat = hasilList[0]['peringkat'] ?? 0;
+            peringkatInfo = 'Peringkat $peringkat';
+            
+            if (peringkat == 1) {
+              badgeText = 'JUARA 1';
+            } else if (peringkat == 2) {
+              badgeText = 'JUARA 2';
+            } else if (peringkat == 3) {
+              badgeText = 'JUARA 3';
+            } else {
+              badgeText = 'RANK $peringkat';
+            }
           } else {
-            badgeText = 'RANK $peringkat';
+            badgeText = 'SELESAI';
           }
+        } else if (statusPertandingan == 'sedang_berlangsung') {
+          badgeText = 'LIVE MATCH';
         } else if (statusPertandingan == 'dibatalkan') {
           badgeText = 'CANCELLED';
+        } else {
+          badgeText = 'BELUM MULAI';
         }
 
-        // 3. DI SINI JUGA JANGAN LUPA DIGANTI JADI item['dibuat_pada'] bray!
+        // Format tanggal dari timestamp DB (ISO 8601) ke format UI
         DateTime dateParsed = DateTime.parse(item['dibuat_pada']);
         String formattedDate = DateFormat('dd MMM yyyy').format(dateParsed);
         String formattedTime = '${DateFormat('HH:mm').format(dateParsed)} WIB';
@@ -87,7 +135,7 @@ class _HistoryScrimPageState extends State<HistoryScrimPage> {
           'nama_scrim': 'Scrim Match #${item['id_pendaftaran']}', 
           'tanggal': formattedDate,
           'jam': formattedTime,
-          'status': statusPertandingan, 
+          'status': statusPertandingan, // 'belum_mulai' / 'sedang_berlangsung' / 'selesai' / 'dibatalkan'
           'badge_text': badgeText,
           'peringkat_info': peringkatInfo,
           'has_rank': hasRank,
@@ -182,7 +230,7 @@ class _HistoryScrimPageState extends State<HistoryScrimPage> {
 
                     final allHistory = snapshot.data ?? [];
 
-                    // Filter data berdasarkan chip yang aktif
+                    // Filter data berdasarkan chip kategori yang aktif bray
                     final filteredList = allHistory.where((item) {
                       if (_selectedStatusFilter == 'all') return true;
                       return item['status'] == _selectedStatusFilter;
@@ -296,12 +344,26 @@ class _HistoryScrimPageState extends State<HistoryScrimPage> {
                                                   height: 6,
                                                   decoration: BoxDecoration(
                                                     shape: BoxShape.circle,
-                                                    color: isCancelled ? Colors.red : Colors.green,
+                                                    // Indikator warna dinamis ngikutin status bray
+                                                    color: history['status'] == 'selesai'
+                                                        ? Colors.green
+                                                        : history['status'] == 'sedang_berlangsung'
+                                                            ? Colors.orange
+                                                            : history['status'] == 'dibatalkan'
+                                                                ? Colors.red
+                                                                : Colors.blue, // Biru buat belum_mulai
                                                   ),
                                                 ),
                                                 const SizedBox(width: 6),
                                                 Text(
-                                                  isCancelled ? 'Dibatalkan' : 'Selesai',
+                                                  // Teks deskripsi dinamis ngikutin status DB bray
+                                                  history['status'] == 'selesai'
+                                                      ? 'Selesai'
+                                                      : history['status'] == 'sedang_berlangsung'
+                                                          ? 'Berlangsung'
+                                                          : history['status'] == 'dibatalkan'
+                                                              ? 'Dibatalkan'
+                                                              : 'Belum Mulai',
                                                   style: const TextStyle(
                                                     color: AppColors.textSecondary,
                                                     fontSize: 11,
