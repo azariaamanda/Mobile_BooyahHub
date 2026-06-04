@@ -4,6 +4,7 @@ import '../../config/app_constants.dart';
 import '../../config/app_text_styles.dart';
 import 'owner_dashboard_screen.dart';
 import 'premium_management_screen.dart';
+import 'owner_profile_screen.dart';
 
 class OwnerMainNavigator extends StatefulWidget {
   const OwnerMainNavigator({super.key});
@@ -20,7 +21,7 @@ class _OwnerMainNavigatorState extends State<OwnerMainNavigator> {
     _buildPlaceholder('Halaman Admin'),
     _buildPlaceholder('Halaman Tagihan'),
     const PremiumManagementScreen(),
-    _buildPlaceholder('Halaman Profil'),
+    const OwnerProfileScreen(),
   ];
 
   static Widget _buildPlaceholder(String title) {
