@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:intl/intl.dart'; // Pastiin package intl terpasang di pubspec.yaml bray
+import 'package:intl/intl.dart'; 
 
 import '../../config/app_color.dart';
 import '../../config/app_constants.dart';
@@ -15,44 +15,41 @@ class HistoryScrimPage extends StatefulWidget {
 }
 
 class _HistoryScrimPageState extends State<HistoryScrimPage> {
-  String _selectedStatusFilter = 'all'; // 'all', 'selesai', 'dibatalkan'
-  
-  // Inisialisasi Future secara aman tanpa keyword 'late' buat menghindari LateInitializationError bray
+  String _selectedStatusFilter = 'all'; 
+  String? _selectedMonthFilter; // Format: "MM-yyyy" (Contoh: "06-2026")
   Future<List<Map<String, dynamic>>>? _historyFuture;
-  
-  // Daftarkan channel subscription Supabase agar bisa di-dispose bray
   RealtimeChannel? _scrimRealtimeChannel;
 
   @override
   void initState() {
     super.initState();
     _historyFuture = _fetchHistoryScrim();
-    _listenToScrimChanges(); // Jalankan fungsi pemantau database bray!
+    _listenToScrimChanges(); 
   }
 
   @override
   void dispose() {
-    // Pastikan channel ditutup pas pindah halaman biar ga bocor memorinya (memory leak)
     if (_scrimRealtimeChannel != null) {
       Supabase.instance.client.removeChannel(_scrimRealtimeChannel!);
     }
     super.dispose();
   }
 
-  // ─── REALTIME LISTENER (TUGASNYA NYURUH REFRESH PAS STATUS BERUBAH) ──────
   void _listenToScrimChanges() {
     final supabase = Supabase.instance.client;
 
-    // Membuat channel khusus buat mantengin perubahan di tabel pendaftaran_tim bray
+    if (_scrimRealtimeChannel != null) {
+      supabase.removeChannel(_scrimRealtimeChannel!);
+    }
+
     _scrimRealtimeChannel = supabase
         .channel('public:pendaftaran_tim_changes')
         .onPostgresChanges(
-          event: PostgresChangeEvent.all, // Pantau jika ada INSERT, UPDATE, atau DELETE
+          event: PostgresChangeEvent.all,
           schema: 'public',
           table: 'pendaftaran_tim',
-          callback: (payload) {
-            print('Ada perubahan data di Supabase bray! Mengupdate UI...');
-            // Begitu status di DB berubah, kita panggil fungsi fetch ulang secara otomatis!
+          callback: (payload) async {
+            await Future.delayed(const Duration(milliseconds: 300));
             if (mounted) {
               setState(() {
                 _historyFuture = _fetchHistoryScrim();
@@ -61,13 +58,9 @@ class _HistoryScrimPageState extends State<HistoryScrimPage> {
           },
         );
 
-    // Aktifkan kran pendengarnya bray
     _scrimRealtimeChannel?.subscribe();
   }
 
-  // ─── AMBIL DATA DARI REAL DATABASE SUPABASE ────────────────────────────────
-  // ─── AMBIL DATA REAL + JOIN TABEL SCRIM BUAT NAMA ASLI ──────────────────────
-  // ─── AMBIL DATA REAL + NESTED JOIN KE SESI_SCRIM DAN SCRIM ──────────────────
   Future<List<Map<String, dynamic>>> _fetchHistoryScrim() async {
     try {
       final supabase = Supabase.instance.client;
@@ -77,8 +70,6 @@ class _HistoryScrimPageState extends State<HistoryScrimPage> {
         throw 'User belum login bray, silakan login dulu.';
       }
 
-      // Kita ubah query select-nya jadi nested join lewat sesi_scrim bray
-      // Panggil kolom poster di dalam nested select scrim bray
       final response = await supabase
           .from('pendaftaran_tim')
           .select('''
@@ -107,10 +98,8 @@ class _HistoryScrimPageState extends State<HistoryScrimPage> {
         final Map<String, dynamic>? scrimData = sesiScrimData?['scrim'] as Map<String, dynamic>?;
         
         final String namaScrimAsli = scrimData?['nama_scrim'] ?? 'Scrim Match #${item['id_pendaftaran']}';
-        // Ambil string URL dari kolom poster bray
         final String? posterUrl = scrimData?['poster']; 
 
-        // ... [Logika statusPertandingan di bawahnya tetep sama bawaan lu bray] ...
         bool hasRank = false;
         String badgeText = 'BELUM MULAI';
         String peringkatInfo = '';
@@ -138,17 +127,23 @@ class _HistoryScrimPageState extends State<HistoryScrimPage> {
         DateTime dateParsed = DateTime.parse(item['dibuat_pada']);
         String formattedDate = DateFormat('dd MMM yyyy').format(dateParsed);
         String formattedTime = '${DateFormat('HH:mm').format(dateParsed)} WIB';
+        
+        // Key unik untuk filter bulan (cth: "06-2026") dan label display (cth: "Juni 2026")
+        String monthKey = DateFormat('MM-yyyy').format(dateParsed);
+        String monthLabel = DateFormat('MMMM yyyy').format(dateParsed);
 
         loadedHistory.add({
           'id_scrim': item['id_pendaftaran'],
           'nama_scrim': namaScrimAsli,
-          'poster_scrim': posterUrl, // 👈 OPER URL POSTER KE SINI BRAY
+          'poster_scrim': posterUrl, 
           'tanggal': formattedDate,
           'jam': formattedTime,
           'status': statusPertandingan,
           'badge_text': badgeText,
           'peringkat_info': peringkatInfo,
           'has_rank': hasRank,
+          'month_key': monthKey,
+          'month_label': monthLabel,
         });
       }
 
@@ -184,28 +179,73 @@ class _HistoryScrimPageState extends State<HistoryScrimPage> {
             children: [
               const SizedBox(height: AppConstants.paddingS),
 
-              // ─── 1. BUTTON DATE FILTER (MOCK FILTER BULAN) ─────────────────
-              Container(
-                decoration: BoxDecoration(
-                  color: AppColors.backgroundCard,
-                  borderRadius: BorderRadius.circular(AppConstants.radiusM),
-                ),
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.calendar_today, size: 16, color: AppColors.primary),
-                    const SizedBox(width: 8),
-                    Text(
-                      DateFormat('MMM yyyy').format(DateTime.now()),
-                      style: const TextStyle(color: AppColors.textPrimary, fontSize: 13, fontWeight: FontWeight.w500),
+              // Filter Dropdown Bulan Berdasarkan Data yang Tersedia
+              FutureBuilder<List<Map<String, dynamic>>>(
+                future: _historyFuture,
+                builder: (context, snapshot) {
+                  // Kumpulin list bulan unik dari data snapshot
+                  final List<Map<String, String>> uniqueMonths = [];
+                  final Set<String> seenMonths = {};
+
+                  if (snapshot.hasData) {
+                    for (var item in snapshot.data!) {
+                      final key = item['month_key'] as String;
+                      final label = item['month_label'] as String;
+                      if (!seenMonths.contains(key)) {
+                        seenMonths.add(key);
+                        uniqueMonths.add({'key': key, 'label': label});
+                      }
+                    }
+                  }
+
+                  return Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    decoration: BoxDecoration(
+                      color: AppColors.backgroundCard,
+                      borderRadius: BorderRadius.circular(AppConstants.radiusM),
                     ),
-                  ],
-                ),
+                    child: DropdownButtonHideUnderline(
+                      child: DropdownButton<String>(
+                        dropdownColor: AppColors.backgroundCard,
+                        value: _selectedMonthFilter,
+                        hint: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.calendar_month, size: 16, color: AppColors.primary),
+                            const SizedBox(width: 8),
+                            Text('Semua Bulan', style: AppTextStyles.interBodyMedium.copyWith(fontSize: 13)),
+                          ],
+                        ),
+                        icon: const Icon(Icons.arrow_drop_down, color: AppColors.textSecondary),
+                        items: [
+                          // Opsi buat reset filter kembali ke semua bulan
+                          DropdownMenuItem<String>(
+                            value: null,
+                            child: Text('Semua Bulan', style: const TextStyle(color: AppColors.textPrimary, fontSize: 13)),
+                          ),
+                          ...uniqueMonths.map((month) {
+                            return DropdownMenuItem<String>(
+                              value: month['key'],
+                              child: Text(
+                                month['label']!,
+                                style: const TextStyle(color: AppColors.textPrimary, fontSize: 13),
+                              ),
+                            );
+                          }),
+                        ],
+                        onChanged: (value) {
+                          setState(() {
+                            _selectedMonthFilter = value;
+                          });
+                        },
+                      ),
+                    ),
+                  );
+                },
               ),
               const SizedBox(height: AppConstants.paddingL),
 
-              // ─── 2. HORIZONTAL STATUS FILTER ───────────────────────────────
+              // Chip Status Pertandingan (All, Selesai, Dibatalkan)
               Row(
                 children: [
                   _buildStatusChip('All Scrims', 'all'),
@@ -217,7 +257,6 @@ class _HistoryScrimPageState extends State<HistoryScrimPage> {
               ),
               const SizedBox(height: AppConstants.paddingL),
 
-              // ─── 3. FUTUREBUILDER UNTUK LIST HISTORY REAL ──────────────────
               Expanded(
                 child: FutureBuilder<List<Map<String, dynamic>>>(
                   future: _historyFuture,
@@ -240,16 +279,23 @@ class _HistoryScrimPageState extends State<HistoryScrimPage> {
 
                     final allHistory = snapshot.data ?? [];
 
-                    // Filter data berdasarkan chip kategori yang aktif bray
-                    final filteredList = allHistory.where((item) {
+                    // 1. Filter Berdasarkan Status
+                    var filteredList = allHistory.where((item) {
                       if (_selectedStatusFilter == 'all') return true;
                       return item['status'] == _selectedStatusFilter;
                     }).toList();
 
+                    // 2. Filter Berdasarkan Bulan (Bila Dipilih)
+                    if (_selectedMonthFilter != null) {
+                      filteredList = filteredList.where((item) {
+                        return item['month_key'] == _selectedMonthFilter;
+                      }).toList();
+                    }
+
                     if (filteredList.isEmpty) {
                       return Center(
                         child: Text(
-                          'Tidak ada riwayat pada kategori ini bray.',
+                          'Tidak ada riwayat pada kategori / bulan ini bray.',
                           style: AppTextStyles.interBody,
                         ),
                       );
@@ -286,7 +332,6 @@ class _HistoryScrimPageState extends State<HistoryScrimPage> {
                                     child: Row(
                                       crossAxisAlignment: CrossAxisAlignment.start,
                                       children: [
-                                        // ─── WIDGET GAMBAR POSTER SCRIM ───
                                         Container(
                                           width: 65,
                                           height: 65,
@@ -296,7 +341,7 @@ class _HistoryScrimPageState extends State<HistoryScrimPage> {
                                             image: isCancelled || history['poster_scrim'] == null
                                                 ? null
                                                 : DecorationImage(
-                                                    image: NetworkImage(history['poster_scrim']), // 👈 Baca url dari kolom poster bray
+                                                    image: NetworkImage(history['poster_scrim']), 
                                                     fit: BoxFit.cover,
                                                     onError: (exception, stackTrace) {
                                                       print('Gagal muat gambar poster bray');
@@ -306,7 +351,7 @@ class _HistoryScrimPageState extends State<HistoryScrimPage> {
                                           child: isCancelled
                                               ? const Icon(Icons.cancel_outlined, color: Colors.grey, size: 30)
                                               : (history['poster_scrim'] == null
-                                                  ? const Icon(Icons.sports_esports, color: Colors.grey, size: 30) // Fallback pakai ikon game bray
+                                                  ? const Icon(Icons.sports_esports, color: Colors.grey, size: 30) 
                                                   : null),
                                         ),
                                         const SizedBox(width: AppConstants.paddingM),
@@ -360,19 +405,17 @@ class _HistoryScrimPageState extends State<HistoryScrimPage> {
                                                   height: 6,
                                                   decoration: BoxDecoration(
                                                     shape: BoxShape.circle,
-                                                    // Indikator warna dinamis ngikutin status bray
                                                     color: history['status'] == 'selesai'
                                                         ? Colors.green
                                                         : history['status'] == 'sedang_berlangsung'
                                                             ? Colors.orange
                                                             : history['status'] == 'dibatalkan'
                                                                 ? Colors.red
-                                                                : Colors.blue, // Biru buat belum_mulai
+                                                                : Colors.blue, 
                                                   ),
                                                 ),
                                                 const SizedBox(width: 6),
                                                 Text(
-                                                  // Teks deskripsi dinamis ngikutin status DB bray
                                                   history['status'] == 'selesai'
                                                       ? 'Selesai'
                                                       : history['status'] == 'sedang_berlangsung'
@@ -407,7 +450,7 @@ class _HistoryScrimPageState extends State<HistoryScrimPage> {
                                         children: [
                                           Row(
                                             children: [
-                                              Icon(Icons.keyboard_double_arrow_up, color: AppColors.textSecondary, size: 18),
+                                              const Icon(Icons.keyboard_double_arrow_up, color: AppColors.textSecondary, size: 18),
                                               const SizedBox(width: 8),
                                               Text(
                                                 history['peringkat_info'],
@@ -419,7 +462,7 @@ class _HistoryScrimPageState extends State<HistoryScrimPage> {
                                               ),
                                             ],
                                           ),
-                                          Icon(Icons.arrow_forward_ios, color: AppColors.textSecondary, size: 14),
+                                          const Icon(Icons.arrow_forward_ios, color: AppColors.textSecondary, size: 14),
                                         ],
                                       ),
                                     ),
