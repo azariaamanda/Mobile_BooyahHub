@@ -114,19 +114,25 @@ class _RegisterOwnerPageState extends State<RegisterOwnerPage> {
     );
   }
 
-  InputDecoration _inputDecoration({String? hint}) {
+  InputDecoration _inputDecoration({
+    String? hint,
+    Widget? suffixIcon,
+    Widget? prefixIcon,
+  }) {
     return InputDecoration(
       hintText: hint,
       hintStyle: AppTextStyles.interHint,
+      suffixIcon: suffixIcon,
+      prefixIcon: prefixIcon,
       filled: true,
-      fillColor: Colors.white,
+      fillColor: AppColors.backgroundInput,
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(AppConstants.radiusM),
-        borderSide: BorderSide.none,
+        borderSide: BorderSide(color: AppColors.inputBorder),
       ),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(AppConstants.radiusM),
-        borderSide: BorderSide.none,
+        borderSide: BorderSide(color: AppColors.inputBorder),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(AppConstants.radiusM),
@@ -135,6 +141,10 @@ class _RegisterOwnerPageState extends State<RegisterOwnerPage> {
       errorBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(AppConstants.radiusM),
         borderSide: BorderSide(color: AppColors.error),
+      ),
+      focusedErrorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(AppConstants.radiusM),
+        borderSide: BorderSide(color: AppColors.error, width: 1.5),
       ),
       contentPadding: const EdgeInsets.symmetric(
         horizontal: AppConstants.paddingM,
@@ -239,7 +249,7 @@ class _RegisterOwnerPageState extends State<RegisterOwnerPage> {
                     _fieldLabel('NAMA LENGKAP'),
                     TextFormField(
                       controller: _namaController,
-                      style: AppTextStyles.interInput.copyWith(color: Colors.black87),
+                      style: AppTextStyles.interInput,
                       decoration: _inputDecoration(hint: 'Masukkan nama'),
                       validator: (v) => (v == null || v.trim().isEmpty) ? 'Nama wajib diisi' : null,
                     ),
@@ -247,7 +257,7 @@ class _RegisterOwnerPageState extends State<RegisterOwnerPage> {
                     _fieldLabel('EMAIL'),
                     TextFormField(
                       controller: _emailController,
-                      style: AppTextStyles.interInput.copyWith(color: Colors.black87),
+                      style: AppTextStyles.interInput,
                       keyboardType: TextInputType.emailAddress,
                       decoration: _inputDecoration(hint: '@gmail.com'),
                       validator: (v) {
@@ -260,7 +270,7 @@ class _RegisterOwnerPageState extends State<RegisterOwnerPage> {
                     _fieldLabel('NO HANDPHONE'),
                     TextFormField(
                       controller: _noHpController,
-                      style: AppTextStyles.interInput.copyWith(color: Colors.black87),
+                      style: AppTextStyles.interInput,
                       keyboardType: TextInputType.phone,
                       decoration: _inputDecoration(hint: '+62 812...'),
                       validator: (v) => (v == null || v.trim().isEmpty) ? 'No. HP wajib diisi' : null,
@@ -269,26 +279,18 @@ class _RegisterOwnerPageState extends State<RegisterOwnerPage> {
                     _fieldLabel('PASSWORD'),
                     TextFormField(
                       controller: _passwordController,
-                      style: AppTextStyles.interInput.copyWith(color: Colors.black87),
+                      style: AppTextStyles.interInput,
                       obscureText: _obscurePassword,
-                      decoration: InputDecoration(
-                        hintText: '••••••••',
-                        hintStyle: AppTextStyles.interHint,
-                        filled: true,
-                        fillColor: Colors.white,
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(AppConstants.radiusM),
-                          borderSide: BorderSide.none,
-                        ),
+                      decoration: _inputDecoration(
+                        hint: '••••••••',
                         suffixIcon: IconButton(
                           icon: Icon(
                             _obscurePassword ? Icons.visibility_off_outlined : Icons.visibility_outlined,
-                            color: Colors.grey,
+                            color: AppColors.inputIcon,
                             size: 20,
                           ),
                           onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
                         ),
-                        contentPadding: const EdgeInsets.symmetric(horizontal: AppConstants.paddingM, vertical: 14),
                       ),
                       validator: (v) {
                         if (v == null || v.isEmpty) return 'Password wajib diisi';
@@ -300,26 +302,18 @@ class _RegisterOwnerPageState extends State<RegisterOwnerPage> {
                     _fieldLabel('KONFIRMASI PASSWORD'),
                     TextFormField(
                       controller: _konfirmasiPasswordController,
-                      style: AppTextStyles.interInput.copyWith(color: Colors.black87),
+                      style: AppTextStyles.interInput,
                       obscureText: _obscureKonfirmasi,
-                      decoration: InputDecoration(
-                        hintText: '••••••••',
-                        hintStyle: AppTextStyles.interHint,
-                        filled: true,
-                        fillColor: Colors.white,
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(AppConstants.radiusM),
-                          borderSide: BorderSide.none,
-                        ),
+                      decoration: _inputDecoration(
+                        hint: '••••••••',
                         suffixIcon: IconButton(
                           icon: Icon(
                             _obscureKonfirmasi ? Icons.visibility_off_outlined : Icons.visibility_outlined,
-                            color: Colors.grey,
+                            color: AppColors.inputIcon,
                             size: 20,
                           ),
                           onPressed: () => setState(() => _obscureKonfirmasi = !_obscureKonfirmasi),
                         ),
-                        contentPadding: const EdgeInsets.symmetric(horizontal: AppConstants.paddingM, vertical: 14),
                       ),
                       validator: (v) {
                         if (v == null || v.isEmpty) return 'Konfirmasi password wajib diisi';
@@ -328,45 +322,49 @@ class _RegisterOwnerPageState extends State<RegisterOwnerPage> {
                       },
                     ),
                     const SizedBox(height: AppConstants.paddingXL),
-                    Align(
-                      alignment: Alignment.center,
-                      child: GestureDetector(
-                        onTap: _pickFoto,
-                        child: Container(
-                          width: 130,
-                          height: 130,
-                          decoration: BoxDecoration(
-                            color: Colors.transparent,
-                            borderRadius: BorderRadius.circular(AppConstants.radiusM),
-                            border: Border.all(
-                              color: _fotoPath != null ? AppColors.primary : Colors.grey.withOpacity(0.4),
-                              width: 1.5,
-                            ),
+                    GestureDetector(
+                      onTap: _pickFoto,
+                      child: Container(
+                        width: double.infinity,
+                        height: 100,
+                        decoration: BoxDecoration(
+                          color: AppColors.backgroundInput,
+                          borderRadius: BorderRadius.circular(
+                            AppConstants.radiusM,
                           ),
-                          child: _fotoPath != null
-                              ? ClipRRect(
-                                  borderRadius: BorderRadius.circular(AppConstants.radiusM),
-                                  child: Image.file(File(_fotoPath!), fit: BoxFit.cover),
-                                )
-                              : Column(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    const Icon(Icons.add_photo_alternate_outlined, color: AppColors.primary, size: 36),
-                                    const SizedBox(height: 8),
-                                    Text(
-                                      'UPLOAD FOTO',
-                                      style: AppTextStyles.interLabel.copyWith(
-                                        color: AppColors.primary,
-                                        fontSize: 10,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                  ],
-                                ),
+                          border: Border.all(
+                            color: _fotoPath != null
+                                ? AppColors.primary
+                                : AppColors.primary.withOpacity(0.4),
+                            width: 1.5,
+                          ),
+                        ),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              _fotoPath != null
+                                  ? Icons.check_circle_outline_rounded
+                                  : Icons.image_outlined,
+                              color: AppColors.primary,
+                              size: 28,
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              _fotoPath != null
+                                  ? 'Foto diunggah'
+                                  : 'UPLOAD FOTO',
+                              style: AppTextStyles.interLabel.copyWith(
+                                color: AppColors.primary,
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                letterSpacing: 1,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ),
-                    const SizedBox(height: 8),
                   ],
                 ),
               ),
@@ -382,8 +380,13 @@ class _RegisterOwnerPageState extends State<RegisterOwnerPage> {
                       onChanged: (v) => setState(() => _setujuiSyarat = v!),
                       activeColor: AppColors.primary,
                       checkColor: AppColors.background,
-                      side: const BorderSide(color: Colors.grey, width: 1.5),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+                      side: BorderSide(
+                        color: AppColors.inputBorder,
+                        width: 1.5,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(4),
+                      ),
                     ),
                   ),
                   const SizedBox(width: 12),
