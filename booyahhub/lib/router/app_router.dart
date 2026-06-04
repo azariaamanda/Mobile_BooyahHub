@@ -4,7 +4,7 @@ import '../presentation/auth/login_screen.dart';
 import '../presentation/auth/register_admin_page.dart';
 import '../presentation/auth/register_user_page.dart';
 import '../presentation/auth/register_owner_page.dart';
-import '../presentation/owner/owner_dashboard_screen.dart';
+import '../presentation/owner/owner_main_navigator.dart';
 import '../presentation/owner/admin_verification_page.dart';
 import '../presentation/owner/financial_report_page.dart';
 import '../presentation/owner/prize_approval_page.dart';
@@ -86,7 +86,7 @@ class AppRouter {
       GoRoute(
         path: '/owner/dashboard',
         name: 'owner_dashboard',
-        builder: (context, state) => const OwnerDashboardScreen(),
+        builder: (context, state) => const OwnerMainNavigator(),
       ),
       GoRoute(
         path: '/owner/verifikasi-admin',
