@@ -4,6 +4,7 @@ import '../presentation/auth/login_screen.dart';
 import '../presentation/auth/register_admin_page.dart';
 import '../presentation/auth/register_user_page.dart';
 import '../presentation/auth/register_owner_page.dart';
+import '../presentation/owner/edit_premium_package_screen.dart';
 import '../presentation/owner/owner_main_navigator.dart';
 import '../presentation/owner/admin_verification_page.dart';
 import '../presentation/owner/financial_report_page.dart';
@@ -87,6 +88,11 @@ class AppRouter {
         path: '/owner/dashboard',
         name: 'owner_dashboard',
         builder: (context, state) => const OwnerMainNavigator(),
+      ),
+      GoRoute(
+        path: '/owner/edit-premium',
+        name: 'owner_edit_premium',
+        builder: (context, state) => const EditPremiumPackageScreen(),
       ),
       GoRoute(
         path: '/owner/verifikasi-admin',
