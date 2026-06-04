@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import '../../config/app_color.dart';
 import '../../config/app_text_styles.dart';
 
@@ -18,6 +19,7 @@ class PremiumManagementScreen extends StatelessWidget {
             _buildHeader(),
             const SizedBox(height: 32),
             _buildPremiumCard(
+              context: context,
               title: 'Elite Commander',
               tierBadgeText: 'PRO LEVEL',
               tierBadgeColor: const Color(0xFFFFD700),
@@ -37,6 +39,7 @@ class PremiumManagementScreen extends StatelessWidget {
             ),
             const SizedBox(height: 16),
             _buildPremiumCard(
+              context: context,
               title: 'Rookie Boost',
               tierBadgeText: 'ENTRY LEVEL',
               tierBadgeColor: Colors.white54,
@@ -55,6 +58,7 @@ class PremiumManagementScreen extends StatelessWidget {
             ),
             const SizedBox(height: 16),
             _buildPremiumCard(
+              context: context,
               title: 'Strategic Master',
               tierBadgeText: 'TEAM SCALE',
               tierBadgeColor: const Color(0xFF00E5FF),
@@ -138,6 +142,7 @@ class PremiumManagementScreen extends StatelessWidget {
   }
 
   Widget _buildPremiumCard({
+    required BuildContext context,
     required String title,
     required String tierBadgeText,
     required Color tierBadgeColor,
@@ -151,11 +156,15 @@ class PremiumManagementScreen extends StatelessWidget {
     required int usersCount,
     required bool hasLeftBorder,
   }) {
-    return Container(
-      decoration: BoxDecoration(
-        color: const Color(0xFF131F2D),
-        borderRadius: BorderRadius.circular(12),
-      ),
+    return GestureDetector(
+      onTap: () {
+        context.push('/owner/edit-premium');
+      },
+      child: Container(
+        decoration: BoxDecoration(
+          color: const Color(0xFF131F2D),
+          borderRadius: BorderRadius.circular(12),
+        ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(12),
         child: Container(
@@ -294,6 +303,7 @@ class PremiumManagementScreen extends StatelessWidget {
             ],
           ),
         ),
+      ),
       ),
     );
   }
