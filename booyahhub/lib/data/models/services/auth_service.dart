@@ -212,6 +212,71 @@ class AuthService {
     }
   }
 
+    // ============================================================
+  // REGISTER OWNER
+  // ============================================================
+  Future<Map<String, dynamic>> registerOwner({
+    required String namaLengkap,
+    required String email,
+    required String noHandphone,
+    required String password,
+    String? bankOwner,
+    String? nomorRekening,
+  }) async {
+    try {
+      final authResponse = await _supabase.auth.signUp(
+        email: email,
+        password: password,
+      );
+
+      if (authResponse.user == null) {
+        return {'success': false, 'message': 'Gagal membuat akun'};
+      }
+
+      final akunData = await _supabase
+          .from('akun')
+          .insert({
+            'email': email,
+            'role': 'owner',
+            'status_akun': 'aktif'
+          })
+          .select()
+          .single();
+
+      final akun = Akun.fromJson(akunData);
+
+      final profilData = await _supabase
+          .from('profil_owner')
+          .insert({
+            'akun_id': akun.idAkun,
+            'nama_lengkap': namaLengkap,
+            'no_handphone': noHandphone,
+            'bank_owner': bankOwner,
+            'nomor_rekening': nomorRekening,
+            'foto_profil': null,
+          })
+          .select()
+          .single();
+
+      return {
+        'success': true,
+        'message': 'Pendaftaran owner berhasil! Silakan login.',
+        'akun': akun,
+        'profil': profilData,
+      };
+    } on AuthException catch (e) {
+      String message = 'Gagal mendaftar';
+      if (e.message.contains('over_email_send_rate_limit')) {
+        message = 'Terlalu banyak percobaan. Tunggu beberapa saat lalu coba lagi.';
+      } else if (e.message.contains('User already registered')) {
+        message = 'Email sudah terdaftar. Silakan login.';
+      }
+      return {'success': false, 'message': message};
+    } catch (e) {
+      return {'success': false, 'message': 'Terjadi kesalahan: $e'};
+    }
+  }
+
   // ============================================================
   // LOGOUT
   // ============================================================
@@ -329,7 +394,7 @@ class AuthService {
         if (newName != null && newName.isNotEmpty) {
           if (role == 'pengguna') updateData['nama_tim'] = newName;
           if (role == 'admin') updateData['nama_lengkap'] = newName;
-          if (role == 'owner') updateData['nama_owner'] = newName;
+          if (role == 'owner') updateData['nama_lengkap'] = newName;
         }
         if (publicUrl != null) {
           updateData['foto_profil'] = publicUrl;
