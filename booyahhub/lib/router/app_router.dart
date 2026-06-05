@@ -11,6 +11,7 @@ import '../presentation/owner/manage_fee_screen.dart';
 import '../data/models/paket_premium_model.dart';
 import '../presentation/owner/owner_main_navigator.dart';
 import '../presentation/owner/admin_verification_page.dart';
+import '../presentation/owner/admin_payment_verification_page.dart';
 import '../presentation/owner/financial_report_page.dart';
 import '../presentation/owner/prize_approval_page.dart';
 import '../presentation/admin/admin_main_navigator.dart';
@@ -21,8 +22,6 @@ import '../presentation/admin/detail_scrim_page.dart';
 import '../presentation/admin/edit_scrim_page.dart';
 import '../presentation/admin/edit_profile_page.dart';
 import '../presentation/admin/scrim_sessions_page.dart';
-import '../presentation/admin/scrim_points_page.dart';
-import '../presentation/admin/scrim_leaderboard_page.dart';
 import '../presentation/admin/detail_session_page.dart';
 import '../presentation/admin/add_session_page.dart';
 import '../presentation/admin/edit_session_page.dart';
@@ -104,9 +103,12 @@ class AppRouter {
         },
       ),
       GoRoute(
-        path: '/owner/verifikasi-admin',
-        name: 'verifikasi_admin',
-        builder: (context, state) => const AdminVerificationPage(),
+        path: '/owner/verifikasi-pembayaran',
+        name: 'owner_verifikasi_pembayaran',
+        builder: (context, state) {
+          final admin = state.extra as Map<String, dynamic>;
+          return AdminPaymentVerificationPage(admin: admin);
+        },
       ),
       GoRoute(
         path: '/owner/manage-fee',
@@ -142,7 +144,6 @@ class AppRouter {
           child: AdminMainNavigator(),
         ),
       ),
-      // TAMBAHKAN ROUTE UNTUK LIST SCRIM (PENTING!)
       GoRoute(
         path: '/admin/scrim',
         name: 'admin_scrim',
@@ -282,9 +283,7 @@ class AppRouter {
       GoRoute(
         path: '/admin/bayar-tagihan',
         name: 'admin_bayar_tagihan',
-        builder: (context, state) => const AdminSuspensionGuard(
-          child: AdminBayarTagihanPage(),
-        ),
+        builder: (context, state) => const AdminBayarTagihanPage(),
       ),
 
       // ─── USER (PELANGGAN) ──────────────────────────────────────
@@ -354,14 +353,11 @@ class AppRouter {
         builder: (context, state) => const HistoryScrimPage(),
       ),
       GoRoute(
-      path: '/user/history-detail',
-      name: 'history_detail',
-      builder: (context, state) {
-        // 1. Ambil data ID pendaftaran dari extra yang dikirim
-        final idPendaftaran = int.tryParse(state.extra?.toString() ?? '0') ?? 0;
-        
-        // 2. Return halamannya dengan mengoper ID tersebut
-        return HistoryDetailScrimPage(idPendaftaran: idPendaftaran);
+        path: '/user/history-detail',
+        name: 'history_detail',
+        builder: (context, state) {
+          final idPendaftaran = int.tryParse(state.extra?.toString() ?? '0') ?? 0;
+          return HistoryDetailScrimPage(idPendaftaran: idPendaftaran);
         },
       ),
       GoRoute(
