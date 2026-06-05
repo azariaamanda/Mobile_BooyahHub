@@ -1,14 +1,11 @@
-// lib/presentation/admin/validate_payment_page.dart
-//
-// Layar "Daftar Peserta" — admin melihat & memfilter peserta scrim,
-// lalu masuk ke detail untuk memverifikasi pembayaran.
-
 import 'package:flutter/material.dart';
-
+import 'package:go_router/go_router.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../config/app_color.dart';
 import '../../config/app_constants.dart';
 import '../../config/app_text_styles.dart';
 import '../../data/models/peserta_verifikasi_model.dart';
+import '../../data/models/services/admin_utang_service.dart';
 import 'participant_detail_page.dart';
 
 class ValidatePaymentPage extends StatefulWidget {
@@ -40,12 +37,59 @@ class _ValidatePaymentPageState extends State<ValidatePaymentPage> {
     );
     // Detail mengembalikan peserta dengan status terbaru setelah aksi admin.
     if (updated != null && mounted) {
+      if (updated.status == StatusPeserta.dikonfirmasi && 
+          peserta.status != StatusPeserta.dikonfirmasi) {
+        await _tambahUtangAdmin(updated);
+      }
+      
       setState(() {
         final i = _peserta.indexWhere(
           (p) => p.idPendaftaran == updated.idPendaftaran,
         );
         if (i != -1) _peserta[i] = updated;
       });
+    }
+  }
+
+  Future<void> _tambahUtangAdmin(PesertaVerifikasi peserta) async {
+    try {
+      final supabase = Supabase.instance.client;
+      final adminUtangService = AdminUtangService();
+      final scrimData = await supabase
+          .from('scrim')
+          .select('id_admin')
+          .eq('id_scrim', peserta.idScrim)
+          .maybeSingle();
+      
+      if (scrimData == null) {
+        debugPrint('Scrim tidak ditemukan untuk id_scrim: ${peserta.idScrim}');
+        return;
+      }
+      
+      final int adminId = scrimData['id_admin'];
+      
+      // 2. Tambah utang admin (1 slot = 1 pendaftaran)
+      final result = await adminUtangService.tambahUtang(
+        adminId: adminId,
+        jumlahSlot: 1,
+      );
+      
+      if (!result['success']) {
+        debugPrint('Gagal tambah utang: ${result['message']}');
+      } else if (result['melebihi_limit'] == true) {
+        // Tampilkan notifikasi bahwa admin sudah melebihi limit
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(result['message']),
+              backgroundColor: Colors.orange,
+              duration: const Duration(seconds: 5),
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      debugPrint('Error tambah utang admin: $e');
     }
   }
 

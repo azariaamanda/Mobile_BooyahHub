@@ -2,10 +2,10 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../config/app_color.dart';
 import '../../config/app_constants.dart';
 import '../../config/app_text_styles.dart';
-import '../../data/models/services/auth_service.dart';
 
 class RegisterAdminPage extends StatefulWidget {
   const RegisterAdminPage({super.key});
@@ -16,7 +16,6 @@ class RegisterAdminPage extends StatefulWidget {
 
 class _RegisterAdminPageState extends State<RegisterAdminPage> {
   final _formKey = GlobalKey<FormState>();
-  final _authService = AuthService();
   final ImagePicker _picker = ImagePicker();
 
   // Controllers
@@ -25,9 +24,6 @@ class _RegisterAdminPageState extends State<RegisterAdminPage> {
   final _noHpController = TextEditingController();
   final _passwordController = TextEditingController();
   final _konfirmasiPasswordController = TextEditingController();
-  final _namaBankController = TextEditingController();
-  final _namaPemilikController = TextEditingController();
-  final _noRekeningController = TextEditingController();
 
   // State
   bool _obscurePassword = true;
@@ -36,41 +32,8 @@ class _RegisterAdminPageState extends State<RegisterAdminPage> {
   bool _setujuiSyarat = false;
 
   // File paths
-  String? _logoPath;
-  String? _ktpPath;
-
-  // Metode pembayaran
-  final List<String> _metodeTersedia = ['Bank Transfer', 'QRIS'];
-  final Set<String> _metodeSelected = {'Bank Transfer'};
-
-  String? _qrisPath;
-
-  // Tambahkan fungsi pick QRIS
-  Future<void> _pickQRIS() async {
-    final XFile? image = await _picker.pickImage(
-      source: ImageSource.gallery,
-      maxWidth: 500,
-      imageQuality: 80,
-    );
-    if (image != null) {
-      setState(() => _qrisPath = image.path);
-    }
-  }
-
-  // Bank dropdown
-  final List<String> _daftarBank = [
-    'BCA',
-    'BRI',
-    'BNI',
-    'Mandiri',
-    'CIMB Niaga',
-    'Danamon',
-    'Permata',
-    'BTN',
-    'BSI',
-    'Lainnya',
-  ];
-  String _selectedBank = 'BCA';
+  File? _logoFile;
+  File? _ktpFile;
 
   @override
   void dispose() {
@@ -79,10 +42,29 @@ class _RegisterAdminPageState extends State<RegisterAdminPage> {
     _noHpController.dispose();
     _passwordController.dispose();
     _konfirmasiPasswordController.dispose();
-    _namaBankController.dispose();
-    _namaPemilikController.dispose();
-    _noRekeningController.dispose();
     super.dispose();
+  }
+
+  // ============================================================
+  // UPLOAD FILE KE SUPABASE STORAGE
+  // ============================================================
+  Future<String?> _uploadFileToStorage(File file, String folder, String fileName) async {
+    try {
+      final supabase = Supabase.instance.client;
+      final path = '$folder/$fileName';
+      
+      await supabase.storage.from('foto_profil').upload(
+        path,
+        file,
+        fileOptions: const FileOptions(upsert: true),
+      );
+      
+      final publicUrl = supabase.storage.from('foto_profil').getPublicUrl(path);
+      return publicUrl;
+    } catch (e) {
+      debugPrint('Upload error: $e');
+      return null;
+    }
   }
 
   // ============================================================
@@ -96,7 +78,7 @@ class _RegisterAdminPageState extends State<RegisterAdminPage> {
     );
 
     if (image != null) {
-      setState(() => _logoPath = image.path);
+      setState(() => _logoFile = File(image.path));
     }
   }
 
@@ -108,7 +90,7 @@ class _RegisterAdminPageState extends State<RegisterAdminPage> {
     );
 
     if (image != null) {
-      setState(() => _ktpPath = image.path);
+      setState(() => _ktpFile = File(image.path));
     }
   }
 
@@ -118,7 +100,7 @@ class _RegisterAdminPageState extends State<RegisterAdminPage> {
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
 
-    if (_ktpPath == null) {
+    if (_ktpFile == null) {
       _showSnackBar('Foto KTP wajib diunggah', isError: true);
       return;
     }
@@ -130,46 +112,82 @@ class _RegisterAdminPageState extends State<RegisterAdminPage> {
 
     setState(() => _isLoading = true);
 
-    final result = await _authService.registerAdmin(
-      namaLengkap: _namaController.text.trim(),
-      email: _emailController.text.trim(),
-      noHandphone: _noHpController.text.trim(),
-      password: _passwordController.text,
-      fotoProfilPath: _logoPath,
-      fotoKtpPath: _ktpPath!,
-    );
-
-    setState(() => _isLoading = false);
-
-    if (!mounted) return;
-
-    if (result['success'] == true) {
-      _showSnackBar(result['message'] ?? 'Pendaftaran berhasil!');
-      await Future.delayed(const Duration(seconds: 1));
+    try {
+      final supabase = Supabase.instance.client;
+      
+      // 1. Register ke Supabase Auth
+      final authResponse = await supabase.auth.signUp(
+        email: _emailController.text.trim(),
+        password: _passwordController.text,
+      );
+      
+      if (authResponse.user == null) {
+        throw Exception('Gagal registrasi akun');
+      }
+      
+      // 2. Insert ke tabel akun
+      final akunResponse = await supabase
+          .from('akun')
+          .insert({
+            'email': _emailController.text.trim(),
+            'role': 'admin',
+            'status_akun': 'pending',
+          })
+          .select('id_akun')
+          .single();
+      
+      final int akunId = akunResponse['id_akun'];
+      
+      // 3. Upload foto profil (logo) ke Supabase Storage
+      String? fotoProfilUrl;
+      if (_logoFile != null) {
+        final timestamp = DateTime.now().millisecondsSinceEpoch;
+        final fileName = 'admin_${akunId}_logo_$timestamp.jpg';
+        fotoProfilUrl = await _uploadFileToStorage(_logoFile!, 'admin', fileName);
+      }
+      
+      // 4. Upload foto KTP ke Supabase Storage
+      final ktpTimestamp = DateTime.now().millisecondsSinceEpoch;
+      final ktpFileName = 'admin_${akunId}_ktp_$ktpTimestamp.jpg';
+      final fotoKtpUrl = await _uploadFileToStorage(_ktpFile!, 'admin', ktpFileName);
+      
+      if (fotoKtpUrl == null) {
+        throw Exception('Gagal upload foto KTP');
+      }
+      
+      // 5. Insert ke tabel profil_admin
+      await supabase.from('profil_admin').insert({
+        'akun_id': akunId,
+        'nama_lengkap': _namaController.text.trim(),
+        'no_handphone': _noHpController.text.trim(),
+        'foto_profil': fotoProfilUrl,
+        'foto_ktp': fotoKtpUrl,
+        'status_verifikasi_ktp': 'pending',
+      });
+      
+      _showSnackBar('Pendaftaran admin berhasil! Menunggu verifikasi owner.');
+      await Future.delayed(const Duration(seconds: 2));
       if (mounted) context.go('/login');
-    } else {
-      _showSnackBar(result['message'] ?? 'Terjadi kesalahan', isError: true);
+      
+    } catch (e) {
+      _showSnackBar('Gagal mendaftar: $e', isError: true);
+    } finally {
+      setState(() => _isLoading = false);
     }
   }
 
   void _showSnackBar(String message, {bool isError = false}) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(
-          message,
-          style: AppTextStyles.interBody.copyWith(color: Colors.white),
-        ),
+        content: Text(message),
         backgroundColor: isError ? AppColors.error : AppColors.success,
         behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppConstants.radiusM),
-        ),
       ),
     );
   }
 
   // ============================================================
-  // HELPERS UI
+  // UI HELPERS
   // ============================================================
   Widget _fieldLabel(String label) {
     return Padding(
@@ -189,13 +207,11 @@ class _RegisterAdminPageState extends State<RegisterAdminPage> {
   InputDecoration _inputDecoration({
     String? hint,
     Widget? suffixIcon,
-    Widget? prefixIcon,
   }) {
     return InputDecoration(
       hintText: hint,
       hintStyle: AppTextStyles.interHint,
       suffixIcon: suffixIcon,
-      prefixIcon: prefixIcon,
       filled: true,
       fillColor: AppColors.backgroundInput,
       border: OutlineInputBorder(
@@ -213,10 +229,6 @@ class _RegisterAdminPageState extends State<RegisterAdminPage> {
       errorBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(AppConstants.radiusM),
         borderSide: BorderSide(color: AppColors.error),
-      ),
-      focusedErrorBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(AppConstants.radiusM),
-        borderSide: BorderSide(color: AppColors.error, width: 1.5),
       ),
       contentPadding: const EdgeInsets.symmetric(
         horizontal: AppConstants.paddingM,
@@ -294,7 +306,6 @@ class _RegisterAdminPageState extends State<RegisterAdminPage> {
             children: [
               const SizedBox(height: AppConstants.paddingM),
 
-              // Judul
               Text(
                 'Pendaftaran\nPenyelenggara',
                 style: AppTextStyles.poppinsHeadline.copyWith(
@@ -304,7 +315,7 @@ class _RegisterAdminPageState extends State<RegisterAdminPage> {
               ),
               const SizedBox(height: 8),
               Text(
-                'Bergabunglah dengan ekosistem e-sports profesional terbesar. Mulai kelola turnamen dan clan Anda hari ini.',
+                'Bergabunglah dengan ekosistem e-sports profesional terbesar.',
                 style: AppTextStyles.interBody.copyWith(
                   color: AppColors.textSecondary,
                 ),
@@ -318,7 +329,7 @@ class _RegisterAdminPageState extends State<RegisterAdminPage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _fieldLabel('NAMA LENGKAP/KELOMPOK'),
+                    _fieldLabel('NAMA LENGKAP'),
                     TextFormField(
                       controller: _namaController,
                       style: AppTextStyles.interInput,
@@ -419,7 +430,7 @@ class _RegisterAdminPageState extends State<RegisterAdminPage> {
                     ),
                     const SizedBox(height: AppConstants.paddingM),
 
-                    // Upload Logo (FIXED)
+                    // Upload Logo
                     GestureDetector(
                       onTap: _pickLogo,
                       child: Container(
@@ -431,36 +442,52 @@ class _RegisterAdminPageState extends State<RegisterAdminPage> {
                             AppConstants.radiusM,
                           ),
                           border: Border.all(
-                            color: _logoPath != null
+                            color: _logoFile != null
                                 ? AppColors.primary
-                                : AppColors.primary.withOpacity(0.4),
+                                : AppColors.inputBorder,
                             width: 1.5,
                           ),
                         ),
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              _logoPath != null
-                                  ? Icons.check_circle_outline_rounded
-                                  : Icons.image_outlined,
-                              color: AppColors.primary,
-                              size: 28,
-                            ),
-                            const SizedBox(height: 6),
-                            Text(
-                              _logoPath != null
-                                  ? 'Logo diunggah'
-                                  : 'UPLOAD LOGO',
-                              style: AppTextStyles.interLabel.copyWith(
-                                color: AppColors.primary,
-                                fontSize: 11,
-                                fontWeight: FontWeight.w600,
-                                letterSpacing: 1,
+                        child: _logoFile != null
+                            ? ClipRRect(
+                                borderRadius: BorderRadius.circular(
+                                  AppConstants.radiusM,
+                                ),
+                                child: Image.file(
+                                  _logoFile!,
+                                  fit: BoxFit.cover,
+                                  width: double.infinity,
+                                  height: 100,
+                                ),
+                              )
+                            : Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(
+                                    Icons.cloud_upload_outlined,
+                                    color: AppColors.primary,
+                                    size: 28,
+                                  ),
+                                  const SizedBox(height: 6),
+                                  Text(
+                                    'UPLOAD LOGO',
+                                    style: AppTextStyles.interLabel.copyWith(
+                                      color: AppColors.primary,
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w600,
+                                      letterSpacing: 1,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    'Format: JPG, PNG (Max. 2MB)',
+                                    style: AppTextStyles.interCaption.copyWith(
+                                      color: AppColors.textHint,
+                                      fontSize: 10,
+                                    ),
+                                  ),
+                                ],
                               ),
-                            ),
-                          ],
-                        ),
                       ),
                     ),
                   ],
@@ -469,7 +496,7 @@ class _RegisterAdminPageState extends State<RegisterAdminPage> {
 
               const SizedBox(height: AppConstants.paddingM),
 
-              // Seksi 2: Verifikasi Identitas (FIXED)
+              // Seksi 2: Verifikasi Identitas
               _sectionCard(
                 title: 'Verifikasi Identitas',
                 icon: Icons.verified_user_outlined,
@@ -484,273 +511,76 @@ class _RegisterAdminPageState extends State<RegisterAdminPage> {
                       color: AppColors.backgroundInput,
                       borderRadius: BorderRadius.circular(AppConstants.radiusM),
                       border: Border.all(
-                        color: _ktpPath != null
+                        color: _ktpFile != null
                             ? AppColors.primary
                             : AppColors.inputBorder,
                         width: 1,
                       ),
                     ),
-                    child: Column(
-                      children: [
-                        Container(
-                          width: 56,
-                          height: 56,
-                          decoration: BoxDecoration(
-                            color: AppColors.primary.withOpacity(0.15),
-                            shape: BoxShape.circle,
-                          ),
-                          child: Icon(
-                            _ktpPath != null
-                                ? Icons.check_circle_rounded
-                                : Icons.insert_drive_file_outlined,
-                            color: AppColors.primary,
-                            size: 28,
-                          ),
-                        ),
-                        const SizedBox(height: AppConstants.paddingM),
-                        Text(
-                          _ktpPath != null
-                              ? 'Foto KTP diunggah'
-                              : 'Unggah Foto KTP',
-                          style: AppTextStyles.poppinsTitleSmall.copyWith(
-                            fontSize: 15,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          'Pastikan seluruh bagian KTP terlihat jelas\ndan tidak buram. Format: JPG, PNG (Max. 5MB)',
-                          textAlign: TextAlign.center,
-                          style: AppTextStyles.interCaption.copyWith(
-                            color: AppColors.textSecondary,
-                            height: 1.5,
-                          ),
-                        ),
-                        const SizedBox(height: AppConstants.paddingM),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: AppConstants.paddingL,
-                            vertical: 12,
-                          ),
-                          decoration: BoxDecoration(
-                            color: AppColors.primary,
+                    child: _ktpFile != null
+                        ? ClipRRect(
                             borderRadius: BorderRadius.circular(
                               AppConstants.radiusM,
                             ),
-                          ),
-                          child: Text(
-                            _ktpPath != null ? 'GANTI FILE' : 'PILIH FILE',
-                            style: AppTextStyles.poppinsButton.copyWith(
-                              fontSize: 13,
+                            child: Image.file(
+                              _ktpFile!,
+                              fit: BoxFit.cover,
+                              width: double.infinity,
+                              height: 200,
                             ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-
-              const SizedBox(height: AppConstants.paddingM),
-
-              // Seksi 3: Pengaturan Pembayaran
-              _sectionCard(
-                title: 'Pengaturan Pembayaran',
-                icon: Icons.account_balance_wallet_outlined,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _fieldLabel('METODE PEMBAYARAN YANG DITERIMA'),
-                    const SizedBox(height: 4),
-
-                    // Grid 2x2 metode pembayaran (BANK TRANSFER & QRIS)
-                    GridView.count(
-                      crossAxisCount: 2,
-                      crossAxisSpacing: 10,
-                      mainAxisSpacing: 10,
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      childAspectRatio: 3.2,
-                      children: _metodeTersedia.map((metode) {
-                        final selected = _metodeSelected.contains(metode);
-                        return GestureDetector(
-                          onTap: () {
-                            setState(() {
-                              if (selected) {
-                                _metodeSelected.remove(metode);
-                              } else {
-                                _metodeSelected.add(metode);
-                              }
-                            });
-                          },
-                          child: Container(
-                            decoration: BoxDecoration(
-                              color: AppColors.backgroundInput,
-                              borderRadius: BorderRadius.circular(
-                                AppConstants.radiusS,
-                              ),
-                              border: Border.all(
-                                color: selected
-                                    ? AppColors.primary
-                                    : AppColors.inputBorder,
-                                width: selected ? 1.5 : 1,
-                              ),
-                            ),
-                            padding: const EdgeInsets.symmetric(horizontal: 10),
-                            child: Row(
-                              children: [
-                                Container(
-                                  width: 18,
-                                  height: 18,
-                                  decoration: BoxDecoration(
-                                    shape: BoxShape.circle,
-                                    color: selected
-                                        ? AppColors.primary
-                                        : Colors.transparent,
-                                    border: Border.all(
-                                      color: selected
-                                          ? AppColors.primary
-                                          : AppColors.inputBorder,
-                                      width: 1.5,
-                                    ),
-                                  ),
-                                  child: selected
-                                      ? Icon(
-                                          Icons.check,
-                                          size: 11,
-                                          color: AppColors.background,
-                                        )
-                                      : null,
+                          )
+                        : Column(
+                            children: [
+                              Container(
+                                width: 56,
+                                height: 56,
+                                decoration: BoxDecoration(
+                                  color: AppColors.primary.withOpacity(0.15),
+                                  shape: BoxShape.circle,
                                 ),
-                                const SizedBox(width: 8),
-                                Flexible(
-                                  child: Text(
-                                    metode,
-                                    style: AppTextStyles.interBody.copyWith(
-                                      color: selected
-                                          ? AppColors.textPrimary
-                                          : AppColors.textSecondary,
-                                      fontSize: 13,
-                                      fontWeight: selected
-                                          ? FontWeight.w500
-                                          : FontWeight.w400,
-                                    ),
-                                  ),
+                                child: Icon(
+                                  Icons.insert_drive_file_outlined,
+                                  color: AppColors.primary,
+                                  size: 28,
                                 ),
-                              ],
-                            ),
-                          ),
-                        );
-                      }).toList(),
-                    ),
-
-                    const SizedBox(height: AppConstants.paddingM),
-
-                    // FORM BANK TRANSFER (hanya muncul jika Bank Transfer dipilih)
-                    if (_metodeSelected.contains('Bank Transfer')) ...[
-                      _fieldLabel('NAMA BANK'),
-                      DropdownButtonFormField<String>(
-                        initialValue: _selectedBank,
-                        dropdownColor: AppColors.backgroundCard,
-                        style: AppTextStyles.interInput,
-                        icon: Icon(
-                          Icons.keyboard_arrow_down_rounded,
-                          color: AppColors.textSecondary,
-                        ),
-                        decoration: _inputDecoration(),
-                        items: _daftarBank.map((bank) {
-                          return DropdownMenuItem(
-                            value: bank,
-                            child: Text(bank, style: AppTextStyles.interInput),
-                          );
-                        }).toList(),
-                        onChanged: (v) => setState(() => _selectedBank = v!),
-                      ),
-                      const SizedBox(height: AppConstants.paddingM),
-
-                      _fieldLabel('NAMA PEMILIK REKENING'),
-                      TextFormField(
-                        controller: _namaPemilikController,
-                        style: AppTextStyles.interInput,
-                        decoration: _inputDecoration(
-                          hint: 'Sesuai buku tabungan',
-                        ),
-                      ),
-                      const SizedBox(height: AppConstants.paddingM),
-
-                      _fieldLabel('NO. REKENING'),
-                      TextFormField(
-                        controller: _noRekeningController,
-                        style: AppTextStyles.interInput,
-                        keyboardType: TextInputType.number,
-                        decoration: _inputDecoration(hint: '0000000000'),
-                      ),
-                    ],
-
-                    // FORM QRIS (hanya muncul jika QRIS dipilih)
-                    if (_metodeSelected.contains('QRIS')) ...[
-                      _fieldLabel('UPLOAD QRIS'),
-                      GestureDetector(
-                        onTap: _pickQRIS,
-                        child: Container(
-                          width: double.infinity,
-                          height: 120,
-                          decoration: BoxDecoration(
-                            color: AppColors.backgroundInput,
-                            borderRadius: BorderRadius.circular(
-                              AppConstants.radiusM,
-                            ),
-                            border: Border.all(
-                              color: _qrisPath != null
-                                  ? AppColors.primary
-                                  : AppColors.inputBorder,
-                              width: _qrisPath != null ? 1.5 : 1,
-                            ),
-                          ),
-                          child: _qrisPath != null
-                              ? ClipRRect(
+                              ),
+                              const SizedBox(height: AppConstants.paddingM),
+                              Text(
+                                'Unggah Foto KTP',
+                                style: AppTextStyles.poppinsTitleSmall.copyWith(
+                                  fontSize: 15,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                'Pastikan seluruh bagian KTP terlihat jelas',
+                                textAlign: TextAlign.center,
+                                style: AppTextStyles.interCaption.copyWith(
+                                  color: AppColors.textSecondary,
+                                ),
+                              ),
+                              const SizedBox(height: AppConstants.paddingM),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: AppConstants.paddingL,
+                                  vertical: 12,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: AppColors.primary,
                                   borderRadius: BorderRadius.circular(
                                     AppConstants.radiusM,
                                   ),
-                                  child: Image.file(
-                                    File(_qrisPath!),
-                                    fit: BoxFit.cover,
-                                    width: double.infinity,
-                                    height: 120,
-                                  ),
-                                )
-                              : Column(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Icon(
-                                      Icons.qr_code_scanner,
-                                      size: 40,
-                                      color: AppColors.primary,
-                                    ),
-                                    const SizedBox(height: 8),
-                                    Text(
-                                      'UPLOAD QRIS',
-                                      style: AppTextStyles.interLabel.copyWith(
-                                        color: AppColors.primary,
-                                        fontSize: 11,
-                                        fontWeight: FontWeight.w600,
-                                        letterSpacing: 1,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      'Format: JPG, PNG (Max. 2MB)',
-                                      style: AppTextStyles.interCaption
-                                          .copyWith(
-                                            color: AppColors.textHint,
-                                            fontSize: 10,
-                                          ),
-                                    ),
-                                  ],
                                 ),
-                        ),
-                      ),
-                    ],
-                  ],
+                                child: Text(
+                                  'PILIH FILE',
+                                  style: AppTextStyles.poppinsButton.copyWith(
+                                    fontSize: 13,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                  ),
                 ),
               ),
 
@@ -792,7 +622,6 @@ class _RegisterAdminPageState extends State<RegisterAdminPage> {
                             text: 'Syarat & Ketentuan',
                             style: AppTextStyles.interLink.copyWith(
                               decoration: TextDecoration.underline,
-                              decorationColor: AppColors.primary,
                             ),
                           ),
                           const TextSpan(text: ' serta '),
@@ -800,7 +629,6 @@ class _RegisterAdminPageState extends State<RegisterAdminPage> {
                             text: 'Kebijakan Privasi',
                             style: AppTextStyles.interLink.copyWith(
                               decoration: TextDecoration.underline,
-                              decorationColor: AppColors.primary,
                             ),
                           ),
                           const TextSpan(
@@ -819,7 +647,7 @@ class _RegisterAdminPageState extends State<RegisterAdminPage> {
         ),
       ),
 
-      // Tombol Daftar (fixed bottom)
+      // Tombol Daftar
       bottomNavigationBar: Container(
         color: AppColors.background,
         padding: EdgeInsets.fromLTRB(
@@ -893,7 +721,6 @@ class _RegisterAdminPageState extends State<RegisterAdminPage> {
                       fontWeight: FontWeight.w700,
                       color: AppColors.primary,
                       decoration: TextDecoration.underline,
-                      decorationColor: AppColors.primary,
                     ),
                   ),
                 ),

@@ -3,6 +3,8 @@ import '../../config/app_color.dart';
 import '../../config/app_constants.dart';
 import '../../config/app_text_styles.dart';
 import 'owner_dashboard_screen.dart';
+import 'admin_verification_page.dart';
+import 'manage_banner_page.dart';
 import 'premium_management_screen.dart';
 import 'owner_profile_screen.dart';
 
@@ -18,8 +20,8 @@ class _OwnerMainNavigatorState extends State<OwnerMainNavigator> {
 
   final List<Widget> _pages = [
     const OwnerDashboardScreen(),
-    _buildPlaceholder('Halaman Admin'),
-    _buildPlaceholder('Halaman Banner'),
+    const AdminVerificationPage(),
+    const ManageBannerPage(),
     const PremiumManagementScreen(),
     const OwnerProfileScreen(),
   ];
@@ -44,7 +46,7 @@ class _OwnerMainNavigatorState extends State<OwnerMainNavigator> {
         index: _selectedIndex,
         children: _pages,
       ),
-      extendBody: true,
+      extendBody: false,
       bottomNavigationBar: SafeArea(
         child: Container(
           margin: const EdgeInsets.only(

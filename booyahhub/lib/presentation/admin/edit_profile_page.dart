@@ -1,10 +1,11 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../config/app_color.dart';
 import '../../config/app_constants.dart';
 import '../../config/app_text_styles.dart';
-import '../../config/app_image_helper.dart';
 
 class EditProfilePage extends StatefulWidget {
   const EditProfilePage({super.key});
@@ -15,9 +16,12 @@ class EditProfilePage extends StatefulWidget {
 
 class _EditProfilePageState extends State<EditProfilePage> {
   final _supabase = Supabase.instance.client;
+  final ImagePicker _picker = ImagePicker();
+  
   bool _isLoading = true;
   Map<String, dynamic>? _akun;
   Map<String, dynamic>? _profil;
+  File? _selectedFotoFile;
 
   final _namaController = TextEditingController();
   final _emailController = TextEditingController();
@@ -69,14 +73,57 @@ class _EditProfilePageState extends State<EditProfilePage> {
     }
   }
 
+  Future<String?> _uploadFotoProfil(File imageFile, int akunId) async {
+    try {
+      final timestamp = DateTime.now().millisecondsSinceEpoch;
+      final fileName = 'admin/${akunId}_avatar_$timestamp.jpg';
+      
+      await _supabase.storage.from('foto_profil').upload(
+        fileName,
+        imageFile,
+        fileOptions: const FileOptions(upsert: true),
+      );
+      
+      final publicUrl = _supabase.storage.from('foto_profil').getPublicUrl(fileName);
+      return publicUrl;
+    } catch (e) {
+      debugPrint('Upload error: $e');
+      return null;
+    }
+  }
+
+  Future<void> _pickFoto() async {
+    final XFile? image = await _picker.pickImage(
+      source: ImageSource.gallery,
+      maxWidth: 500,
+      imageQuality: 80,
+    );
+    if (image != null) {
+      setState(() => _selectedFotoFile = File(image.path));
+    }
+  }
+
   Future<void> _saveChanges() async {
     setState(() => _isLoading = true);
     try {
+      // Upload foto profil jika ada perubahan
+      if (_selectedFotoFile != null && _akun != null) {
+        final fotoUrl = await _uploadFotoProfil(_selectedFotoFile!, _akun!['id_akun']);
+        if (fotoUrl != null) {
+          await _supabase
+              .from('profil_admin')
+              .update({'foto_profil': fotoUrl})
+              .eq('akun_id', _akun!['id_akun']);
+        }
+      }
+      
+      // Update email di tabel akun
       await _supabase
           .from('akun')
           .update({'email': _emailController.text})
           .eq('id_akun', _akun!['id_akun']);
 
+      // Update profil admin
       await _supabase
           .from('profil_admin')
           .update({
@@ -105,31 +152,16 @@ class _EditProfilePageState extends State<EditProfilePage> {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        insetPadding: const EdgeInsets.symmetric(horizontal: 50, vertical: 100),
         backgroundColor: AppColors.backgroundCard,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        titlePadding: const EdgeInsets.only(top: 8, bottom: 0),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
-        actionsPadding: const EdgeInsets.only(bottom: 12),
         title: const Center(child: Text('Logout')),
         content: const Center(child: Text('Yakin ingin logout?')),
-        actionsAlignment: MainAxisAlignment.center,
         actions: [
           Row(
             mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
               OutlinedButton(
-                style: OutlinedButton.styleFrom(
-                  side: BorderSide(color: AppColors.divider),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 20,
-                    vertical: 6,
-                  ),
-                  minimumSize: const Size(90, 32),
-                ),
                 onPressed: () => Navigator.pop(ctx, false),
                 child: Text('Batal', style: AppTextStyles.interLabel),
               ),
@@ -137,22 +169,9 @@ class _EditProfilePageState extends State<EditProfilePage> {
               ElevatedButton(
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.error,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 20,
-                    vertical: 6,
-                  ),
-                  minimumSize: const Size(90, 32),
                 ),
                 onPressed: () => Navigator.pop(ctx, true),
-                child: Text(
-                  'Logout',
-                  style: AppTextStyles.poppinsButton.copyWith(
-                    color: Colors.white,
-                  ),
-                ),
+                child: Text('Logout', style: AppTextStyles.poppinsButton.copyWith(color: Colors.white)),
               ),
             ],
           ),
@@ -164,6 +183,11 @@ class _EditProfilePageState extends State<EditProfilePage> {
       await _supabase.auth.signOut();
       if (mounted) context.go('/login');
     }
+  }
+
+  bool _isValidImageUrl(String? url) {
+    if (url == null || url.isEmpty) return false;
+    return url.startsWith('http://') || url.startsWith('https://');
   }
 
   @override
@@ -179,15 +203,12 @@ class _EditProfilePageState extends State<EditProfilePage> {
 
     final namaLengkap = _profil?['nama_lengkap'] ?? 'Admin';
     final initial = namaLengkap.isNotEmpty ? namaLengkap[0].toUpperCase() : 'A';
-    final fotoUrl = AppImageHelper.fotoProfil(_profil?['foto_profil']);
+    final fotoUrl = _profil?['foto_profil'] ?? '';
 
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: Text(
-          'Profil',
-          style: AppTextStyles.poppinsTitle.copyWith(color: AppColors.primary),
-        ),
+        title: Text('Profil', style: AppTextStyles.poppinsTitle.copyWith(color: AppColors.primary)),
         backgroundColor: AppColors.background,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios, color: AppColors.primary),
@@ -198,36 +219,44 @@ class _EditProfilePageState extends State<EditProfilePage> {
         padding: const EdgeInsets.all(AppConstants.paddingM),
         child: Column(
           children: [
-            // Header Profile
+            // Header Profile dengan GestureDetector untuk ganti foto
             Center(
               child: Column(
                 children: [
-                  CircleAvatar(
-                    radius: 50,
-                    backgroundColor: AppColors.primary.withOpacity(0.2),
-                    child: fotoUrl.isNotEmpty
-                        ? ClipOval(
-                            child: Image.network(
-                              fotoUrl,
-                              width: 100,
-                              height: 100,
-                              fit: BoxFit.cover,
-                              errorBuilder: (_, _, _) => Text(
-                                initial,
-                                style: AppTextStyles.poppinsHeadline.copyWith(
-                                  fontSize: 36,
-                                  color: AppColors.primary,
-                                ),
-                              ),
-                            ),
-                          )
-                        : Text(
-                            initial,
-                            style: AppTextStyles.poppinsHeadline.copyWith(
-                              fontSize: 36,
+                  GestureDetector(
+                    onTap: _pickFoto,
+                    child: Stack(
+                      children: [
+                        CircleAvatar(
+                          radius: 55,
+                          backgroundColor: AppColors.primary.withOpacity(0.2),
+                          backgroundImage: _selectedFotoFile != null
+                              ? FileImage(_selectedFotoFile!)
+                              : (_isValidImageUrl(fotoUrl) ? NetworkImage(fotoUrl) : null),
+                          child: _selectedFotoFile == null && !_isValidImageUrl(fotoUrl)
+                              ? Text(
+                                  initial,
+                                  style: AppTextStyles.poppinsHeadline.copyWith(
+                                    fontSize: 40,
+                                    color: AppColors.primary,
+                                  ),
+                                )
+                              : null,
+                        ),
+                        Positioned(
+                          bottom: 0,
+                          right: 0,
+                          child: Container(
+                            padding: const EdgeInsets.all(4),
+                            decoration: BoxDecoration(
                               color: AppColors.primary,
+                              shape: BoxShape.circle,
                             ),
+                            child: const Icon(Icons.camera_alt, size: 18, color: Colors.black),
                           ),
+                        ),
+                      ],
+                    ),
                   ),
                   const SizedBox(height: 12),
                   Text(
@@ -236,10 +265,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
                   ),
                   const SizedBox(height: 4),
                   Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 4,
-                    ),
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                     decoration: BoxDecoration(
                       color: AppColors.primary.withOpacity(0.15),
                       borderRadius: BorderRadius.circular(20),
@@ -271,13 +297,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Full Name
-                  Text(
-                    'Full Name',
-                    style: AppTextStyles.interLabel.copyWith(
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
+                  Text('Full Name', style: AppTextStyles.interLabel.copyWith(color: AppColors.textSecondary)),
                   const SizedBox(height: 8),
                   TextFormField(
                     controller: _namaController,
@@ -290,21 +310,12 @@ class _EditProfilePageState extends State<EditProfilePage> {
                         borderRadius: BorderRadius.circular(12),
                         borderSide: BorderSide.none,
                       ),
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 14,
-                      ),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                     ),
                   ),
                   const SizedBox(height: 16),
 
-                  // Email Address
-                  Text(
-                    'Email Address',
-                    style: AppTextStyles.interLabel.copyWith(
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
+                  Text('Email Address', style: AppTextStyles.interLabel.copyWith(color: AppColors.textSecondary)),
                   const SizedBox(height: 8),
                   TextFormField(
                     controller: _emailController,
@@ -318,21 +329,12 @@ class _EditProfilePageState extends State<EditProfilePage> {
                         borderRadius: BorderRadius.circular(12),
                         borderSide: BorderSide.none,
                       ),
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 14,
-                      ),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                     ),
                   ),
                   const SizedBox(height: 16),
 
-                  // No Handphone
-                  Text(
-                    'No Handphone',
-                    style: AppTextStyles.interLabel.copyWith(
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
+                  Text('No Handphone', style: AppTextStyles.interLabel.copyWith(color: AppColors.textSecondary)),
                   const SizedBox(height: 8),
                   TextFormField(
                     controller: _noHpController,
@@ -346,16 +348,12 @@ class _EditProfilePageState extends State<EditProfilePage> {
                         borderRadius: BorderRadius.circular(12),
                         borderSide: BorderSide.none,
                       ),
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 14,
-                      ),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                     ),
                   ),
 
                   const SizedBox(height: 24),
 
-                  // Simpan Perubahan Button
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(
@@ -364,14 +362,9 @@ class _EditProfilePageState extends State<EditProfilePage> {
                         backgroundColor: AppColors.primary,
                         foregroundColor: Colors.black,
                         padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                       ),
-                      child: Text(
-                        'SIMPAN PERUBAHAN',
-                        style: AppTextStyles.poppinsButton,
-                      ),
+                      child: Text('SIMPAN PERUBAHAN', style: AppTextStyles.poppinsButton),
                     ),
                   ),
                 ],
@@ -392,13 +385,6 @@ class _EditProfilePageState extends State<EditProfilePage> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text('Ubah Password', style: AppTextStyles.poppinsTitleSmall),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Terakhir diubah 3 bulan lalu',
-                    style: AppTextStyles.interCaption.copyWith(
-                      color: AppColors.textHint,
-                    ),
-                  ),
                   const SizedBox(height: 16),
                   SizedBox(
                     width: double.infinity,
@@ -409,16 +395,9 @@ class _EditProfilePageState extends State<EditProfilePage> {
                       style: OutlinedButton.styleFrom(
                         side: BorderSide(color: AppColors.primary),
                         padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                       ),
-                      child: Text(
-                        'UBAH PASSWORD',
-                        style: AppTextStyles.poppinsButton.copyWith(
-                          color: AppColors.primary,
-                        ),
-                      ),
+                      child: Text('UBAH PASSWORD', style: AppTextStyles.poppinsButton.copyWith(color: AppColors.primary)),
                     ),
                   ),
                 ],
@@ -443,13 +422,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
                   child: Padding(
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     child: Center(
-                      child: Text(
-                        'Logout',
-                        style: AppTextStyles.poppinsButton.copyWith(
-                          color: AppColors.error,
-                          fontSize: 15,
-                        ),
-                      ),
+                      child: Text('Logout', style: AppTextStyles.poppinsButton.copyWith(color: AppColors.error, fontSize: 15)),
                     ),
                   ),
                 ),

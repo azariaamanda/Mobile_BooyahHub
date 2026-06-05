@@ -89,38 +89,25 @@
         final supabase = Supabase.instance.client;
         final pendaftaranId = widget.pendaftaranId;
         final timestamp = DateTime.now().millisecondsSinceEpoch;
-        final fileName = 'bukti_${pendaftaranId}_$timestamp.jpg';
-        
-        print('Uploading: $fileName'); // Debug
+        final filePath = 'user/bukti_${pendaftaranId}_$timestamp.jpg';
 
-        // Tentukan content type
-        String contentType = 'image/jpeg';
-        if (_buktiFile!.path.endsWith('.png')) {
-          contentType = 'image/png';
-        }
+        print('Uploading to: $filePath');
+
+        // 1. Upload file ke storage
         await supabase.storage
             .from('bukti_bayar')
-            .upload(
-              fileName,
-              _buktiFile!,
-              fileOptions: FileOptions(contentType: contentType),
-            );
+            .upload(filePath, _buktiFile!);
 
-        // Buat signed URL (karena bucket tidak public)
-        final signedUrl = await supabase.storage
-            .from('bukti_bayar')
-            .createSignedUrl(fileName, 3600);
-
-        // Update database dengan signed URL
+        // 2. Simpan PATH ke database (bukan URL)
         await supabase
             .from('pendaftaran_tim')
             .update({
-              'bukti_pembayaran': signedUrl,
+              'bukti_pembayaran': filePath,
               'status_pembayaran': 'menunggu',
             })
             .eq('id_pendaftaran', pendaftaranId);
 
-        print('Upload success: $signedUrl');
+        print('Upload success! Path saved: $filePath');
 
         if (!mounted) return;
         

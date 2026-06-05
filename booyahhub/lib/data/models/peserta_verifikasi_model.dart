@@ -1,16 +1,6 @@
-// lib/data/models/peserta_verifikasi_model.dart
-//
-// View-model ringan untuk layar "Daftar Peserta" & "Detail Peserta".
-// Dipakai di alur admin (verifikasi pembayaran).
-//
-// Kalau nanti sudah disambungkan ke Supabase, mapping bisa diambil dari
-// tabel `pendaftaran_tim` (lihat PendaftaranTim di pendaftaran_model.dart).
-
-/// Status pembayaran peserta.
 enum StatusPeserta { menunggu, dikonfirmasi, ditolak }
 
 extension StatusPesertaX on StatusPeserta {
-  /// Label yang tampil di badge ("MENUNGGU", "DIKONFIRMASI", "DITOLAK").
   String get label {
     switch (this) {
       case StatusPeserta.menunggu:
@@ -22,7 +12,6 @@ extension StatusPesertaX on StatusPeserta {
     }
   }
 
-  /// Dipakai untuk filter tab di Daftar Peserta.
   String get tab {
     switch (this) {
       case StatusPeserta.menunggu:
@@ -48,18 +37,15 @@ extension StatusPesertaX on StatusPeserta {
 
 class PesertaVerifikasi {
   final int idPendaftaran;
+  final int idScrim;
   final String namaTim;
   final String namaKapten;
   final String whatsappKapten;
   final StatusPeserta status;
-
-  // Informasi booking
   final String namaScrim;
   final String slotId;
   final String tanggal;
   final String waktu;
-
-  // Detail transaksi
   final int nominal;
   final String bankPengirim;
   final String namaPengirim;
@@ -67,6 +53,7 @@ class PesertaVerifikasi {
 
   const PesertaVerifikasi({
     required this.idPendaftaran,
+    required this.idScrim,
     required this.namaTim,
     required this.namaKapten,
     required this.whatsappKapten,
@@ -84,6 +71,7 @@ class PesertaVerifikasi {
   factory PesertaVerifikasi.fromJson(Map<String, dynamic> json) {
     return PesertaVerifikasi(
       idPendaftaran: json['id_pendaftaran'] ?? 0,
+      idScrim: json['id_scrim'] ?? 0,
       namaTim: json['nama_tim'] ?? '-',
       namaKapten: json['nama_kapten'] ?? '-',
       whatsappKapten: json['whatsapp_kapten'] ?? '-',
@@ -99,10 +87,10 @@ class PesertaVerifikasi {
     );
   }
 
-  /// Salinan dengan status baru (dipakai saat admin konfirmasi/tolak).
   PesertaVerifikasi copyWith({StatusPeserta? status}) {
     return PesertaVerifikasi(
       idPendaftaran: idPendaftaran,
+      idScrim: idScrim,
       namaTim: namaTim,
       namaKapten: namaKapten,
       whatsappKapten: whatsappKapten,
@@ -118,7 +106,6 @@ class PesertaVerifikasi {
     );
   }
 
-  /// Format nominal jadi "Rp 50.000".
   String get nominalFormatted {
     final str = nominal.toString();
     final buffer = StringBuffer();
@@ -130,11 +117,10 @@ class PesertaVerifikasi {
   }
 }
 
-/// Data dummy supaya layar bisa langsung dijalankan tanpa backend.
-/// Hapus / ganti dengan query Supabase saat integrasi.
 const List<PesertaVerifikasi> mockPesertaList = [
   PesertaVerifikasi(
     idPendaftaran: 1,
+    idScrim: 1,
     namaTim: 'EVOS Divine',
     namaKapten: 'Sam13',
     whatsappKapten: '+62 812-1111-2222',
@@ -149,6 +135,7 @@ const List<PesertaVerifikasi> mockPesertaList = [
   ),
   PesertaVerifikasi(
     idPendaftaran: 2,
+    idScrim: 1,
     namaTim: 'RRQ Kazu',
     namaKapten: 'Legaeloth',
     whatsappKapten: '+62 812-3456-7890',
@@ -163,6 +150,7 @@ const List<PesertaVerifikasi> mockPesertaList = [
   ),
   PesertaVerifikasi(
     idPendaftaran: 3,
+    idScrim: 1,
     namaTim: 'Genesis Dogma',
     namaKapten: 'NiciL.',
     whatsappKapten: '+62 813-9999-0000',

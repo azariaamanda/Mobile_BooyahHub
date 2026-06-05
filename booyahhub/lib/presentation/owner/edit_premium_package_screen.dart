@@ -20,20 +20,27 @@ class _EditPremiumPackageScreenState extends State<EditPremiumPackageScreen> {
 
   bool _isLoading = false;
   
-  // Form controllers
   final _namaController = TextEditingController();
   final _hargaController = TextEditingController();
   final _durasiController = TextEditingController();
 
-  // State variables
-  // State variables
   String _selectedTier = 'PRO LEVEL';
   bool _isAktif = true;
-
-  // Features state
-  // Using dynamic loading from Supabase RPC
   Map<String, bool> _featuresState = {};
-  bool _isLoadingFeatures = true;
+
+  // Daftar fitur default (tanpa RPC)
+  final List<String> _defaultFeatures = [
+    'Akses Scrim Unlimited',
+    'Pembuatan Scrim Sendiri',
+    'Prioritas Support 24/7',
+    'Dashboard Analitik',
+    'Custom Branding',
+    'Export Data Keuangan',
+    'API Access',
+    'No Iklan',
+    'Statistik Lengkap',
+    'Multi Tim Management',
+  ];
 
   @override
   void initState() {
@@ -41,7 +48,7 @@ class _EditPremiumPackageScreenState extends State<EditPremiumPackageScreen> {
     _initializeData();
   }
 
-  Future<void> _initializeData() async {
+  void _initializeData() {
     if (widget.package != null) {
       final pkg = widget.package!;
       _namaController.text = pkg.namaPaket;
@@ -53,34 +60,16 @@ class _EditPremiumPackageScreenState extends State<EditPremiumPackageScreen> {
       _durasiController.text = '30';
     }
 
-    // Fetch dynamic enum values
-    try {
-      final response = await _supabase.rpc('get_fitur_paket_enum');
-      if (response != null && response is List) {
-        final Map<String, bool> fetchedFeatures = {};
-        for (var feature in response) {
-          final featureStr = feature.toString();
-          // Check if this feature is already selected in the existing package
-          bool isSelected = false;
-          if (widget.package != null && widget.package!.fiturPaket != null) {
-            isSelected = widget.package!.fiturPaket!.contains(featureStr);
-          }
-          fetchedFeatures[featureStr] = isSelected;
-        }
-        
-        if (mounted) {
-          setState(() {
-            _featuresState = fetchedFeatures;
-            _isLoadingFeatures = false;
-          });
-        }
+    // Load features statis
+    final Map<String, bool> fetchedFeatures = {};
+    for (var feature in _defaultFeatures) {
+      bool isSelected = false;
+      if (widget.package != null && widget.package!.fiturPaket != null) {
+        isSelected = widget.package!.fiturPaket!.contains(feature);
       }
-    } catch (e) {
-      debugPrint('Error fetching enum features: $e');
-      if (mounted) {
-        setState(() => _isLoadingFeatures = false);
-      }
+      fetchedFeatures[feature] = isSelected;
     }
+    _featuresState = fetchedFeatures;
   }
 
   @override
@@ -97,12 +86,9 @@ class _EditPremiumPackageScreenState extends State<EditPremiumPackageScreen> {
     setState(() => _isLoading = true);
 
     try {
-      // Gather selected features into an array of strings (using the Enum values)
-      List<String> selectedFeatures = [];
+      final List<String> selectedFeatures = [];
       _featuresState.forEach((key, isChecked) {
-        if (isChecked) {
-          selectedFeatures.add(key);
-        }
+        if (isChecked) selectedFeatures.add(key);
       });
 
       final payload = {
@@ -115,7 +101,6 @@ class _EditPremiumPackageScreenState extends State<EditPremiumPackageScreen> {
       };
 
       if (widget.package == null) {
-        // Create new
         await _supabase.from('paket_premium').insert(payload);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -123,21 +108,23 @@ class _EditPremiumPackageScreenState extends State<EditPremiumPackageScreen> {
           );
         }
       } else {
-        // Update existing
+      final id = widget.package!.idLangganan;
+      if (id != null) {
         await _supabase
             .from('paket_premium')
             .update(payload)
-            .eq('id_langganan', widget.package!.idLangganan);
+            .eq('id_langganan', id);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Paket berhasil diperbarui!')),
           );
         }
+      } else {
+        throw Exception('ID paket tidak valid');
       }
+    }
 
-      if (mounted) {
-        context.pop(); // Go back
-      }
+      if (mounted) context.pop();
     } catch (e) {
       debugPrint('Error saving package: $e');
       if (mounted) {
@@ -146,9 +133,7 @@ class _EditPremiumPackageScreenState extends State<EditPremiumPackageScreen> {
         );
       }
     } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -235,17 +220,14 @@ class _EditPremiumPackageScreenState extends State<EditPremiumPackageScreen> {
       decoration: BoxDecoration(
         color: const Color(0xFF2A191B),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.redAccent.withValues(alpha: 0.1)),
+        border: Border.all(color: Colors.redAccent.withOpacity(0.1)),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
             padding: const EdgeInsets.all(4),
-            decoration: const BoxDecoration(
-              color: Color(0xFF8B4747),
-              shape: BoxShape.circle,
-            ),
+            decoration: const BoxDecoration(color: Color(0xFF8B4747), shape: BoxShape.circle),
             child: const Icon(Icons.priority_high_rounded, color: Color(0xFF2A191B), size: 16),
           ),
           const SizedBox(width: 12),
@@ -264,10 +246,7 @@ class _EditPremiumPackageScreenState extends State<EditPremiumPackageScreen> {
                 const SizedBox(height: 4),
                 Text(
                   'Mohon lengkapi semua field yang diperlukan sebelum menyimpan perubahan',
-                  style: AppTextStyles.interCaption.copyWith(
-                    color: Colors.white70,
-                    fontSize: 11,
-                  ),
+                  style: AppTextStyles.interCaption.copyWith(color: Colors.white70, fontSize: 11),
                 ),
               ],
             ),
@@ -301,23 +280,17 @@ class _EditPremiumPackageScreenState extends State<EditPremiumPackageScreen> {
       controller: controller,
       keyboardType: keyboardType,
       validator: validator,
-      style: AppTextStyles.interBody.copyWith(
-        color: Colors.white,
-        fontSize: 14,
-      ),
+      style: AppTextStyles.interBody.copyWith(color: Colors.white, fontSize: 14),
       decoration: InputDecoration(
         hintText: hint,
         hintStyle: AppTextStyles.interBody.copyWith(color: Colors.white24),
         filled: true,
         fillColor: const Color(0xFF131F2D),
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-          borderSide: BorderSide.none,
-        ),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide.none),
         errorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
-          borderSide: BorderSide(color: Colors.redAccent.withValues(alpha: 0.5)),
+          borderSide: BorderSide(color: Colors.redAccent.withOpacity(0.5)),
         ),
       ),
     );
@@ -338,9 +311,7 @@ class _EditPremiumPackageScreenState extends State<EditPremiumPackageScreen> {
           icon: const Icon(Icons.keyboard_arrow_down_rounded, color: Color(0xFFFFD700)),
           style: AppTextStyles.interBody.copyWith(color: Colors.white, fontSize: 14),
           onChanged: (String? newValue) {
-            if (newValue != null) {
-              setState(() => _selectedTier = newValue);
-            }
+            if (newValue != null) setState(() => _selectedTier = newValue);
           },
           items: <String>['PRO LEVEL', 'TEAM SCALE', 'ENTRY LEVEL', 'UMUM']
               .map<DropdownMenuItem<String>>((String value) {
@@ -381,8 +352,6 @@ class _EditPremiumPackageScreenState extends State<EditPremiumPackageScreen> {
                 ),
               ),
             ),
-            if (isChecked)
-              const Icon(Icons.check_rounded, color: Color(0xFFFFD700), size: 18),
           ],
         ),
       ),
@@ -394,10 +363,7 @@ class _EditPremiumPackageScreenState extends State<EditPremiumPackageScreen> {
       controller: _hargaController,
       keyboardType: TextInputType.number,
       validator: (val) => val == null || val.isEmpty ? 'Harga tidak boleh kosong' : null,
-      style: AppTextStyles.interBody.copyWith(
-        color: Colors.white,
-        fontSize: 16,
-      ),
+      style: AppTextStyles.interBody.copyWith(color: Colors.white, fontSize: 16),
       decoration: InputDecoration(
         prefixIcon: Padding(
           padding: const EdgeInsets.only(left: 16.0, right: 12.0),
@@ -429,11 +395,7 @@ class _EditPremiumPackageScreenState extends State<EditPremiumPackageScreen> {
                 ),
                 child: Text(
                   'PER PERIODE',
-                  style: AppTextStyles.interCaption.copyWith(
-                    color: Colors.white54,
-                    fontSize: 9,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: AppTextStyles.interCaption.copyWith(color: Colors.white54, fontSize: 9, fontWeight: FontWeight.bold),
                 ),
               ),
             ],
@@ -443,13 +405,10 @@ class _EditPremiumPackageScreenState extends State<EditPremiumPackageScreen> {
         filled: true,
         fillColor: const Color(0xFF131F2D),
         contentPadding: const EdgeInsets.symmetric(vertical: 16),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-          borderSide: BorderSide.none,
-        ),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide.none),
         errorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
-          borderSide: BorderSide(color: Colors.redAccent.withValues(alpha: 0.5)),
+          borderSide: BorderSide(color: Colors.redAccent.withOpacity(0.5)),
         ),
       ),
     );
@@ -470,17 +429,13 @@ class _EditPremiumPackageScreenState extends State<EditPremiumPackageScreen> {
               children: [
                 Text(
                   'Status Paket',
-                  style: AppTextStyles.interBody.copyWith(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 13,
-                  ),
+                  style: AppTextStyles.interBody.copyWith(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   'tentukan visibilitas paket di beranda',
                   style: AppTextStyles.interCaption.copyWith(
-                    color: const Color(0xFFFFD700).withValues(alpha: 0.7),
+                    color: const Color(0xFFFFD700).withOpacity(0.7),
                     fontSize: 10,
                   ),
                 ),
@@ -537,19 +492,13 @@ class _EditPremiumPackageScreenState extends State<EditPremiumPackageScreen> {
             elevation: 0,
             minimumSize: const Size(double.infinity, 50),
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-            disabledBackgroundColor: const Color(0xFFFFD700).withValues(alpha: 0.5),
+            disabledBackgroundColor: const Color(0xFFFFD700).withOpacity(0.5),
           ),
           child: _isLoading 
-            ? const SizedBox(
-                width: 20, height: 20,
-                child: CircularProgressIndicator(color: Colors.black, strokeWidth: 2),
-              )
+            ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.black, strokeWidth: 2))
             : Text(
               widget.package == null ? 'TAMBAH PAKET' : 'SIMPAN PAKET',
-              style: AppTextStyles.poppinsTitleSmall.copyWith(
-                fontWeight: FontWeight.bold,
-                fontSize: 14,
-              ),
+              style: AppTextStyles.poppinsTitleSmall.copyWith(fontWeight: FontWeight.bold, fontSize: 14),
             ),
         ),
         const SizedBox(height: 16),
@@ -564,10 +513,7 @@ class _EditPremiumPackageScreenState extends State<EditPremiumPackageScreen> {
           ),
           child: Text(
             'BATAL',
-            style: AppTextStyles.poppinsTitleSmall.copyWith(
-              fontWeight: FontWeight.bold,
-              fontSize: 14,
-            ),
+            style: AppTextStyles.poppinsTitleSmall.copyWith(fontWeight: FontWeight.bold, fontSize: 14),
           ),
         ),
       ],
