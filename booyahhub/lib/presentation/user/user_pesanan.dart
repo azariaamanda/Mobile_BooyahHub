@@ -109,7 +109,6 @@ class _UserPesananPageState extends State<UserPesananPage> {
               status_klaim,
               diajukan_pada,
               disetujui_admin_pada,
-              diteruskan_owner_pada,
               dibayar_pada,
               jumlah_klaim
             )
@@ -427,8 +426,7 @@ class _UserPesananPageState extends State<UserPesananPage> {
     
     final List<Map<String, dynamic>> timelineSteps = [
       {'label': 'Klaim Diajukan', 'date': klaim?['diajukan_pada'], 'status': statusKlaim != 'belum_diajukan'},
-      {'label': 'Diverifikasi Admin', 'date': klaim?['disetujui_admin_pada'], 'status': statusKlaim == 'disetujui_admin' || statusKlaim == 'diteruskan_owner' || statusKlaim == 'dibayar'},
-      {'label': 'Diteruskan Owner', 'date': klaim?['diteruskan_owner_pada'], 'status': statusKlaim == 'diteruskan_owner' || statusKlaim == 'dibayar'},
+      {'label': 'Diverifikasi Admin', 'date': klaim?['disetujui_admin_pada'], 'status': statusKlaim == 'disetujui_admin' || statusKlaim == 'dibayar'},
       {'label': 'Pembayaran Diproses', 'date': klaim?['dibayar_pada'], 'status': statusKlaim == 'dibayar'},
     ];
 
