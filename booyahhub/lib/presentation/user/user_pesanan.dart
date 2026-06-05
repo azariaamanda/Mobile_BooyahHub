@@ -211,30 +211,14 @@ class _UserPesananPageState extends State<UserPesananPage> {
     );
   }
 
-  // ─── FUNGSI UNTUK MENDAPATKAN SIGNED URL BUKTI PEMBAYARAN ───
-  Future<String?> _getSignedBuktiUrl(String? path) async {
+  Future<String?> _getSignedUrl(String path) async {
     if (path == null || path.isEmpty) return null;
-    
     try {
-      if (path.startsWith('http') && path.contains('token=')) return path;
-      
-      String fileName = path;
-      if (path.startsWith('http')) {
-        final uri = Uri.parse(path);
-        fileName = uri.pathSegments.last;
-      } else if (path.contains('/')) {
-        fileName = path.split('/').last;
-      }
-      
-      final fullPath = 'bukti_pembayaran/$fileName';
-      
       final signedUrl = await _supabase.storage
           .from('bukti_bayar')
-          .createSignedUrl(fullPath, 3600);
-      
+          .createSignedUrl(path, 3600);
       return signedUrl;
     } catch (e) {
-      debugPrint('Error creating signed URL: $e');
       return null;
     }
   }
@@ -343,7 +327,7 @@ class _UserPesananPageState extends State<UserPesananPage> {
                 Text('Bukti Pembayaran:', style: AppTextStyles.interBodyMedium),
                 const SizedBox(height: 8),
                 FutureBuilder<String?>(
-                  future: _getSignedBuktiUrl(buktiPembayaran),
+                  future: _getSignedUrl(buktiPembayaran),
                   builder: (context, snapshot) {
                     if (snapshot.connectionState == ConnectionState.waiting) {
                       return Container(height: 180, color: AppColors.surface, child: const Center(child: CircularProgressIndicator(color: AppColors.primary)));
