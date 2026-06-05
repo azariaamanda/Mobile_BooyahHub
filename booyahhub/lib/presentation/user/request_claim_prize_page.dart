@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../config/app_color.dart';
 import '../../config/app_text_styles.dart';
 
@@ -6,12 +7,14 @@ class RequestClaimPrizePage extends StatefulWidget {
   final String title;
   final String rank;
   final String totalPrize;
+  final int? pendaftaranId; // ID Pendaftaran Tim
 
   const RequestClaimPrizePage({
     super.key,
     required this.title,
     required this.rank,
     required this.totalPrize,
+    this.pendaftaranId,
   });
 
   @override
@@ -19,7 +22,36 @@ class RequestClaimPrizePage extends StatefulWidget {
 }
 
 class _RequestClaimPrizePageState extends State<RequestClaimPrizePage> {
+  final _formKey = GlobalKey<FormState>();
+  final _bankController = TextEditingController();
+  final _rekeningController = TextEditingController();
+  final _namaPemilikController = TextEditingController();
+  final _ewalletController = TextEditingController();
+  final _noHpController = TextEditingController();
+  
   bool _isBankSelected = true;
+  bool _isLoading = false;
+
+  final List<String> _bankOptions = [
+    'BCA',
+    'BNI',
+    'BRI',
+    'Mandiri',
+    'BSI',
+    'DANA',
+    'OVO',
+    'GoPay',
+    'ShopeePay'
+  ];
+  String? _selectedBank;
+
+  @override
+  void dispose() {
+    _rekeningController.dispose();
+    _namaPemilikController.dispose();
+    _noHpController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -189,13 +221,13 @@ class _RequestClaimPrizePageState extends State<RequestClaimPrizePage> {
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
                               Icon(
-                                Icons.account_balance_wallet,
+                                Icons.qr_code_2,
                                 color: !_isBankSelected ? AppColors.primary : AppColors.textHint,
                                 size: 18,
                               ),
                               const SizedBox(width: 8),
                               Text(
-                                'E - Wallet',
+                                'QRIS',
                                 style: AppTextStyles.interBodyMedium.copyWith(
                                   color: !_isBankSelected ? AppColors.white : AppColors.textHint,
                                 ),
@@ -212,36 +244,85 @@ class _RequestClaimPrizePageState extends State<RequestClaimPrizePage> {
               const SizedBox(height: 24),
               
               // Form Fields
-              if (_isBankSelected) ...[
-                _buildInputField(
-                  label: 'Pilih Bank',
-                  hint: 'BCA - Bank Central Asia',
-                  isDropdown: true,
+              Form(
+                key: _formKey,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (_isBankSelected) ...[
+                      // Dropdown Pilih Bank
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Pilih Bank / E-Wallet',
+                            style: AppTextStyles.interLabel.copyWith(color: AppColors.primary),
+                          ),
+                          const SizedBox(height: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: AppColors.backgroundInput,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: DropdownButtonHideUnderline(
+                              child: DropdownButtonFormField<String>(
+                                value: _selectedBank,
+                                hint: Text(
+                                  'BCA / BNI / DANA / OVO...',
+                                  style: AppTextStyles.interHint.copyWith(color: AppColors.textHint),
+                                ),
+                                dropdownColor: AppColors.backgroundCard,
+                                icon: const Icon(Icons.keyboard_arrow_down, color: AppColors.textHint),
+                                decoration: const InputDecoration(border: InputBorder.none),
+                                style: AppTextStyles.interInput,
+                                items: _bankOptions.map((String bank) {
+                                  return DropdownMenuItem<String>(
+                                    value: bank,
+                                    child: Text(bank),
+                                  );
+                                }).toList(),
+                                onChanged: (String? newValue) {
+                                  setState(() {
+                                    _selectedBank = newValue;
+                                  });
+                                },
+                                validator: (value) => value == null ? 'Wajib dipilih' : null,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      _buildInputField(
+                        controller: _rekeningController,
+                        label: 'Nomor Rekening',
+                        hint: '80003289843298',
+                        keyboardType: TextInputType.number,
+                      ),
+                      const SizedBox(height: 16),
+                      _buildInputField(
+                        controller: _namaPemilikController,
+                        label: 'Nama Pemilik Rekening',
+                        hint: 'Nama Sesuai di Buku Tabungan',
+                      ),
+                    ] else ...[
+                      _buildInputField(
+                        controller: _noHpController,
+                        label: 'Nomor Handphone Terdaftar',
+                        hint: '081234567890',
+                        keyboardType: TextInputType.phone,
+                      ),
+                      const SizedBox(height: 16),
+                      _buildInputField(
+                        controller: _namaPemilikController,
+                        label: 'Nama Pemilik QRIS',
+                        hint: 'Nama Merchant QRIS / Pemilik',
+                      ),
+                    ],
+                  ],
                 ),
-                const SizedBox(height: 16),
-                _buildInputField(
-                  label: 'Nomor Rekening',
-                  hint: '80003289843298',
-                  hasCheck: true,
-                ),
-                const SizedBox(height: 16),
-                _buildInputField(
-                  label: 'Nama Pemilik Rekening',
-                  hint: 'Nama Sesuai di Buku Tabungan',
-                ),
-              ] else ...[
-                _buildInputField(
-                  label: 'Pilih E-Wallet',
-                  hint: 'OVO / GoPay / DANA',
-                  isDropdown: true,
-                ),
-                const SizedBox(height: 16),
-                _buildInputField(
-                  label: 'Nomor HP',
-                  hint: '081234567890',
-                  hasCheck: true,
-                ),
-              ],
+              ),
               
               const SizedBox(height: 40),
               
@@ -290,9 +371,7 @@ class _RequestClaimPrizePageState extends State<RequestClaimPrizePage> {
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
-                  onPressed: () {
-                    // TODO: Handle submission
-                  },
+                  onPressed: _isLoading ? null : _submitClaim,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primary,
                     padding: const EdgeInsets.symmetric(vertical: 16),
@@ -300,13 +379,18 @@ class _RequestClaimPrizePageState extends State<RequestClaimPrizePage> {
                       borderRadius: BorderRadius.circular(12),
                     ),
                   ),
-                  child: Text(
-                    'Kirim Pengajuan',
-                    style: AppTextStyles.poppinsButton.copyWith(
-                      color: AppColors.black,
-                      fontSize: 18,
-                    ),
-                  ),
+                  child: _isLoading 
+                    ? const SizedBox(
+                        height: 20, width: 20,
+                        child: CircularProgressIndicator(color: AppColors.black, strokeWidth: 2),
+                      )
+                    : Text(
+                        'Kirim Pengajuan',
+                        style: AppTextStyles.poppinsButton.copyWith(
+                          color: AppColors.black,
+                          fontSize: 18,
+                        ),
+                      ),
                 ),
               ),
               
@@ -318,11 +402,52 @@ class _RequestClaimPrizePageState extends State<RequestClaimPrizePage> {
     );
   }
 
+  Future<void> _submitClaim() async {
+    if (!_formKey.currentState!.validate()) return;
+    if (widget.pendaftaranId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Error: ID Pendaftaran tidak ditemukan'), backgroundColor: AppColors.error),
+      );
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
+    try {
+      // Membersihkan format Rp
+      final double totalPrizeValue = double.tryParse(widget.totalPrize.replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
+
+      await Supabase.instance.client.from('klaim_hadiah').insert({
+        'id_pendaftaran': widget.pendaftaranId,
+        'jumlah_klaim': totalPrizeValue,
+        'status_klaim': 'diajukan',
+        'metode_klaim': _isBankSelected ? 'bank_transfer' : 'qris',
+        'nama_bank': _isBankSelected ? _selectedBank : null,
+        'nomor_rekening': _isBankSelected ? _rekeningController.text : _noHpController.text,
+        'nama_pemilik_rekening': _namaPemilikController.text,
+      });
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Klaim berhasil diajukan!'), backgroundColor: AppColors.success),
+      );
+      Navigator.of(context).pop(); // Tutup page Request
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Gagal mengajukan klaim: $e'), backgroundColor: AppColors.error),
+      );
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
   Widget _buildInputField({
+    required TextEditingController controller,
     required String label,
     required String hint,
+    TextInputType keyboardType = TextInputType.text,
     bool isDropdown = false,
-    bool hasCheck = false,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -339,17 +464,25 @@ class _RequestClaimPrizePageState extends State<RequestClaimPrizePage> {
             borderRadius: BorderRadius.circular(12),
           ),
           child: TextFormField(
-            enabled: !isDropdown,
+            controller: controller,
+            enabled: !isDropdown, // Asumsi sederhana
+            keyboardType: keyboardType,
             style: AppTextStyles.interInput,
+            validator: (value) {
+              if (!isDropdown && (value == null || value.trim().isEmpty)) {
+                return 'Wajib diisi';
+              }
+              return null;
+            },
             decoration: InputDecoration(
               hintText: hint,
               hintStyle: AppTextStyles.interHint.copyWith(
-                color: isDropdown || hasCheck ? AppColors.white : AppColors.textHint,
+                color: isDropdown ? AppColors.white : AppColors.textHint,
               ),
               border: InputBorder.none,
               suffixIcon: isDropdown
                   ? const Icon(Icons.keyboard_arrow_down, color: AppColors.textHint)
-                  : (hasCheck ? const Icon(Icons.check, color: AppColors.success, size: 20) : null),
+                  : null,
             ),
           ),
         ),
