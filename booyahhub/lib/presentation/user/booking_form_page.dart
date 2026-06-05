@@ -31,9 +31,10 @@ class _BookingFormPageState extends State<BookingFormPage> {
   String _namaTim = 'Memuat...';
 
   final List<Map<String, String>> _paymentOptions = [
-    {'value': 'bank_transfer', 'label': 'Transfer Bank (BCA)'},
+    {'value': 'bank_transfer', 'label': 'Transfer Bank'},
+    {'value': 'ewallet', 'label': 'E-Wallet'},
     {'value': 'qris', 'label': 'QRIS Otomatis'},
-    {'value': 'ewallet', 'label': 'E-Wallet (Dana/OVO)'},
+    {'value': 'virtual_account', 'label': 'Virtual Account (VA)'},
   ];
 
   @override
