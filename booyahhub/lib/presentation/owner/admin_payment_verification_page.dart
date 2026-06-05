@@ -113,7 +113,6 @@ class _AdminPaymentVerificationPageState
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // ✅ APP BAR: Icon back + Judul SEJAJAR
                     Row(
                       children: [
                         GestureDetector(
