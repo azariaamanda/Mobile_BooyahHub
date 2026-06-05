@@ -14,6 +14,7 @@ import '../presentation/owner/admin_verification_page.dart';
 import '../presentation/owner/financial_report_page.dart';
 import '../presentation/owner/prize_approval_page.dart';
 import '../presentation/admin/admin_main_navigator.dart';
+import '../presentation/admin/admin_suspension_guard.dart';
 import '../presentation/admin/admin_scrim_page.dart';
 import '../presentation/admin/create_scrim_page.dart';
 import '../presentation/admin/detail_scrim_page.dart';
@@ -28,6 +29,7 @@ import '../presentation/admin/edit_session_page.dart';
 import '../presentation/admin/admin_notification_page.dart';
 import '../presentation/admin/peserta_management_page.dart';
 import '../presentation/admin/setup_session_page.dart';
+import '../presentation/admin/admin_bayar_tagihan_page.dart';
 import '../presentation/admin/validate_payment_page.dart';
 import '../presentation/admin/input_score_page.dart';
 import '../presentation/admin/admin_claim_list_page.dart';
@@ -136,25 +138,33 @@ class AppRouter {
       GoRoute(
         path: '/admin/dashboard',
         name: 'admin_dashboard',
-        builder: (context, state) => const AdminMainNavigator(),
+        builder: (context, state) => const AdminSuspensionGuard(
+          child: AdminMainNavigator(),
+        ),
       ),
       // TAMBAHKAN ROUTE UNTUK LIST SCRIM (PENTING!)
       GoRoute(
         path: '/admin/scrim',
         name: 'admin_scrim',
-        builder: (context, state) => const AdminScrimPage(),
+        builder: (context, state) => const AdminSuspensionGuard(
+          child: AdminScrimPage(),
+        ),
       ),
       GoRoute(
         path: '/admin/scrim/buat',
         name: 'buat_scrim',
-        builder: (context, state) => const CreateScrimPage(),
+        builder: (context, state) => const AdminSuspensionGuard(
+          child: CreateScrimPage(),
+        ),
       ),
       GoRoute(
         path: '/admin/scrim/detail/:id',
         name: 'detail_scrim_admin',
         builder: (context, state) {
           final id = int.parse(state.pathParameters['id']!);
-          return DetailScrimPage(scrimId: id);
+          return AdminSuspensionGuard(
+            child: DetailScrimPage(scrimId: id),
+          );
         },
       ),
       GoRoute(
@@ -162,7 +172,9 @@ class AppRouter {
         name: 'edit_scrim',
         builder: (context, state) {
           final id = int.parse(state.pathParameters['id']!);
-          return EditScrimPage(scrimId: id);
+          return AdminSuspensionGuard(
+            child: EditScrimPage(scrimId: id),
+          );
         },
       ),
       GoRoute(
@@ -170,7 +182,9 @@ class AppRouter {
         name: 'scrim_sessions',
         builder: (context, state) {
           final id = int.parse(state.pathParameters['id']!);
-          return ScrimSessionsPage(scrimId: id);
+          return AdminSuspensionGuard(
+            child: ScrimSessionsPage(scrimId: id),
+          );
         },
       ),
       GoRoute(
@@ -178,7 +192,9 @@ class AppRouter {
         name: 'detail_session',
         builder: (context, state) {
           final sesiId = int.parse(state.pathParameters['id']!);
-          return DetailSessionPage(sesiId: sesiId);
+          return AdminSuspensionGuard(
+            child: DetailSessionPage(sesiId: sesiId),
+          );
         },
       ),
       GoRoute(
@@ -186,7 +202,9 @@ class AppRouter {
         name: 'add_session',
         builder: (context, state) {
           final scrimId = int.parse(state.pathParameters['scrimId']!);
-          return AddSessionPage(scrimId: scrimId);
+          return AdminSuspensionGuard(
+            child: AddSessionPage(scrimId: scrimId),
+          );
         },
       ),
       GoRoute(
@@ -194,7 +212,9 @@ class AppRouter {
         name: 'edit_session',
         builder: (context, state) {
           final sesiId = int.parse(state.pathParameters['sesiId']!);
-          return EditSessionPage(sesiId: sesiId);
+          return AdminSuspensionGuard(
+            child: EditSessionPage(sesiId: sesiId),
+          );
         },
       ),
       GoRoute(
@@ -202,46 +222,69 @@ class AppRouter {
         name: 'atur_sesi',
         builder: (context, state) {
           final idScrim = int.parse(state.pathParameters['idScrim']!);
-          return SetupSessionPage(scrimId: idScrim);
+          return AdminSuspensionGuard(
+            child: SetupSessionPage(scrimId: idScrim),
+          );
         },
       ),
       GoRoute(
         path: '/admin/verifikasi-pembayaran',
         name: 'verifikasi_pembayaran',
-        builder: (context, state) => const ValidatePaymentPage(),
+        builder: (context, state) => const AdminSuspensionGuard(
+          child: ValidatePaymentPage(),
+        ),
       ),
       GoRoute(
         path: '/admin/input-skor/:idSesi',
         name: 'input_skor',
         builder: (context, state) {
           final idSesi = int.parse(state.pathParameters['idSesi']!);
-          return InputScorePage(sesiId: idSesi);
+          return AdminSuspensionGuard(
+            child: InputScorePage(sesiId: idSesi),
+          );
         },
       ),
       GoRoute(
         path: '/admin/klaim',
         name: 'admin_klaim',
-        builder: (context, state) => const AdminClaimListPage(),
+        builder: (context, state) => const AdminSuspensionGuard(
+          child: AdminClaimListPage(),
+        ),
       ),
       GoRoute(
         path: '/admin/profile/edit',
         name: 'edit_profile',
-        builder: (context, state) => const EditProfilePage(),
+        builder: (context, state) => const AdminSuspensionGuard(
+          child: EditProfilePage(),
+        ),
       ),
       GoRoute(
         path: '/admin/profile/notifikasi',
         name: 'admin_notifikasi',
-        builder: (context, state) => const AdminNotificationPage(),
+        builder: (context, state) => const AdminSuspensionGuard(
+          child: AdminNotificationPage(),
+        ),
       ),
       GoRoute(
         path: '/admin/peserta',
         name: 'peserta',
-        builder: (context, state) => const PesertaManagementPage(),
+        builder: (context, state) => const AdminSuspensionGuard(
+          child: PesertaManagementPage(),
+        ),
       ),
       GoRoute(
         path: '/admin/premium',
         name: 'admin_premium',
-        builder: (context, state) => const UserPremiumPage(),
+        builder: (context, state) => const AdminSuspensionGuard(
+          child: UserPremiumPage(),
+        ),
+      ),
+      GoRoute(
+        path: '/admin/bayar-tagihan',
+        name: 'admin_bayar_tagihan',
+        builder: (context, state) => const AdminSuspensionGuard(
+          child: AdminBayarTagihanPage(),
+        ),
       ),
 
       // ─── USER (PELANGGAN) ──────────────────────────────────────
