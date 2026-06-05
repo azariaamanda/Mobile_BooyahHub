@@ -78,19 +78,13 @@ class _PremiumManagementScreenState extends State<PremiumManagementScreen> {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Row(
-          children: [
-            const Icon(Icons.arrow_back_rounded, color: Color(0xFFFFD700)),
-            const SizedBox(width: 12),
-            Text(
-              'Layanan Premium',
-              style: AppTextStyles.poppinsHeadline.copyWith(
-                color: const Color(0xFFFFD700),
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ],
+        Text(
+          'Layanan Premium',
+          style: AppTextStyles.poppinsHeadline.copyWith(
+            color: const Color(0xFFFFD700),
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+          ),
         ),
         GestureDetector(
           onTap: () async {

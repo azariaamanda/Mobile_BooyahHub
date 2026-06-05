@@ -18,12 +18,18 @@ class OwnerMainNavigator extends StatefulWidget {
 class _OwnerMainNavigatorState extends State<OwnerMainNavigator> {
   int _selectedIndex = 0;
 
-  final List<Widget> _pages = [
+  late final List<Widget> _pages = [
     const OwnerDashboardScreen(),
     const AdminVerificationPage(),
     const ManageBannerPage(),
     const PremiumManagementScreen(),
-    const OwnerProfileScreen(),
+    OwnerProfileScreen(
+      onNavigateTab: (index) {
+        setState(() {
+          _selectedIndex = index;
+        });
+      },
+    ),
   ];
 
   static Widget _buildPlaceholder(String title) {
