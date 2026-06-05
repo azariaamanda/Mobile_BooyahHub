@@ -1,5 +1,5 @@
+import 'package:flutter/foundation.dart';
 import 'supabase_client.dart';
-
 
 class AppImageHelper {
   AppImageHelper._();
@@ -7,12 +7,6 @@ class AppImageHelper {
   static final _supabase = SupabaseClientHelper.client;
 
   static String getPublicUrl(String bucket, String? path) {
-    if (path == null || path.isEmpty) return '';
-    if (path.startsWith('http')) return path;
-    return _supabase.storage.from(bucket).getPublicUrl(path);
-  }
-
-  static String getPrivateUrl(String bucket, String? path) {
     if (path == null || path.isEmpty) return '';
     if (path.startsWith('http')) return path;
     return _supabase.storage.from(bucket).getPublicUrl(path);
@@ -37,12 +31,32 @@ class AppImageHelper {
   }
 
   // BUCKET: ktp (Private)
-  static String fotoKtp(String? path) =>
-      getPrivateUrl('ktp', path);
+  static Future<String?> fotoKtp(String? path) async {
+    if (path == null || path.isEmpty) return null;
+    try {
+      return await _supabase.storage.from('ktp').createSignedUrl(path, 3600);
+    } catch (e) {
+      debugPrint('Error getting signed URL for ktp: $e');
+      return null;
+    }
+  }
 
   // BUCKET: bukti_bayar (Private)
-  static String buktiBayar(String? path) =>
-      getPrivateUrl('bukti_bayar', path);
+  static Future<String?> buktiBayar(String? path) async {
+    if (path == null || path.isEmpty) return null;
+    if (path.startsWith('http')) return path;
+    
+    try {
+      final signedUrl = await _supabase.storage
+          .from('bukti_bayar')
+          .createSignedUrl(path, 3600);
+      debugPrint('Signed URL: $signedUrl');
+      return signedUrl;
+    } catch (e) {
+      debugPrint('Error getting signed URL for bukti_bayar: $e');
+      return null;
+    }
+  }
 
   static String getDefaultAvatar(String? role) {
     if (role == 'admin') {
