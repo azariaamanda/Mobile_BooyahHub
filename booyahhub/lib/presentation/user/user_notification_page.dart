@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../config/app_color.dart';
 import '../../config/app_constants.dart';
 import '../../config/app_text_styles.dart';
@@ -35,77 +37,68 @@ class UserNotificationPage extends StatefulWidget {
 }
 
 class _UserNotificationPageState extends State<UserNotificationPage> {
-  late List<Notification> notifications;
+  List<Notification> notifications = [];
+  bool isLoading = true;
   int selectedTabIndex = 0;
+  List<String> _readNotificationIds = [];
 
   @override
   void initState() {
     super.initState();
-    notifications = [
-      Notification(
-        id: '1',
-        title: 'Scrim Dimulai',
-        message: 'Scrim "Ganteng Squad" akan dimulai dalam 15 menit',
-        type: NotificationType.info,
-        timestamp: DateTime.now(),
-        isRead: false,
-        actionLabel: 'Lihat Detail',
-      ),
-      Notification(
-        id: '2',
-        title: 'Hasil Pertandingan',
-        message:
-            'Hasil scrim Anda sudah tersedia. Cek performa tim Anda sekarang!',
-        type: NotificationType.success,
-        timestamp: DateTime.now().subtract(const Duration(hours: 2)),
-        isRead: false,
-      ),
-      Notification(
-        id: '3',
-        title: 'Hadiah Selesai',
-        message:
-            'Hadiah Rp 250.000 dari scrim terakhir telah berhasil ditransfer',
-        type: NotificationType.success,
-        timestamp: DateTime.now().subtract(const Duration(hours: 5)),
-        isRead: true,
-      ),
-      Notification(
-        id: '4',
-        title: 'Pembayaran Tertunda',
-        message:
-            'Verifikasi pembayaran Anda masih menunggu. Segera lengkapi proses verifikasi',
-        type: NotificationType.warning,
-        timestamp: DateTime.now().subtract(const Duration(days: 1)),
-        isRead: true,
-        actionLabel: 'Verifikasi Sekarang',
-      ),
-      Notification(
-        id: '5',
-        title: 'Peserta Belum Konfirmasi',
-        message:
-            'Ada 3 peserta yang belum mengkonfirmasi kehadiran di scrim besok',
-        type: NotificationType.warning,
-        timestamp: DateTime.now().subtract(const Duration(days: 1)),
-        isRead: true,
-      ),
-      Notification(
-        id: '6',
-        title: 'Registrasi Diterima',
-        message: 'Registrasi Anda untuk Tournament Mega telah diterima',
-        type: NotificationType.success,
-        timestamp: DateTime.now().subtract(const Duration(days: 2)),
-        isRead: true,
-      ),
-      Notification(
-        id: '7',
-        title: 'Sistem Gangguan',
-        message:
-            'Sistem sedang dalam pemeliharaan. Beberapa fitur mungkin tidak tersedia',
-        type: NotificationType.error,
-        timestamp: DateTime.now().subtract(const Duration(days: 3)),
-        isRead: true,
-      ),
-    ];
+    _loadReadNotificationsAndFetch();
+  }
+
+  Future<void> _loadReadNotificationsAndFetch() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (mounted) {
+      setState(() {
+        _readNotificationIds = prefs.getStringList('read_notifications') ?? [];
+      });
+    }
+    _fetchNotifications();
+  }
+
+  Future<void> _fetchNotifications() async {
+    try {
+      final response = await Supabase.instance.client
+          .from('notifikasi')
+          .select()
+          .order('dikirim_pada', ascending: false);
+
+      final List<Notification> fetchedNotifications = [];
+      for (var item in response) {
+        DateTime timestamp = DateTime.now();
+        if (item['dikirim_pada'] != null) {
+          timestamp = DateTime.parse(item['dikirim_pada'].toString());
+        }
+
+        final notifId = item['id_notifikasi'].toString();
+        fetchedNotifications.add(
+          Notification(
+            id: notifId,
+            title: item['judul'] ?? 'Notifikasi',
+            message: item['pesan'] ?? '',
+            type: NotificationType.info,
+            timestamp: timestamp,
+            isRead: _readNotificationIds.contains(notifId),
+          ),
+        );
+      }
+
+      if (mounted) {
+        setState(() {
+          notifications = fetchedNotifications;
+          isLoading = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error fetching notifications: $e');
+      if (mounted) {
+        setState(() {
+          isLoading = false;
+        });
+      }
+    }
   }
 
   List<Notification> get filteredNotifications {
@@ -164,7 +157,7 @@ class _UserNotificationPageState extends State<UserNotificationPage> {
     }
   }
 
-  void _markAsRead(String id) {
+  Future<void> _markAsRead(String id) async {
     setState(() {
       final index = notifications.indexWhere((n) => n.id == id);
       if (index != -1) {
@@ -179,7 +172,13 @@ class _UserNotificationPageState extends State<UserNotificationPage> {
           onAction: notifications[index].onAction,
         );
       }
+      if (!_readNotificationIds.contains(id)) {
+        _readNotificationIds.add(id);
+      }
     });
+    
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setStringList('read_notifications', _readNotificationIds);
   }
 
   void _deleteNotification(String id) {
@@ -188,23 +187,31 @@ class _UserNotificationPageState extends State<UserNotificationPage> {
     });
   }
 
-  void _markAllAsRead() {
+  Future<void> _markAllAsRead() async {
     setState(() {
       notifications = notifications
           .map(
-            (n) => Notification(
-              id: n.id,
-              title: n.title,
-              message: n.message,
-              type: n.type,
-              timestamp: n.timestamp,
-              isRead: true,
-              actionLabel: n.actionLabel,
-              onAction: n.onAction,
-            ),
+            (n) {
+              if (!_readNotificationIds.contains(n.id)) {
+                _readNotificationIds.add(n.id);
+              }
+              return Notification(
+                id: n.id,
+                title: n.title,
+                message: n.message,
+                type: n.type,
+                timestamp: n.timestamp,
+                isRead: true,
+                actionLabel: n.actionLabel,
+                onAction: n.onAction,
+              );
+            }
           )
           .toList();
     });
+    
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setStringList('read_notifications', _readNotificationIds);
   }
 
   void _clearAll() {
@@ -267,38 +274,18 @@ class _UserNotificationPageState extends State<UserNotificationPage> {
         centerTitle: false,
         actions: [
           if (unreadCount > 0)
-            Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppConstants.paddingL,
-              ),
-              child: Center(
-                child: GestureDetector(
-                  onTap: _markAllAsRead,
-                  child: Text(
-                    'Tandai Semua',
-                    style: AppTextStyles.interLink.copyWith(fontSize: 13),
-                  ),
-                ),
-              ),
+            IconButton(
+              icon: const Icon(Icons.done_all, color: AppColors.primary),
+              tooltip: 'Tandai Semua Dibaca',
+              onPressed: _markAllAsRead,
             ),
           if (notifications.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppConstants.paddingL,
-              ),
-              child: Center(
-                child: GestureDetector(
-                  onTap: _clearAll,
-                  child: Text(
-                    'Hapus',
-                    style: AppTextStyles.interLink.copyWith(
-                      fontSize: 13,
-                      color: AppColors.error,
-                    ),
-                  ),
-                ),
-              ),
+            IconButton(
+              icon: const Icon(Icons.delete_outline, color: AppColors.error),
+              tooltip: 'Hapus Semua',
+              onPressed: _clearAll,
             ),
+          const SizedBox(width: 4),
         ],
       ),
       body: Column(
@@ -354,9 +341,12 @@ class _UserNotificationPageState extends State<UserNotificationPage> {
 
           // List
           Expanded(
-            child: filteredNotifications.isEmpty
-                ? _buildEmptyState()
-                : ListView.separated(
+            child: isLoading
+                ? const Center(
+                    child: CircularProgressIndicator(color: AppColors.primary))
+                : filteredNotifications.isEmpty
+                    ? _buildEmptyState()
+                    : ListView.separated(
                     padding: const EdgeInsets.symmetric(
                       horizontal: AppConstants.paddingL,
                     ),
@@ -407,27 +397,85 @@ class _UserNotificationPageState extends State<UserNotificationPage> {
     );
   }
 
+  void _showNotificationDetails(Notification notification) {
+    _markAsRead(notification.id); // Otomatis tandai sudah dibaca
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          backgroundColor: AppColors.backgroundCard,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppConstants.radiusL),
+            side: const BorderSide(color: AppColors.inputBorder),
+          ),
+          title: Row(
+            children: [
+              Icon(_getTypeIcon(notification.type),
+                  color: _getTypeColor(notification.type)),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  notification.title,
+                  style: AppTextStyles.poppinsTitleSmall
+                      .copyWith(color: AppColors.textPrimary),
+                ),
+              ),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                _getTimeAgo(notification.timestamp),
+                style: AppTextStyles.interCaption,
+              ),
+              const SizedBox(height: 16),
+              Text(
+                notification.message,
+                style: AppTextStyles.interBody,
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: Text(
+                'Tutup',
+                style:
+                    AppTextStyles.interLink.copyWith(color: AppColors.primary),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   Widget _buildNotificationCard(Notification notification) {
     final typeColor = _getTypeColor(notification.type);
     final typeIcon = _getTypeIcon(notification.type);
 
-    return Container(
-      padding: const EdgeInsets.all(AppConstants.paddingL),
-      decoration: BoxDecoration(
-        color: notification.isRead
-            ? AppColors.backgroundCard
-            : AppColors.backgroundCard.withOpacity(0.7),
-        borderRadius: BorderRadius.circular(AppConstants.radiusL),
-        border: Border.all(
+    return GestureDetector(
+      onTap: () => _showNotificationDetails(notification),
+      child: Container(
+        padding: const EdgeInsets.all(AppConstants.paddingL),
+        decoration: BoxDecoration(
           color: notification.isRead
-              ? AppColors.inputBorder
-              : typeColor.withOpacity(0.3),
-          width: 1,
+              ? AppColors.backgroundCard
+              : AppColors.backgroundCard.withOpacity(0.7),
+          borderRadius: BorderRadius.circular(AppConstants.radiusL),
+          border: Border.all(
+            color: notification.isRead
+                ? AppColors.inputBorder
+                : typeColor.withOpacity(0.3),
+            width: 1,
+          ),
         ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -556,7 +604,7 @@ class _UserNotificationPageState extends State<UserNotificationPage> {
           ],
         ],
       ),
-    );
+    ));
   }
 
   Widget _buildEmptyState() {
