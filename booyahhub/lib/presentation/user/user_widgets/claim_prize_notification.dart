@@ -142,96 +142,149 @@ class _NotificationOverlayState extends State<_NotificationOverlay>
   }
 
   Widget _buildCard(BuildContext context) {
-    return GestureDetector(
-      onTap: widget.onTap,
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: const Color(0xFF0D1E2C),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: widget.iconColor.withOpacity(0.25),
-            width: 1,
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0D1E2C),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: widget.iconColor.withOpacity(0.25),
+          width: 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.45),
+            blurRadius: 24,
+            offset: const Offset(0, 8),
           ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.45),
-              blurRadius: 24,
-              offset: const Offset(0, 8),
-            ),
-            BoxShadow(
-              color: widget.iconColor.withOpacity(0.08),
-              blurRadius: 16,
-              offset: const Offset(0, 0),
-            ),
-          ],
-        ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // ─── ICON ───
-            Container(
-              width: 44,
-              height: 44,
-              decoration: BoxDecoration(
-                color: widget.iconColor.withOpacity(0.12),
-                borderRadius: BorderRadius.circular(12),
+          BoxShadow(
+            color: widget.iconColor.withOpacity(0.08),
+            blurRadius: 16,
+            offset: const Offset(0, 0),
+          ),
+        ],
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // ─── HEADER ROW ───
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Icon notifikasi
+              Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  color: widget.iconColor.withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(
+                  widget.icon,
+                  color: widget.iconColor,
+                  size: 26,
+                ),
               ),
-              child: Icon(
-                widget.icon,
-                color: widget.iconColor,
-                size: 24,
-              ),
-            ),
-            const SizedBox(width: 12),
-            // ─── TEXT ───
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(
-                        child: Text(
-                          widget.title,
-                          style: AppTextStyles.poppinsTitleSmall.copyWith(
-                            fontSize: 14,
-                            color: AppColors.textPrimary,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Label kategori kecil
+                    Text(
+                      'NOTIFIKASI BARU',
+                      style: AppTextStyles.interCaption.copyWith(
+                        color: widget.iconColor,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 1.2,
+                        fontSize: 11,
                       ),
-                      const SizedBox(width: 8),
-                      // ─── Tombol X ───
-                      GestureDetector(
-                        onTap: _dismiss,
-                        behavior: HitTestBehavior.opaque,
-                        child: const Padding(
-                          padding: EdgeInsets.only(top: 2),
-                          child: Icon(
-                            Icons.close,
-                            size: 16,
-                            color: AppColors.textSecondary,
-                          ),
-                        ),
+                    ),
+                    const SizedBox(height: 4),
+                    // Judul notifikasi
+                    Text(
+                      widget.title,
+                      style: AppTextStyles.poppinsTitleSmall.copyWith(
+                        fontSize: 15,
+                        height: 1.3,
                       ),
-                    ],
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    widget.message,
-                    style: AppTextStyles.interBody.copyWith(fontSize: 13),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 4),
+                    // Pesan notifikasi
+                    Text(
+                      widget.message,
+                      style: AppTextStyles.interBody.copyWith(
+                        fontSize: 13,
+                        color: AppColors.textSecondary,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
               ),
-            ),
-          ],
-        ),
+            ],
+          ),
+          const SizedBox(height: 18),
+
+          // ─── ACTION BUTTONS ───
+          Row(
+            children: [
+              // Tombol Lihat Notifikasi
+              Expanded(
+                child: GestureDetector(
+                  onTap: widget.onTap,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 13),
+                    decoration: BoxDecoration(
+                      color: widget.iconColor,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    alignment: Alignment.center,
+                    child: Text(
+                      'Lihat Notifikasi',
+                      style: AppTextStyles.poppinsButton.copyWith(
+                        color: AppColors.black,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+
+              // Tombol Tutup
+              GestureDetector(
+                onTap: _dismiss,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 13,
+                  ),
+                  decoration: BoxDecoration(
+                    color: AppColors.surfaceVariant,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(
+                      color: AppColors.inputBorder,
+                      width: 1,
+                    ),
+                  ),
+                  alignment: Alignment.center,
+                  child: Text(
+                    'Tutup',
+                    style: AppTextStyles.poppinsButton.copyWith(
+                      color: AppColors.textSecondary,
+                      fontSize: 14,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }
