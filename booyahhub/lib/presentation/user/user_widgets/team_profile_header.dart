@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import '../../../config/app_color.dart';
 import '../../../config/app_constants.dart';
-import '../../../config/app_image_helper.dart';
 import '../../../config/app_text_styles.dart';
 
 class TeamProfileHeader extends StatelessWidget {
@@ -47,7 +47,9 @@ class TeamProfileHeader extends StatelessWidget {
         ),
         IconButton(
           icon: const Icon(Icons.notifications_none, color: AppColors.white),
-          onPressed: () {},
+          onPressed: () {
+            context.pushNamed('notifikasi');
+          },
         ),
       ],
     );
