@@ -150,7 +150,39 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
     }
 
     final response = await query;
-    return List<Map<String, dynamic>>.from(response);
+    final scrims = List<Map<String, dynamic>>.from(response);
+    if (scrims.isEmpty) return scrims;
+
+    // Hitung slot terisi per scrim (semua yg bukan ditolak)
+    final scrimIds = scrims.map((s) => s['id_scrim'] as int).toList();
+    final sessions = await SupabaseClientHelper.client
+        .from('sesi_scrim')
+        .select('id_sesi, id_scrim')
+        .inFilter('id_scrim', scrimIds);
+
+    final sesiToScrim = <int, int>{
+      for (final s in sessions as List) s['id_sesi'] as int: s['id_scrim'] as int
+    };
+    final sesiIds = sesiToScrim.keys.toList();
+
+    final terisiMap = <int, int>{};
+    if (sesiIds.isNotEmpty) {
+      final pendaftaran = await SupabaseClientHelper.client
+          .from('pendaftaran_tim')
+          .select('id_sesi, status_pembayaran')
+          .inFilter('id_sesi', sesiIds);
+      for (final p in pendaftaran as List) {
+        if ((p['status_pembayaran'] as String? ?? '') != 'ditolak') {
+          final scrimId = sesiToScrim[p['id_sesi'] as int];
+          if (scrimId != null) terisiMap[scrimId] = (terisiMap[scrimId] ?? 0) + 1;
+        }
+      }
+    }
+
+    return scrims.map((s) => {
+      ...s,
+      'terisi_count': terisiMap[s['id_scrim'] as int] ?? 0,
+    }).toList();
   }
 
   // ─── BUILD MODE FILTER CHIP (DITAMBAHKAN) ───
@@ -323,6 +355,7 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
               scrim['poster'] as String?,
               scrim['id_scrim'],
             );
+            final int terisi = scrim['terisi_count'] as int? ?? 0;
 
             return GestureDetector(
               onTap: () {
@@ -336,7 +369,7 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
                 title: scrim['nama_scrim'] ?? 'No Title',
                 prize: _formatRupiah(hadiah),
                 fee: biaya == 0 ? 'Free' : _formatRupiah(biaya),
-                slotsInfo: '0/$maksPeserta terisi',
+                slotsInfo: '$terisi/$maksPeserta terisi',
                 posterImage: posterUrl ?? '',
                 primaryYellow: AppColors.primary,
               ),
