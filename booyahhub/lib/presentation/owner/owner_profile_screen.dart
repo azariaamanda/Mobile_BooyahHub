@@ -5,7 +5,8 @@ import '../../config/app_text_styles.dart';
 import '../../data/models/services/auth_service.dart';
 
 class OwnerProfileScreen extends StatefulWidget {
-  const OwnerProfileScreen({super.key});
+  final void Function(int index)? onNavigateTab;
+  const OwnerProfileScreen({super.key, this.onNavigateTab});
 
   @override
   State<OwnerProfileScreen> createState() => _OwnerProfileScreenState();
@@ -85,7 +86,6 @@ class _OwnerProfileScreenState extends State<OwnerProfileScreen> {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        const Icon(Icons.arrow_back_rounded, color: Color(0xFFFFD700)),
         Text(
           'BOOYAHHUB',
           style: AppTextStyles.poppinsHeadline.copyWith(
@@ -238,10 +238,24 @@ class _OwnerProfileScreenState extends State<OwnerProfileScreen> {
         _buildMenuItem(
           icon: Icons.stars_rounded, 
           title: 'Layanan Premium',
-          onTap: () => context.push('/owner/premium-management'),
+          onTap: () {
+            if (widget.onNavigateTab != null) {
+              widget.onNavigateTab!(3);
+            } else {
+              context.push('/owner/premium-management');
+            }
+          },
         ),
         const SizedBox(height: 8),
-        _buildMenuItem(icon: Icons.campaign_rounded, title: 'Kelola Banner'),
+        _buildMenuItem(
+          icon: Icons.campaign_rounded, 
+          title: 'Kelola Banner',
+          onTap: () {
+            if (widget.onNavigateTab != null) {
+              widget.onNavigateTab!(2);
+            }
+          },
+        ),
         const SizedBox(height: 8),
         _buildMenuItem(icon: Icons.notifications_rounded, title: 'Notifikasi Owner'),
         const SizedBox(height: 8),
