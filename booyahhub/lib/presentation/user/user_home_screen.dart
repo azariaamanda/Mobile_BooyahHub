@@ -50,9 +50,15 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
   // ─── FETCH & TAMPILKAN NOTIFIKASI BELUM DIBACA ───
   Future<void> _showUnreadNotifications() async {
     try {
-      // Ambil daftar id notifikasi yang sudah dibaca dari SharedPreferences
+      // Ambil user ID yang sedang login — key dibuat per-user
+      // supaya status baca/belum baca tidak tercampur antar akun
+      final userId = Supabase.instance.client.auth.currentUser?.id;
+      if (userId == null) return; // belum login, skip
+
       final prefs = await SharedPreferences.getInstance();
-      final readIds = prefs.getStringList('read_notifications') ?? [];
+      // Key unik per user ─ format: 'read_notifications_<userId>'
+      final prefKey = 'read_notifications_$userId';
+      final readIds = prefs.getStringList(prefKey) ?? [];
 
       // Fetch semua notifikasi dari Supabase, terbaru dulu
       final response = await Supabase.instance.client
@@ -62,7 +68,7 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
 
       if (!mounted) return;
 
-      // Filter hanya yang belum dibaca
+      // Filter hanya yang belum dibaca oleh user ini
       final unread = (response as List)
           .where((item) =>
               !readIds.contains(item['id_notifikasi'].toString()))
@@ -84,8 +90,8 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
           icon: Icons.notifications_rounded,
           iconColor: AppColors.primary,
           onTap: () {
-            // Tandai sebagai sudah dibaca saat di-tap
-            _markNotificationRead(notifId, readIds, prefs);
+            // Tandai sebagai sudah dibaca saat di-tap (per user)
+            _markNotificationRead(notifId, readIds, prefs, prefKey);
             // Navigasi ke halaman notifikasi
             context.pushNamed('notifikasi');
           },
@@ -100,10 +106,11 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
     String id,
     List<String> currentReadIds,
     SharedPreferences prefs,
+    String prefKey,
   ) async {
     if (!currentReadIds.contains(id)) {
       currentReadIds.add(id);
-      await prefs.setStringList('read_notifications', currentReadIds);
+      await prefs.setStringList(prefKey, currentReadIds);
     }
   }
 
