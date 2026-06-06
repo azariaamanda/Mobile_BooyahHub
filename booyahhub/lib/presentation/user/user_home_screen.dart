@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../config/app_color.dart';
@@ -38,23 +39,72 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
   @override
   void initState() {
     super.initState();
-    _fetchModes(); // Ambil data mode
+    _fetchModes();
 
-    // Tampilkan notifikasi klaim hadiah setelah frame pertama selesai render
+    // Tampilkan notifikasi yang belum dibaca setelah frame pertama selesai render
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) {
-        ClaimPrizeNotification.show(
+      if (mounted) _showUnreadNotifications();
+    });
+  }
+
+  // ─── FETCH & TAMPILKAN NOTIFIKASI BELUM DIBACA ───
+  Future<void> _showUnreadNotifications() async {
+    try {
+      // Ambil daftar id notifikasi yang sudah dibaca dari SharedPreferences
+      final prefs = await SharedPreferences.getInstance();
+      final readIds = prefs.getStringList('read_notifications') ?? [];
+
+      // Fetch semua notifikasi dari Supabase, terbaru dulu
+      final response = await Supabase.instance.client
+          .from('notifikasi')
+          .select('id_notifikasi, judul, pesan')
+          .order('dikirim_pada', ascending: false);
+
+      if (!mounted) return;
+
+      // Filter hanya yang belum dibaca
+      final unread = (response as List)
+          .where((item) =>
+              !readIds.contains(item['id_notifikasi'].toString()))
+          .toList();
+
+      // Tampilkan satu per satu dengan delay supaya tidak bertumpuk
+      for (int i = 0; i < unread.length; i++) {
+        if (!mounted) break;
+        final item = unread[i];
+        final notifId = item['id_notifikasi'].toString();
+
+        await Future.delayed(Duration(milliseconds: i == 0 ? 400 : 600));
+        if (!mounted) break;
+
+        NotificationPopup.show(
           context,
-          // TODO: Ganti dengan data dinamis dari database nantinya
-          scrimTitle: 'Rafif Scrim',
-          prizeAmount: 'Rp 250.000',
-          onClaim: () {
-            // TODO: Navigasi ke halaman klaim hadiah
-            // context.pushNamed('claim_prize');
+          title: item['judul'] ?? 'Notifikasi',
+          message: item['pesan'] ?? '',
+          icon: Icons.notifications_rounded,
+          iconColor: AppColors.primary,
+          onTap: () {
+            // Tandai sebagai sudah dibaca saat di-tap
+            _markNotificationRead(notifId, readIds, prefs);
+            // Navigasi ke halaman notifikasi
+            context.pushNamed('notifikasi');
           },
         );
       }
-    });
+    } catch (e) {
+      debugPrint('Error fetching unread notifications: $e');
+    }
+  }
+
+  Future<void> _markNotificationRead(
+    String id,
+    List<String> currentReadIds,
+    SharedPreferences prefs,
+  ) async {
+    if (!currentReadIds.contains(id)) {
+      currentReadIds.add(id);
+      await prefs.setStringList('read_notifications', currentReadIds);
+    }
   }
 
   // ─── FUNGSI AMBIL MODE ───

@@ -2,30 +2,36 @@ import 'package:flutter/material.dart';
 import '../../../config/app_color.dart';
 import '../../../config/app_text_styles.dart';
 
-/// Widget notifikasi popup "Klaim Hadiah" yang muncul dari atas layar.
-/// Gunakan [ClaimPrizeNotification.show(context)] untuk menampilkan notifikasi.
-class ClaimPrizeNotification {
-  /// Tampilkan popup notifikasi klaim hadiah dari atas layar.
+/// Widget notifikasi popup generik yang muncul dari atas layar.
+/// Gunakan [NotificationPopup.show(context)] untuk menampilkan notifikasi dari database.
+class NotificationPopup {
+  /// Tampilkan popup notifikasi dari atas layar.
   ///
-  /// [scrimTitle]   : Nama scrim (default hardcode sementara)
-  /// [prizeName]    : Nominal hadiah (default hardcode sementara)
-  /// [onClaim]      : Callback saat tombol "Klaim Sekarang" ditekan
+  /// [title]    : Judul notifikasi (dari kolom `judul` di tabel notifikasi)
+  /// [message]  : Pesan notifikasi (dari kolom `pesan` di tabel notifikasi)
+  /// [icon]     : Icon yang ditampilkan (default: notifications_rounded)
+  /// [iconColor]: Warna icon dan aksen (default: AppColors.primary)
+  /// [onTap]    : Callback saat notifikasi ditekan
   static void show(
     BuildContext context, {
-    String scrimTitle = 'Rafif Scrim',
-    String prizeAmount = 'Rp 250.000',
-    VoidCallback? onClaim,
+    required String title,
+    required String message,
+    IconData icon = Icons.notifications_rounded,
+    Color? iconColor,
+    VoidCallback? onTap,
   }) {
     final overlay = Overlay.of(context);
     late OverlayEntry entry;
 
     entry = OverlayEntry(
-      builder: (ctx) => _ClaimPrizeOverlay(
-        scrimTitle: scrimTitle,
-        prizeAmount: prizeAmount,
-        onClaim: () {
+      builder: (ctx) => _NotificationOverlay(
+        title: title,
+        message: message,
+        icon: icon,
+        iconColor: iconColor ?? AppColors.primary,
+        onTap: () {
           entry.remove();
-          onClaim?.call();
+          onTap?.call();
         },
         onDismiss: () => entry.remove(),
       ),
@@ -33,27 +39,49 @@ class ClaimPrizeNotification {
 
     overlay.insert(entry);
   }
+
+  // ─── Backward-compat helper khusus klaim hadiah ───
+  /// @deprecated Gunakan [NotificationPopup.show] langsung.
+  static void showClaimPrize(
+    BuildContext context, {
+    String scrimTitle = 'Scrim',
+    String prizeAmount = 'Rp 0',
+    VoidCallback? onClaim,
+  }) {
+    show(
+      context,
+      title: 'Klaim Hadiah Tersedia!',
+      message: 'Hadiah $prizeAmount dari $scrimTitle siap dicarikan!',
+      icon: Icons.monetization_on_rounded,
+      iconColor: AppColors.primary,
+      onTap: onClaim,
+    );
+  }
 }
 
 // ─── OVERLAY WIDGET INTERNAL ───
-class _ClaimPrizeOverlay extends StatefulWidget {
-  final String scrimTitle;
-  final String prizeAmount;
-  final VoidCallback onClaim;
+class _NotificationOverlay extends StatefulWidget {
+  final String title;
+  final String message;
+  final IconData icon;
+  final Color iconColor;
+  final VoidCallback onTap;
   final VoidCallback onDismiss;
 
-  const _ClaimPrizeOverlay({
-    required this.scrimTitle,
-    required this.prizeAmount,
-    required this.onClaim,
+  const _NotificationOverlay({
+    required this.title,
+    required this.message,
+    required this.icon,
+    required this.iconColor,
+    required this.onTap,
     required this.onDismiss,
   });
 
   @override
-  State<_ClaimPrizeOverlay> createState() => _ClaimPrizeOverlayState();
+  State<_NotificationOverlay> createState() => _NotificationOverlayState();
 }
 
-class _ClaimPrizeOverlayState extends State<_ClaimPrizeOverlay>
+class _NotificationOverlayState extends State<_NotificationOverlay>
     with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<Offset> _slideAnimation;
@@ -114,151 +142,115 @@ class _ClaimPrizeOverlayState extends State<_ClaimPrizeOverlay>
   }
 
   Widget _buildCard(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: const Color(0xFF0D1E2C),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: AppColors.primary.withOpacity(0.25),
-          width: 1,
+    return GestureDetector(
+      onTap: widget.onTap,
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: const Color(0xFF0D1E2C),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: widget.iconColor.withOpacity(0.25),
+            width: 1,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.45),
+              blurRadius: 24,
+              offset: const Offset(0, 8),
+            ),
+            BoxShadow(
+              color: widget.iconColor.withOpacity(0.08),
+              blurRadius: 16,
+              offset: const Offset(0, 0),
+            ),
+          ],
         ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.45),
-            blurRadius: 24,
-            offset: const Offset(0, 8),
-          ),
-          BoxShadow(
-            color: AppColors.primary.withOpacity(0.08),
-            blurRadius: 16,
-            offset: const Offset(0, 0),
-          ),
-        ],
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // ─── HEADER ROW ───
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Icon uang
-              Container(
-                width: 48,
-                height: 48,
-                decoration: BoxDecoration(
-                  color: AppColors.primary.withOpacity(0.12),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Icon(
-                  Icons.monetization_on_rounded,
-                  color: AppColors.primary,
-                  size: 26,
-                ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // ─── ICON ───
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: widget.iconColor.withOpacity(0.12),
+                borderRadius: BorderRadius.circular(12),
               ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'KLAIM HADIAH',
-                      style: AppTextStyles.interCaption.copyWith(
-                        color: AppColors.primary,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: 1.2,
-                        fontSize: 11,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    RichText(
-                      text: TextSpan(
-                        style: AppTextStyles.poppinsTitleSmall.copyWith(
-                          fontSize: 15,
-                          height: 1.4,
+              child: Icon(
+                widget.icon,
+                color: widget.iconColor,
+                size: 24,
+              ),
+            ),
+            const SizedBox(width: 12),
+            // ─── TEXT ───
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          widget.title,
+                          style: AppTextStyles.poppinsTitleSmall.copyWith(
+                            fontSize: 14,
+                            color: AppColors.textPrimary,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
-                        children: [
-                          TextSpan(
-                            text: 'Hadiah ',
-                          ),
-                          TextSpan(
-                            text: widget.prizeAmount,
-                            style: const TextStyle(
-                              color: AppColors.primary,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                          TextSpan(
-                            text: ' dari ${widget.scrimTitle} siap dicarikan!',
-                          ),
-                        ],
                       ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 18),
-
-          // ─── ACTION BUTTONS ───
-          Row(
-            children: [
-              // Tombol Klaim Sekarang
-              Expanded(
-                child: GestureDetector(
-                  onTap: widget.onClaim,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(vertical: 13),
-                    decoration: BoxDecoration(
-                      color: AppColors.primary,
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    alignment: Alignment.center,
-                    child: Text(
-                      'Klaim Sekarang',
-                      style: AppTextStyles.poppinsButton.copyWith(
-                        color: AppColors.black,
-                        fontSize: 14,
+                      const SizedBox(width: 8),
+                      // ─── Tombol X ───
+                      GestureDetector(
+                        onTap: _dismiss,
+                        behavior: HitTestBehavior.opaque,
+                        child: const Padding(
+                          padding: EdgeInsets.only(top: 2),
+                          child: Icon(
+                            Icons.close,
+                            size: 16,
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
                       ),
-                    ),
+                    ],
                   ),
-                ),
+                  const SizedBox(height: 4),
+                  Text(
+                    widget.message,
+                    style: AppTextStyles.interBody.copyWith(fontSize: 13),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
               ),
-              const SizedBox(width: 10),
-
-              // Tombol Tutup
-              GestureDetector(
-                onTap: _dismiss,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 20,
-                    vertical: 13,
-                  ),
-                  decoration: BoxDecoration(
-                    color: AppColors.surfaceVariant,
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(
-                      color: AppColors.inputBorder,
-                      width: 1,
-                    ),
-                  ),
-                  alignment: Alignment.center,
-                  child: Text(
-                    'Tutup',
-                    style: AppTextStyles.poppinsButton.copyWith(
-                      color: AppColors.textSecondary,
-                      fontSize: 14,
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ],
+            ),
+          ],
+        ),
       ),
+    );
+  }
+}
+
+// ─── BACKWARD COMPAT: alias lama agar tidak perlu ubah import di tempat lain ───
+/// @deprecated Gunakan [NotificationPopup] langsung.
+class ClaimPrizeNotification {
+  static void show(
+    BuildContext context, {
+    String scrimTitle = 'Scrim',
+    String prizeAmount = 'Rp 0',
+    VoidCallback? onClaim,
+  }) {
+    NotificationPopup.showClaimPrize(
+      context,
+      scrimTitle: scrimTitle,
+      prizeAmount: prizeAmount,
+      onClaim: onClaim,
     );
   }
 }
