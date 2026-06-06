@@ -4,6 +4,7 @@
 // lalu menekan Konfirmasi / Tolak Pembayaran.
 
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../config/app_color.dart';
 import '../../config/app_constants.dart';
 import '../../config/app_text_styles.dart';
@@ -20,33 +21,70 @@ class ParticipantDetailPage extends StatefulWidget {
 }
 
 class _ParticipantDetailPageState extends State<ParticipantDetailPage> {
+  final _supabase = Supabase.instance.client;
   late PesertaVerifikasi _peserta = widget.peserta;
   bool _processing = false;
+  String? _buktiSignedUrl;
 
   bool get _sudahDiproses => _peserta.status != StatusPeserta.menunggu;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadBuktiUrl();
+  }
+
+  Future<void> _loadBuktiUrl() async {
+    final path = _peserta.buktiPembayaranUrl;
+    if (path == null || path.isEmpty) return;
+    try {
+      final url = await _supabase.storage
+          .from('bukti_bayar')
+          .createSignedUrl(path, 3600);
+      if (mounted) setState(() => _buktiSignedUrl = url);
+    } catch (_) {}
+  }
 
   // ---- Aksi admin -------------------------------------------------
   Future<void> _ubahStatus(StatusPeserta status) async {
     setState(() => _processing = true);
-    // TODO: panggil Supabase update di sini.
-    await Future.delayed(const Duration(milliseconds: 600));
-    if (!mounted) return;
-    setState(() {
-      _peserta = _peserta.copyWith(status: status);
-      _processing = false;
-    });
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        backgroundColor: status == StatusPeserta.dikonfirmasi
-            ? AppColors.success
-            : AppColors.error,
-        content: Text(
-          status == StatusPeserta.dikonfirmasi
-              ? 'Pembayaran ${_peserta.namaTim} dikonfirmasi'
-              : 'Pembayaran ${_peserta.namaTim} ditolak',
+    try {
+      final statusStr = status == StatusPeserta.dikonfirmasi ? 'dikonfirmasi' : 'ditolak';
+      await _supabase
+          .from('pendaftaran_tim')
+          .update({
+            'status_pembayaran': statusStr,
+            'diverifikasi_pada': DateTime.now().toIso8601String(),
+          })
+          .eq('id_pendaftaran', _peserta.idPendaftaran);
+
+      if (!mounted) return;
+      setState(() {
+        _peserta = _peserta.copyWith(status: status);
+        _processing = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          backgroundColor: status == StatusPeserta.dikonfirmasi
+              ? AppColors.success
+              : AppColors.error,
+          content: Text(
+            status == StatusPeserta.dikonfirmasi
+                ? 'Pembayaran ${_peserta.namaTim} dikonfirmasi'
+                : 'Pembayaran ${_peserta.namaTim} ditolak',
+          ),
         ),
-      ),
-    );
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _processing = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          backgroundColor: AppColors.error,
+          content: Text('Gagal: $e'),
+        ),
+      );
+    }
   }
 
   void _konfirmasi() => _ubahStatus(StatusPeserta.dikonfirmasi);
@@ -83,6 +121,7 @@ class _ParticipantDetailPageState extends State<ParticipantDetailPage> {
   }
 
   void _lihatBukti() {
+    final url = _buktiSignedUrl;
     showDialog<void>(
       context: context,
       builder: (_) => Dialog(
@@ -91,7 +130,13 @@ class _ParticipantDetailPageState extends State<ParticipantDetailPage> {
         child: InteractiveViewer(
           child: ClipRRect(
             borderRadius: BorderRadius.circular(AppConstants.radiusM),
-            child: _ReceiptPlaceholder(height: 420),
+            child: url != null
+                ? Image.network(
+                    url,
+                    fit: BoxFit.contain,
+                    errorBuilder: (ctx, err, st) => const _ReceiptPlaceholder(height: 420),
+                  )
+                : const _ReceiptPlaceholder(height: 420),
           ),
         ),
       ),
@@ -100,7 +145,12 @@ class _ParticipantDetailPageState extends State<ParticipantDetailPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) Navigator.of(context).pop<PesertaVerifikasi>(_peserta);
+      },
+      child: Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
         bottom: false,
@@ -138,6 +188,7 @@ class _ParticipantDetailPageState extends State<ParticipantDetailPage> {
         ),
       ),
       bottomNavigationBar: _buildActionButtons(),
+    ),
     );
   }
 
@@ -193,7 +244,7 @@ class _ParticipantDetailPageState extends State<ParticipantDetailPage> {
                 width: 46,
                 height: 46,
                 decoration: BoxDecoration(
-                  color: AppColors.primary.withOpacity(0.15),
+                  color: AppColors.primary.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(AppConstants.radiusM),
                 ),
                 child: const Icon(Icons.groups_rounded,
@@ -241,7 +292,7 @@ class _ParticipantDetailPageState extends State<ParticipantDetailPage> {
                   padding: const EdgeInsets.symmetric(
                       horizontal: AppConstants.paddingM, vertical: 6),
                   decoration: BoxDecoration(
-                    color: AppColors.success.withOpacity(0.15),
+                    color: AppColors.success.withValues(alpha: 0.15),
                     borderRadius:
                         BorderRadius.circular(AppConstants.radiusXL),
                   ),
@@ -262,6 +313,35 @@ class _ParticipantDetailPageState extends State<ParticipantDetailPage> {
               ),
             ],
           ),
+          if (_peserta.listIdPlayer.isNotEmpty) ...[
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: AppConstants.paddingM),
+              child: Divider(height: 1, color: AppColors.divider),
+            ),
+            Text('ID Player', style: AppTextStyles.interCaption.copyWith(color: AppColors.textHint)),
+            const SizedBox(height: 6),
+            Wrap(
+              spacing: 8,
+              runSpacing: 6,
+              children: _peserta.listIdPlayer
+                  .asMap()
+                  .entries
+                  .map((e) => Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: AppColors.surface,
+                          borderRadius: BorderRadius.circular(AppConstants.radiusS),
+                          border: Border.all(color: AppColors.divider),
+                        ),
+                        child: Text(
+                          'P${e.key + 1}: ${e.value}',
+                          style: AppTextStyles.interCaption
+                              .copyWith(color: AppColors.textPrimary),
+                        ),
+                      ))
+                  .toList(),
+            ),
+          ],
         ],
       ),
     );
@@ -320,11 +400,20 @@ class _ParticipantDetailPageState extends State<ParticipantDetailPage> {
 
   // ===================== BUKTI PEMBAYARAN =====================
   Widget _buildBuktiPembayaran() {
+    final url = _buktiSignedUrl;
     return Stack(
       children: [
         ClipRRect(
           borderRadius: BorderRadius.circular(AppConstants.radiusM),
-          child: _ReceiptPlaceholder(height: 200),
+          child: url != null
+              ? Image.network(
+                  url,
+                  height: 200,
+                  width: double.infinity,
+                  fit: BoxFit.cover,
+                  errorBuilder: (ctx, err, st) => const _ReceiptPlaceholder(height: 200),
+                )
+              : const _ReceiptPlaceholder(height: 200),
         ),
         Positioned(
           right: AppConstants.paddingM,
@@ -335,7 +424,7 @@ class _ParticipantDetailPageState extends State<ParticipantDetailPage> {
               padding: const EdgeInsets.symmetric(
                   horizontal: AppConstants.paddingM, vertical: 8),
               decoration: BoxDecoration(
-                color: AppColors.background.withOpacity(0.85),
+                color: AppColors.background.withValues(alpha: 0.85),
                 borderRadius: BorderRadius.circular(AppConstants.radiusXL),
                 border: Border.all(color: AppColors.divider),
               ),
@@ -486,9 +575,9 @@ class _ParticipantDetailPageState extends State<ParticipantDetailPage> {
       width: double.infinity,
       padding: const EdgeInsets.all(AppConstants.paddingM),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.12),
+        color: color.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(AppConstants.radiusM),
-        border: Border.all(color: color.withOpacity(0.4)),
+        border: Border.all(color: color.withValues(alpha: 0.4)),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,

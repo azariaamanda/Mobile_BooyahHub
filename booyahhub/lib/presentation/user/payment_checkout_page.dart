@@ -1,9 +1,9 @@
+  import 'dart:typed_data';
   import 'package:flutter/material.dart';
   import 'package:go_router/go_router.dart';
   import 'package:supabase_flutter/supabase_flutter.dart';
   import '../../config/app_color.dart';
   import 'package:image_picker/image_picker.dart';
-  import 'dart:io';
 
   class PaymentCheckoutPage extends StatefulWidget {
     final int pendaftaranId;
@@ -16,7 +16,7 @@
 
   class _PaymentCheckoutPageState extends State<PaymentCheckoutPage> {
     late Future<Map<String, dynamic>> _pendaftaranData;
-    File? _buktiFile;
+    Uint8List? _buktiBytes;
 
     @override
     void initState() {
@@ -83,7 +83,7 @@
     }
 
     Future<void> _kirimBuktiPembayaran() async {
-      if (_buktiFile == null) return;
+      if (_buktiBytes == null) return;
 
       try {
         final supabase = Supabase.instance.client;
@@ -96,7 +96,7 @@
         // 1. Upload file ke storage
         await supabase.storage
             .from('bukti_bayar')
-            .upload(filePath, _buktiFile!);
+            .uploadBinary(filePath, _buktiBytes!);
 
         // 2. Simpan PATH ke database (bukan URL)
         await supabase
@@ -410,8 +410,9 @@
                           final ImagePicker picker = ImagePicker();
                           final XFile? image = await picker.pickImage(source: ImageSource.gallery);
                           if (image != null) {
+                            final bytes = await image.readAsBytes();
                             setState(() {
-                              _buktiFile = File(image.path);
+                              _buktiBytes = bytes;
                             });
                           }
                         },
@@ -439,10 +440,10 @@
                                 fontWeight: FontWeight.w500,
                               ),
                             ),
-                            if (_buktiFile != null) ...[
+                            if (_buktiBytes != null) ...[
                             const SizedBox(height: 12),
-                            Image.file(
-                              _buktiFile!,
+                            Image.memory(
+                              _buktiBytes!,
                               height: 150,
                               fit: BoxFit.cover,
                             ),
@@ -459,7 +460,7 @@
                       height: 52,
                       child: ElevatedButton(
                         onPressed: () async {
-                          if (_buktiFile == null) {
+                          if (_buktiBytes == null) {
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(
                                 content: Text('Silakan unggah bukti transfer terlebih dahulu.'),

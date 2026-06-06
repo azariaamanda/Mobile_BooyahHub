@@ -1,4 +1,4 @@
-import 'dart:io';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../config/app_color.dart';
@@ -29,7 +29,7 @@ class _UserEditProfilePageState extends State<UserEditProfilePage> {
   final TextEditingController _confirmPasswordController = TextEditingController();
 
   bool _isLoading = false;
-  File? _selectedImage;
+  Uint8List? _selectedImage;
 
   @override
   void initState() {
@@ -53,8 +53,9 @@ class _UserEditProfilePageState extends State<UserEditProfilePage> {
       final picker = ImagePicker();
       final pickedFile = await picker.pickImage(source: ImageSource.gallery);
       if (pickedFile != null) {
+        final bytes = await pickedFile.readAsBytes();
         setState(() {
-          _selectedImage = File(pickedFile.path);
+          _selectedImage = bytes;
         });
       }
     } catch (e) {
@@ -141,7 +142,7 @@ class _UserEditProfilePageState extends State<UserEditProfilePage> {
                         radius: 50,
                         backgroundColor: AppColors.surfaceVariant,
                         backgroundImage: _selectedImage != null
-                            ? FileImage(_selectedImage!) as ImageProvider
+                            ? MemoryImage(_selectedImage!) as ImageProvider
                             : (widget.initialFotoProfil != null && widget.initialFotoProfil!.isNotEmpty
                                 ? NetworkImage(widget.initialFotoProfil!)
                                 : const NetworkImage('https://i.pravatar.cc/300')), // Fallback

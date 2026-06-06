@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../config/app_color.dart';
+import '../../config/app_constants.dart';
 import '../../config/app_text_styles.dart';
+import '../../data/models/services/admin_service.dart';
 
 class ScrimLeaderboardPage extends StatefulWidget {
   final int sesiId;
@@ -13,7 +15,10 @@ class ScrimLeaderboardPage extends StatefulWidget {
 
 class _ScrimLeaderboardPageState extends State<ScrimLeaderboardPage> {
   final _supabase = Supabase.instance.client;
+  final _adminService = AdminService();
+
   bool _isLoading = true;
+  bool _isBagiHadiah = false;
   List<Map<String, dynamic>> _leaderboardData = [];
   int? _currentUserId;
 
@@ -116,6 +121,76 @@ class _ScrimLeaderboardPageState extends State<ScrimLeaderboardPage> {
     }
   }
 
+  Future<void> _dobagiHadiah() async {
+    setState(() => _isBagiHadiah = true);
+    final result = await _adminService.bagiHadiah(widget.sesiId);
+    if (!mounted) return;
+    setState(() => _isBagiHadiah = false);
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(result['message'] ?? ''),
+        backgroundColor:
+            (result['success'] as bool? ?? false) ? AppColors.success : AppColors.error,
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
+  Widget _buildBagiHadiahButton() {
+    return Container(
+      padding: EdgeInsets.fromLTRB(
+        AppConstants.paddingM,
+        AppConstants.paddingS,
+        AppConstants.paddingM,
+        AppConstants.paddingM + MediaQuery.of(context).padding.bottom,
+      ),
+      decoration: const BoxDecoration(
+        color: AppColors.backgroundCard,
+        border: Border(top: BorderSide(color: Colors.white10)),
+      ),
+      child: SizedBox(
+        width: double.infinity,
+        height: 48,
+        child: ElevatedButton(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: AppColors.primary,
+            disabledBackgroundColor: AppColors.primary.withValues(alpha: 0.5),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(AppConstants.radiusM),
+            ),
+            elevation: 0,
+          ),
+          onPressed: _isBagiHadiah ? null : _dobagiHadiah,
+          child: _isBagiHadiah
+              ? const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(
+                    color: Colors.black,
+                    strokeWidth: 2.5,
+                  ),
+                )
+              : Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: const [
+                    Icon(Icons.emoji_events, color: Colors.black, size: 20),
+                    SizedBox(width: 8),
+                    Text(
+                      'Bagi Hadiah ke Pemenang',
+                      style: TextStyle(
+                        color: Colors.black,
+                        fontWeight: FontWeight.w800,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ],
+                ),
+        ),
+      ),
+    );
+  }
+
   Widget _avatar(String teamName, double size, {Color? borderColor}) {
     final initials = teamName.trim().split(' ')
         .take(2)
@@ -177,6 +252,7 @@ class _ScrimLeaderboardPageState extends State<ScrimLeaderboardPage> {
           padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
           child: _buildTable(_leaderboardData),
         ),
+        bottomNavigationBar: _buildBagiHadiahButton(),
       );
     }
 
@@ -205,6 +281,7 @@ class _ScrimLeaderboardPageState extends State<ScrimLeaderboardPage> {
           ],
         ),
       ),
+      bottomNavigationBar: _buildBagiHadiahButton(),
     );
   }
 
@@ -299,11 +376,11 @@ class _ScrimLeaderboardPageState extends State<ScrimLeaderboardPage> {
                   height: podiumHeights[i],
                   width: double.infinity,
                   decoration: BoxDecoration(
-                    color: color.withOpacity(0.12),
+                    color: color.withValues(alpha:0.12),
                     border: Border(
                       top: BorderSide(color: color, width: 2),
-                      left: BorderSide(color: color.withOpacity(0.3), width: 1),
-                      right: BorderSide(color: color.withOpacity(0.3), width: 1),
+                      left: BorderSide(color: color.withValues(alpha:0.3), width: 1),
+                      right: BorderSide(color: color.withValues(alpha:0.3), width: 1),
                     ),
                     borderRadius: const BorderRadius.vertical(top: Radius.circular(6)),
                   ),
@@ -339,7 +416,7 @@ class _ScrimLeaderboardPageState extends State<ScrimLeaderboardPage> {
           Container(
             padding: const EdgeInsets.symmetric(vertical: 11, horizontal: 12),
             decoration: BoxDecoration(
-              color: AppColors.primary.withOpacity(0.08),
+              color: AppColors.primary.withValues(alpha:0.08),
               borderRadius: const BorderRadius.vertical(top: Radius.circular(13)),
               border: Border(bottom: BorderSide(color: AppColors.surfaceVariant)),
             ),
@@ -363,7 +440,7 @@ class _ScrimLeaderboardPageState extends State<ScrimLeaderboardPage> {
             return Container(
               padding: const EdgeInsets.symmetric(vertical: 11, horizontal: 12),
               decoration: BoxDecoration(
-                color: isMyTeam ? AppColors.primary.withOpacity(0.07) : Colors.transparent,
+                color: isMyTeam ? AppColors.primary.withValues(alpha:0.07) : Colors.transparent,
                 borderRadius: isLast ? const BorderRadius.vertical(bottom: Radius.circular(13)) : BorderRadius.zero,
                 border: !isLast ? Border(bottom: BorderSide(color: AppColors.surfaceVariant)) : null,
               ),

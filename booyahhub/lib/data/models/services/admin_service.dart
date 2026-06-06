@@ -210,6 +210,32 @@ class AdminService {
   }
 
   // ============================================================
+  // BAGI HADIAH — panggil SQL function fn_bagi_hadiah via RPC
+  // Dipanggil setelah admin selesai input skor semua match.
+  // Function ini otomatis membuat klaim_hadiah untuk juara 1/2/3
+  // berdasarkan leaderboard hasil_pertandingan.
+  // ============================================================
+  Future<Map<String, dynamic>> bagiHadiah(int idSesi) async {
+    try {
+      final result = await _supabase.rpc(
+        'fn_bagi_hadiah',
+        params: {'p_id_sesi': idSesi},
+      );
+
+      final data = result as Map<String, dynamic>;
+      final bool success = data['success'] as bool? ?? false;
+      final String message = data['message'] as String? ?? '';
+
+      return {'success': success, 'message': message};
+    } catch (e) {
+      return {
+        'success': false,
+        'message': 'Gagal membagi hadiah: $e',
+      };
+    }
+  }
+
+  // ============================================================
   // GET KLAIM MENUNGGU ADMIN
   // ============================================================
   Future<List<KlaimHadiah>> getPendingClaims() async {

@@ -1,4 +1,4 @@
-import 'dart:io';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -28,7 +28,7 @@ class _ManageBannerPageState extends State<ManageBannerPage> {
   DateTime? _startDate;
   DateTime? _endDate;
   String? _imageUrl;
-  File? _imageFile;
+  Uint8List? _imageBytes;
   bool _isUploading = false;
   String _status = 'draft';
 
@@ -96,8 +96,9 @@ class _ManageBannerPageState extends State<ManageBannerPage> {
     final pickedFile = await picker.pickImage(source: ImageSource.gallery);
     
     if (pickedFile != null) {
+      final bytes = await pickedFile.readAsBytes();
       setState(() {
-        _imageFile = File(pickedFile.path);
+        _imageBytes = bytes;
         _imageUrl = null;
       });
     }
@@ -122,9 +123,9 @@ class _ManageBannerPageState extends State<ManageBannerPage> {
 
     String? finalImageUrl = _imageUrl;
     
-    if (_imageFile != null) {
+    if (_imageBytes != null) {
       final fileName = 'banner_${DateTime.now().millisecondsSinceEpoch}.jpg';
-      final uploadedUrl = await BannerService.uploadBannerImage(_imageFile!, fileName);
+      final uploadedUrl = await BannerService.uploadBannerImage(_imageBytes!, fileName);
       if (uploadedUrl != null) {
         finalImageUrl = uploadedUrl;
       } else {
@@ -180,7 +181,7 @@ class _ManageBannerPageState extends State<ManageBannerPage> {
       _startDate = null;
       _endDate = null;
       _imageUrl = null;
-      _imageFile = null;
+      _imageBytes = null;
       _status = 'draft';
       _isAddingBanner = false;
     });
@@ -209,7 +210,7 @@ class _ManageBannerPageState extends State<ManageBannerPage> {
     _endDate = banner.endDate;
     _imageUrl = banner.imageUrl;
     _status = banner.status;
-    _imageFile = null;
+    _imageBytes = null;
     
     setState(() => _isAddingBanner = true);
     
@@ -750,10 +751,10 @@ class _ManageBannerPageState extends State<ManageBannerPage> {
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(color: Colors.white24),
                 ),
-                child: _imageFile != null
+                child: _imageBytes != null
                     ? ClipRRect(
                         borderRadius: BorderRadius.circular(12),
-                        child: Image.file(_imageFile!, fit: BoxFit.cover, width: double.infinity),
+                        child: Image.memory(_imageBytes!, fit: BoxFit.cover, width: double.infinity),
                       )
                     : _imageUrl != null && _imageUrl!.isNotEmpty
                         ? ClipRRect(

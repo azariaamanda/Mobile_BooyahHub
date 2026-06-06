@@ -1,4 +1,4 @@
-import 'dart:io';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
@@ -21,7 +21,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
   bool _isLoading = true;
   Map<String, dynamic>? _akun;
   Map<String, dynamic>? _profil;
-  File? _selectedFotoFile;
+  Uint8List? _selectedFotoFile;
 
   final _namaController = TextEditingController();
   final _emailController = TextEditingController();
@@ -73,14 +73,14 @@ class _EditProfilePageState extends State<EditProfilePage> {
     }
   }
 
-  Future<String?> _uploadFotoProfil(File imageFile, int akunId) async {
+  Future<String?> _uploadFotoProfil(Uint8List imageBytes, int akunId) async {
     try {
       final timestamp = DateTime.now().millisecondsSinceEpoch;
       final fileName = 'admin/${akunId}_avatar_$timestamp.jpg';
-      
-      await _supabase.storage.from('foto_profil').upload(
+
+      await _supabase.storage.from('foto_profil').uploadBinary(
         fileName,
-        imageFile,
+        imageBytes,
         fileOptions: const FileOptions(upsert: true),
       );
       
@@ -99,7 +99,8 @@ class _EditProfilePageState extends State<EditProfilePage> {
       imageQuality: 80,
     );
     if (image != null) {
-      setState(() => _selectedFotoFile = File(image.path));
+      final bytes = await image.readAsBytes();
+      setState(() => _selectedFotoFile = bytes);
     }
   }
 
@@ -231,7 +232,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
                           radius: 55,
                           backgroundColor: AppColors.primary.withOpacity(0.2),
                           backgroundImage: _selectedFotoFile != null
-                              ? FileImage(_selectedFotoFile!)
+                              ? MemoryImage(_selectedFotoFile!)
                               : (_isValidImageUrl(fotoUrl) ? NetworkImage(fotoUrl) : null),
                           child: _selectedFotoFile == null && !_isValidImageUrl(fotoUrl)
                               ? Text(

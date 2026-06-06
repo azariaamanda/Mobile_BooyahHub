@@ -50,6 +50,10 @@ class PesertaVerifikasi {
   final String bankPengirim;
   final String namaPengirim;
   final String? buktiPembayaranUrl;
+  final String? idPlayer1;
+  final String? idPlayer2;
+  final String? idPlayer3;
+  final String? idPlayer4;
 
   const PesertaVerifikasi({
     required this.idPendaftaran,
@@ -66,6 +70,10 @@ class PesertaVerifikasi {
     required this.bankPengirim,
     required this.namaPengirim,
     this.buktiPembayaranUrl,
+    this.idPlayer1,
+    this.idPlayer2,
+    this.idPlayer3,
+    this.idPlayer4,
   });
 
   factory PesertaVerifikasi.fromJson(Map<String, dynamic> json) {
@@ -84,6 +92,10 @@ class PesertaVerifikasi {
       bankPengirim: json['bank_pengirim'] ?? '-',
       namaPengirim: json['nama_pengirim'] ?? '-',
       buktiPembayaranUrl: json['bukti_pembayaran'],
+      idPlayer1: json['id_player_1'] as String?,
+      idPlayer2: json['id_player_2'] as String?,
+      idPlayer3: json['id_player_3'] as String?,
+      idPlayer4: json['id_player_4'] as String?,
     );
   }
 
@@ -103,7 +115,20 @@ class PesertaVerifikasi {
       bankPengirim: bankPengirim,
       namaPengirim: namaPengirim,
       buktiPembayaranUrl: buktiPembayaranUrl,
+      idPlayer1: idPlayer1,
+      idPlayer2: idPlayer2,
+      idPlayer3: idPlayer3,
+      idPlayer4: idPlayer4,
     );
+  }
+
+  List<String> get listIdPlayer {
+    final list = <String>[];
+    if (idPlayer1 != null && idPlayer1!.isNotEmpty) list.add(idPlayer1!);
+    if (idPlayer2 != null && idPlayer2!.isNotEmpty) list.add(idPlayer2!);
+    if (idPlayer3 != null && idPlayer3!.isNotEmpty) list.add(idPlayer3!);
+    if (idPlayer4 != null && idPlayer4!.isNotEmpty) list.add(idPlayer4!);
+    return list;
   }
 
   String get nominalFormatted {

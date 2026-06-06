@@ -6,6 +6,7 @@
 // tab juga menaruh bottom nav, akan muncul DUA bar bertumpuk.
 
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../config/app_color.dart';
 import '../../config/app_constants.dart';
@@ -21,16 +22,160 @@ class PesertaManagementPage extends StatefulWidget {
 }
 
 class _PesertaManagementPageState extends State<PesertaManagementPage> {
+  final _supabase = Supabase.instance.client;
+
   int _selectedTab = 0;
   static const _tabs = ['Semua', 'Menunggu', 'Konfirmasi', 'Ditolak'];
 
-  final List<PesertaVerifikasi> _peserta = List.of(mockPesertaList);
+  bool _isLoading = true;
+  String? _errorMessage;
+  String _emptyReason = 'Belum ada peserta';
+  List<PesertaVerifikasi> _peserta = [];
 
   List<PesertaVerifikasi> get _filtered {
     if (_selectedTab == 0) return _peserta;
     final target = _tabs[_selectedTab];
     return _peserta.where((p) => p.status.tab == target).toList();
   }
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchData();
+  }
+
+  Future<void> _fetchData() async {
+    setState(() { _isLoading = true; _errorMessage = null; });
+    try {
+      final user = _supabase.auth.currentUser;
+      if (user == null) throw Exception('Belum login');
+
+      final akunData = await _supabase
+          .from('akun')
+          .select('id_akun')
+          .eq('email', user.email!)
+          .single();
+      final int adminId = akunData['id_akun'];
+
+      final scrims = await _supabase
+          .from('scrim')
+          .select('id_scrim, nama_scrim, biaya_pendaftaran')
+          .eq('id_admin', adminId);
+
+      if ((scrims as List).isEmpty) {
+        setState(() { _peserta = []; _isLoading = false; _emptyReason = 'Admin belum memiliki scrim.\nBuat scrim terlebih dahulu di menu tambah (+).'; });
+        return;
+      }
+
+      final scrimIds = scrims.map((s) => s['id_scrim'] as int).toList();
+      final scrimMap = <int, Map<String, dynamic>>{
+        for (var s in scrims) s['id_scrim'] as int: Map<String, dynamic>.from(s)
+      };
+
+      final sessions = await _supabase
+          .from('sesi_scrim')
+          .select('id_sesi, id_scrim, nama_sesi, waktu_mulai, waktu_selesai')
+          .inFilter('id_scrim', scrimIds);
+
+      if ((sessions as List).isEmpty) {
+        setState(() { _peserta = []; _isLoading = false; _emptyReason = 'Scrim ditemukan (${scrims.length}) tapi belum ada sesi.\nTambahkan sesi ke scrim anda.'; });
+        return;
+      }
+
+      final sesiIds = sessions.map((s) => s['id_sesi'] as int).toList();
+      final sesiMap = <int, Map<String, dynamic>>{
+        for (var s in sessions) s['id_sesi'] as int: Map<String, dynamic>.from(s)
+      };
+
+      final pendaftaran = await _supabase
+          .from('pendaftaran_tim')
+          .select('id_pendaftaran, id_sesi, akun_id, nama_kapten, whatsapp_kapten, id_player_1, id_player_2, id_player_3, id_player_4, metode_pembayaran_daftar, bukti_pembayaran, status_pembayaran, dibuat_pada')
+          .inFilter('id_sesi', sesiIds)
+          .order('dibuat_pada', ascending: false);
+
+      if ((pendaftaran as List).isEmpty) {
+        setState(() { _peserta = []; _isLoading = false; _emptyReason = 'Scrim & sesi ada, tapi belum ada user yang mendaftar.'; });
+        return;
+      }
+
+      final akunIds = pendaftaran
+          .map((p) => p['akun_id'] as int?)
+          .whereType<int>()
+          .toSet()
+          .toList();
+
+      final profils = akunIds.isNotEmpty
+          ? await _supabase
+              .from('profil_pengguna')
+              .select('akun_id, nama_tim')
+              .inFilter('akun_id', akunIds)
+          : <dynamic>[];
+
+      final profilMap = <int, String>{
+        for (var p in profils)
+          (p['akun_id'] as int): (p['nama_tim'] as String? ?? '-')
+      };
+
+      final result = <PesertaVerifikasi>[];
+      for (final p in pendaftaran) {
+        final sesiId = p['id_sesi'] as int?;
+        if (sesiId == null) continue;
+        final sesi = sesiMap[sesiId];
+        if (sesi == null) continue;
+
+        final scrimId = sesi['id_scrim'] as int?;
+        if (scrimId == null) continue;
+        final scrim = scrimMap[scrimId];
+        if (scrim == null) continue;
+
+        final akunId = p['akun_id'] as int?;
+        final namaTim = akunId != null ? (profilMap[akunId] ?? 'Tim $akunId') : '-';
+
+        DateTime? waktuMulai, waktuSelesai;
+        try {
+          waktuMulai = DateTime.parse(sesi['waktu_mulai'] ?? '').toLocal();
+          waktuSelesai = DateTime.parse(sesi['waktu_selesai'] ?? '').toLocal();
+        } catch (_) {}
+
+        final tanggal = waktuMulai != null
+            ? '${waktuMulai.day} ${_bulan(waktuMulai.month)} ${waktuMulai.year}'
+            : '-';
+        final waktu = (waktuMulai != null && waktuSelesai != null)
+            ? '${_dd(waktuMulai.hour)}.${_dd(waktuMulai.minute)} - ${_dd(waktuSelesai.hour)}.${_dd(waktuSelesai.minute)} WIB'
+            : '-';
+
+        result.add(PesertaVerifikasi(
+          idPendaftaran: p['id_pendaftaran'] as int,
+          idScrim: scrimId,
+          namaTim: namaTim,
+          namaKapten: p['nama_kapten'] as String? ?? '-',
+          whatsappKapten: p['whatsapp_kapten'] as String? ?? '-',
+          status: StatusPesertaX.fromString(p['status_pembayaran'] as String? ?? 'menunggu'),
+          namaScrim: scrim['nama_scrim'] as String? ?? '-',
+          slotId: '#${p['id_pendaftaran']}',
+          tanggal: tanggal,
+          waktu: waktu,
+          nominal: (scrim['biaya_pendaftaran'] as num?)?.toInt() ?? 0,
+          bankPengirim: p['metode_pembayaran_daftar'] as String? ?? '-',
+          namaPengirim: p['nama_kapten'] as String? ?? '-',
+          buktiPembayaranUrl: p['bukti_pembayaran'] as String?,
+          idPlayer1: p['id_player_1'] as String?,
+          idPlayer2: p['id_player_2'] as String?,
+          idPlayer3: p['id_player_3'] as String?,
+          idPlayer4: p['id_player_4'] as String?,
+        ));
+      }
+
+      setState(() { _peserta = result; _isLoading = false; });
+    } catch (e) {
+      setState(() { _errorMessage = 'Gagal memuat data: $e'; _isLoading = false; });
+    }
+  }
+
+  static String _bulan(int m) =>
+      ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Ags','Sep','Okt','Nov','Des'][m - 1];
+
+  static String _dd(int n) => n.toString().padLeft(2, '0');
 
   Future<void> _openDetail(PesertaVerifikasi peserta) async {
     final updated = await Navigator.of(context).push<PesertaVerifikasi>(
@@ -50,10 +195,6 @@ class _PesertaManagementPageState extends State<PesertaManagementPage> {
 
   @override
   Widget build(BuildContext context) {
-    final list = _filtered;
-
-    // Tanpa Scaffold sendiri: AdminMainNavigator sudah menyediakan Scaffold.
-    // Cukup kembalikan Column. SafeArea atas untuk status bar.
     return SafeArea(
       bottom: false,
       child: Column(
@@ -61,30 +202,54 @@ class _PesertaManagementPageState extends State<PesertaManagementPage> {
           _buildHeader(),
           _buildTabBar(),
           const SizedBox(height: AppConstants.paddingS),
-          Expanded(
-            child: list.isEmpty
-                ? _buildEmptyState()
-                : ListView.separated(
-                    primary: false,
-                    physics: const BouncingScrollPhysics(),
-                    padding: const EdgeInsets.fromLTRB(
-                      AppConstants.paddingM,
-                      AppConstants.paddingS,
-                      AppConstants.paddingM,
-                      // ruang supaya kartu terakhir tidak ketutup nav bar
-                      110,
-                    ),
-                    itemCount: list.length,
-                    separatorBuilder: (_, _) =>
-                        const SizedBox(height: AppConstants.paddingM),
-                    itemBuilder: (_, i) => _PesertaCard(
-                      peserta: list[i],
-                      onTap: () => _openDetail(list[i]),
-                    ),
-                  ),
-          ),
+          Expanded(child: _buildBody()),
         ],
       ),
+    );
+  }
+
+  Widget _buildBody() {
+    if (_isLoading) {
+      return const Center(
+        child: CircularProgressIndicator(color: AppColors.primary),
+      );
+    }
+    if (_errorMessage != null) {
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.error_outline, size: 48, color: AppColors.error),
+            const SizedBox(height: AppConstants.paddingM),
+            Text(_errorMessage!, style: AppTextStyles.interBody.copyWith(color: AppColors.textHint), textAlign: TextAlign.center),
+            const SizedBox(height: AppConstants.paddingM),
+            TextButton(onPressed: _fetchData, child: const Text('Coba Lagi')),
+          ],
+        ),
+      );
+    }
+    final list = _filtered;
+    return RefreshIndicator(
+      color: AppColors.primary,
+      onRefresh: _fetchData,
+      child: list.isEmpty
+          ? _buildEmptyState()
+          : ListView.separated(
+              primary: false,
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.fromLTRB(
+                AppConstants.paddingM,
+                AppConstants.paddingS,
+                AppConstants.paddingM,
+                110,
+              ),
+              itemCount: list.length,
+              separatorBuilder: (_, _) => const SizedBox(height: AppConstants.paddingM),
+              itemBuilder: (_, i) => _PesertaCard(
+                peserta: list[i],
+                onTap: () => _openDetail(list[i]),
+              ),
+            ),
     );
   }
 
@@ -162,17 +327,40 @@ class _PesertaManagementPageState extends State<PesertaManagementPage> {
 
   // ===================== EMPTY STATE =====================
   Widget _buildEmptyState() {
+    final isFilteredTab = _selectedTab != 0;
     return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(Icons.inbox_outlined, size: 56, color: AppColors.textDisabled),
-          const SizedBox(height: AppConstants.paddingM),
-          Text(
-            'Belum ada peserta',
-            style: AppTextStyles.interBody.copyWith(color: AppColors.textHint),
-          ),
-        ],
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: AppConstants.paddingL),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.inbox_outlined, size: 56, color: AppColors.textDisabled),
+            const SizedBox(height: AppConstants.paddingM),
+            Text(
+              isFilteredTab
+                  ? 'Belum ada peserta di tab "${_tabs[_selectedTab]}"'
+                  : _emptyReason,
+              style: AppTextStyles.interBody.copyWith(color: AppColors.textHint),
+              textAlign: TextAlign.center,
+            ),
+            if (isFilteredTab && _peserta.isNotEmpty) ...[
+              const SizedBox(height: AppConstants.paddingS),
+              Text(
+                'Ada ${_peserta.length} peserta di tab "Semua"',
+                style: AppTextStyles.interCaption.copyWith(color: AppColors.primary),
+                textAlign: TextAlign.center,
+              ),
+            ],
+            if (isFilteredTab && _peserta.isEmpty) ...[
+              const SizedBox(height: AppConstants.paddingS),
+              Text(
+                _emptyReason,
+                style: AppTextStyles.interCaption.copyWith(color: AppColors.textHint),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ],
+        ),
       ),
     );
   }
@@ -307,9 +495,9 @@ class StatusBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.15),
+        color: color.withValues(alpha: 0.15),
         borderRadius: BorderRadius.circular(AppConstants.radiusXL),
-        border: Border.all(color: color.withOpacity(0.5)),
+        border: Border.all(color: color.withValues(alpha: 0.5)),
       ),
       child: Text(
         status.label,

@@ -4,8 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'dart:typed_data';
 import 'package:image_picker/image_picker.dart';
-import 'dart:io';
 import '../../config/app_color.dart';
 import '../../config/app_constants.dart';
 import '../../config/app_text_styles.dart';
@@ -35,7 +35,7 @@ class _AdminBayarTagihanPageState extends State<AdminBayarTagihanPage> {
   final _nominalController = TextEditingController();
   String? _selectedMetode; // 'bank' atau 'qris'
   String? _selectedBank;
-  File? _buktiFile;
+  Uint8List? _buktiBytes;
   bool _isSubmitting = false;
 
   // Daftar bank yang tersedia
@@ -185,7 +185,7 @@ class _AdminBayarTagihanPageState extends State<AdminBayarTagihanPage> {
       return;
     }
     
-    if (_buktiFile == null) {
+    if (_buktiBytes == null) {
       _showMessage('Upload bukti pembayaran', isError: true);
       return;
     }
@@ -202,7 +202,7 @@ class _AdminBayarTagihanPageState extends State<AdminBayarTagihanPage> {
       
       await _supabase.storage
           .from('bukti_bayar')
-          .upload(filePath, _buktiFile!);
+          .uploadBinary(filePath, _buktiBytes!);
       
       print('Upload success!');
       
@@ -221,7 +221,7 @@ class _AdminBayarTagihanPageState extends State<AdminBayarTagihanPage> {
         _showMessage(result['message']);
         _nominalController.clear();
         setState(() {
-          _buktiFile = null;
+          _buktiBytes = null;
           _selectedMetode = null;
           _selectedBank = null;
           _showQris = false;
@@ -627,7 +627,8 @@ class _AdminBayarTagihanPageState extends State<AdminBayarTagihanPage> {
         final picker = ImagePicker();
         final image = await picker.pickImage(source: ImageSource.gallery);
         if (image != null) {
-          setState(() => _buktiFile = File(image.path));
+          final bytes = await image.readAsBytes();
+          setState(() => _buktiBytes = bytes);
         }
       },
       child: Container(
@@ -637,14 +638,14 @@ class _AdminBayarTagihanPageState extends State<AdminBayarTagihanPage> {
           color: AppColors.inputFill,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: _buktiFile != null ? AppColors.primary : AppColors.inputBorder,
-            width: _buktiFile != null ? 2 : 1,
+            color: _buktiBytes != null ? AppColors.primary : AppColors.inputBorder,
+            width: _buktiBytes != null ? 2 : 1,
           ),
         ),
-        child: _buktiFile != null
+        child: _buktiBytes != null
             ? ClipRRect(
                 borderRadius: BorderRadius.circular(12),
-                child: Image.file(_buktiFile!, fit: BoxFit.cover, width: double.infinity),
+                child: Image.memory(_buktiBytes!, fit: BoxFit.cover, width: double.infinity),
               )
             : Column(
                 mainAxisAlignment: MainAxisAlignment.center,

@@ -1,7 +1,7 @@
 // lib/data/models/services/banner_service.dart
 
 import 'dart:developer';
-import 'dart:io';
+import 'dart:typed_data';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../banner_model.dart';
 
@@ -65,15 +65,15 @@ class BannerService {
   }
 
   // Upload gambar banner ke bucket posters
-  static Future<String?> uploadBannerImage(File imageFile, String fileName) async {
+  static Future<String?> uploadBannerImage(Uint8List imageBytes, String fileName) async {
     try {
       final supabase = Supabase.instance.client;
-      
+
       // Path: banners/nama_file.jpg
       final filePath = 'banners/$fileName';
-      
+
       // Upload ke bucket posters
-      await supabase.storage.from('posters').upload(filePath, imageFile);
+      await supabase.storage.from('posters').uploadBinary(filePath, imageBytes);
       
       // Dapatkan public URL
       final publicUrl = supabase.storage.from('posters').getPublicUrl(filePath);

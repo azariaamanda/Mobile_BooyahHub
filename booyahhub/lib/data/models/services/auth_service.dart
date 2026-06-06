@@ -1,4 +1,4 @@
-import 'dart:io';
+import 'dart:typed_data';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../config/supabase_client.dart';
 import '../akun_model.dart';
@@ -346,7 +346,7 @@ class AuthService {
     String? newName,
     String? oldPassword,
     String? newPassword,
-    File? newFotoProfil,
+    Uint8List? newFotoProfil,
   }) async {
     try {
       if (!isLoggedIn) return {'success': false, 'message': 'Belum login'};
@@ -370,16 +370,12 @@ class AuthService {
       String? publicUrl;
       String? publicUrlClean;
       if (newFotoProfil != null) {
-        final ext = newFotoProfil.path.split('.').last;
-        final path = 'pengguna/${currentUser!.id}/avatar.$ext';
-        
-        // Upload foto dengan upsert=true agar menimpa foto lama
-        await _supabase.storage.from('foto_profil').upload(
-          path,
+        await _supabase.storage.from('foto_profil').uploadBinary(
+          'pengguna/${currentUser!.id}/avatar.jpg',
           newFotoProfil,
           fileOptions: const FileOptions(upsert: true),
         );
-        publicUrlClean = _supabase.storage.from('foto_profil').getPublicUrl(path);
+        publicUrlClean = _supabase.storage.from('foto_profil').getPublicUrl('pengguna/${currentUser!.id}/avatar.jpg');
         // URL bersih untuk disimpan ke database
         publicUrl = publicUrlClean;
       }

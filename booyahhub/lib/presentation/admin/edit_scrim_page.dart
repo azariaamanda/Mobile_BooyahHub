@@ -1,4 +1,4 @@
-import 'dart:io';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
@@ -29,7 +29,7 @@ class _EditScrimPageState extends State<EditScrimPage> {
 
   int? _selectedModeId;
   String? _posterUrl;
-  String? _newPosterPath;
+  Uint8List? _newPosterBytes;
   bool _isLoading = false;
   bool _isLoadingModes = true;
   List<Map<String, dynamic>> _modes = [];
@@ -108,18 +108,18 @@ class _EditScrimPageState extends State<EditScrimPage> {
       imageQuality: 80,
     );
     if (image != null) {
-      setState(() => _newPosterPath = image.path);
+      final bytes = await image.readAsBytes();
+      setState(() => _newPosterBytes = bytes);
     }
   }
 
   Future<String?> _uploadPoster() async {
-    if (_newPosterPath == null) return _posterUrl;
+    if (_newPosterBytes == null) return _posterUrl;
 
-    final file = File(_newPosterPath!);
     final fileName = '${DateTime.now().millisecondsSinceEpoch}.jpg';
     final path = 'posters/$fileName';
 
-    await _supabase.storage.from('posters').upload(path, file);
+    await _supabase.storage.from('posters').uploadBinary(path, _newPosterBytes!);
     return _supabase.storage.from('posters').getPublicUrl(path);
   }
 
@@ -530,16 +530,16 @@ class _EditScrimPageState extends State<EditScrimPage> {
               color: AppColors.inputFill,
               borderRadius: BorderRadius.circular(12),
               border: Border.all(
-                color: _newPosterPath != null || _posterUrl != null
+                color: _newPosterBytes != null || _posterUrl != null
                     ? AppColors.primary
                     : AppColors.inputBorder,
               ),
             ),
-            child: _newPosterPath != null
+            child: _newPosterBytes != null
                 ? ClipRRect(
                     borderRadius: BorderRadius.circular(12),
-                    child: Image.file(
-                      File(_newPosterPath!),
+                    child: Image.memory(
+                      _newPosterBytes!,
                       fit: BoxFit.cover,
                       width: double.infinity,
                     ),

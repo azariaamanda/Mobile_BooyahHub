@@ -1,4 +1,4 @@
-import 'dart:io';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -59,12 +59,11 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     setState(() => _isUploading = true);
 
     try {
-      final file = File(image.path);
-      final ext = file.path.split('.').last;
-      final fileName = '${DateTime.now().millisecondsSinceEpoch}_$akunId.$ext';
+      final bytes = await image.readAsBytes();
+      final fileName = '${DateTime.now().millisecondsSinceEpoch}_$akunId.jpg';
 
       // 1. Upload ke Storage
-      await _supabase.storage.from('foto_profil').upload('owner/$fileName', file);
+      await _supabase.storage.from('foto_profil').uploadBinary('owner/$fileName', bytes);
       
       // 2. Dapatkan Public URL
       final publicUrl = _supabase.storage.from('foto_profil').getPublicUrl('owner/$fileName');

@@ -1,4 +1,4 @@
-import 'dart:io';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
@@ -29,7 +29,7 @@ class _CreateScrimPageState extends State<CreateScrimPage> {
 
   // State
   int? _selectedModeId;
-  String? _posterPath;
+  Uint8List? _posterBytes;
   bool _isLoading = false;
   bool _isLoadingModes = true;
   List<Map<String, dynamic>> _modes = [];
@@ -338,18 +338,18 @@ class _CreateScrimPageState extends State<CreateScrimPage> {
       imageQuality: 80,
     );
     if (image != null) {
-      setState(() => _posterPath = image.path);
+      final bytes = await image.readAsBytes();
+      setState(() => _posterBytes = bytes);
     }
   }
 
   Future<String?> _uploadPoster() async {
-    if (_posterPath == null) return null;
-    
-    final file = File(_posterPath!);
+    if (_posterBytes == null) return null;
+
     final fileName = '${DateTime.now().millisecondsSinceEpoch}.jpg';
     final path = 'posters/$fileName';
-    
-    await _supabase.storage.from('posters').upload(path, file);
+
+    await _supabase.storage.from('posters').uploadBinary(path, _posterBytes!);
     return _supabase.storage.from('posters').getPublicUrl(path);
   }
 
@@ -869,12 +869,12 @@ class _CreateScrimPageState extends State<CreateScrimPage> {
             decoration: BoxDecoration(
               color: AppColors.inputFill,
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: _posterPath != null ? AppColors.primary : AppColors.inputBorder),
+              border: Border.all(color: _posterBytes != null ? AppColors.primary : AppColors.inputBorder),
             ),
-            child: _posterPath != null
+            child: _posterBytes != null
                 ? ClipRRect(
                     borderRadius: BorderRadius.circular(12),
-                    child: Image.file(File(_posterPath!), fit: BoxFit.cover, width: double.infinity),
+                    child: Image.memory(_posterBytes!, fit: BoxFit.cover, width: double.infinity),
                   )
                 : Column(
                     mainAxisAlignment: MainAxisAlignment.center,

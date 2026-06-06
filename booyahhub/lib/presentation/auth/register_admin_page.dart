@@ -1,4 +1,4 @@
-import 'dart:io';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
@@ -31,9 +31,9 @@ class _RegisterAdminPageState extends State<RegisterAdminPage> {
   bool _isLoading = false;
   bool _setujuiSyarat = false;
 
-  // File paths
-  File? _logoFile;
-  File? _ktpFile;
+  // Image bytes (cross-platform, works on web)
+  Uint8List? _logoBytes;
+  Uint8List? _ktpBytes;
 
   @override
   void dispose() {
@@ -48,14 +48,14 @@ class _RegisterAdminPageState extends State<RegisterAdminPage> {
   // ============================================================
   // UPLOAD FILE KE SUPABASE STORAGE
   // ============================================================
-  Future<String?> _uploadFileToStorage(File file, String folder, String fileName) async {
+  Future<String?> _uploadFileToStorage(Uint8List bytes, String folder, String fileName) async {
     try {
       final supabase = Supabase.instance.client;
       final path = '$folder/$fileName';
-      
-      await supabase.storage.from('foto_profil').upload(
+
+      await supabase.storage.from('foto_profil').uploadBinary(
         path,
-        file,
+        bytes,
         fileOptions: const FileOptions(upsert: true),
       );
       
@@ -78,7 +78,8 @@ class _RegisterAdminPageState extends State<RegisterAdminPage> {
     );
 
     if (image != null) {
-      setState(() => _logoFile = File(image.path));
+      final bytes = await image.readAsBytes();
+      setState(() => _logoBytes = bytes);
     }
   }
 
@@ -90,7 +91,8 @@ class _RegisterAdminPageState extends State<RegisterAdminPage> {
     );
 
     if (image != null) {
-      setState(() => _ktpFile = File(image.path));
+      final bytes = await image.readAsBytes();
+      setState(() => _ktpBytes = bytes);
     }
   }
 
@@ -100,7 +102,7 @@ class _RegisterAdminPageState extends State<RegisterAdminPage> {
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
 
-    if (_ktpFile == null) {
+    if (_ktpBytes == null) {
       _showSnackBar('Foto KTP wajib diunggah', isError: true);
       return;
     }
@@ -140,16 +142,16 @@ class _RegisterAdminPageState extends State<RegisterAdminPage> {
       
       // 3. Upload foto profil (logo) ke Supabase Storage
       String? fotoProfilUrl;
-      if (_logoFile != null) {
+      if (_logoBytes != null) {
         final timestamp = DateTime.now().millisecondsSinceEpoch;
         final fileName = 'admin_${akunId}_logo_$timestamp.jpg';
-        fotoProfilUrl = await _uploadFileToStorage(_logoFile!, 'admin', fileName);
+        fotoProfilUrl = await _uploadFileToStorage(_logoBytes!, 'admin', fileName);
       }
       
       // 4. Upload foto KTP ke Supabase Storage
       final ktpTimestamp = DateTime.now().millisecondsSinceEpoch;
       final ktpFileName = 'admin_${akunId}_ktp_$ktpTimestamp.jpg';
-      final fotoKtpUrl = await _uploadFileToStorage(_ktpFile!, 'admin', ktpFileName);
+      final fotoKtpUrl = await _uploadFileToStorage(_ktpBytes!, 'admin', ktpFileName);
       
       if (fotoKtpUrl == null) {
         throw Exception('Gagal upload foto KTP');
@@ -442,19 +444,19 @@ class _RegisterAdminPageState extends State<RegisterAdminPage> {
                             AppConstants.radiusM,
                           ),
                           border: Border.all(
-                            color: _logoFile != null
+                            color: _logoBytes != null
                                 ? AppColors.primary
                                 : AppColors.inputBorder,
                             width: 1.5,
                           ),
                         ),
-                        child: _logoFile != null
+                        child: _logoBytes != null
                             ? ClipRRect(
                                 borderRadius: BorderRadius.circular(
                                   AppConstants.radiusM,
                                 ),
-                                child: Image.file(
-                                  _logoFile!,
+                                child: Image.memory(
+                                  _logoBytes!,
                                   fit: BoxFit.cover,
                                   width: double.infinity,
                                   height: 100,
@@ -511,19 +513,19 @@ class _RegisterAdminPageState extends State<RegisterAdminPage> {
                       color: AppColors.backgroundInput,
                       borderRadius: BorderRadius.circular(AppConstants.radiusM),
                       border: Border.all(
-                        color: _ktpFile != null
+                        color: _ktpBytes != null
                             ? AppColors.primary
                             : AppColors.inputBorder,
                         width: 1,
                       ),
                     ),
-                    child: _ktpFile != null
+                    child: _ktpBytes != null
                         ? ClipRRect(
                             borderRadius: BorderRadius.circular(
                               AppConstants.radiusM,
                             ),
-                            child: Image.file(
-                              _ktpFile!,
+                            child: Image.memory(
+                              _ktpBytes!,
                               fit: BoxFit.cover,
                               width: double.infinity,
                               height: 200,
