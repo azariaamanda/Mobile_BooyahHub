@@ -41,6 +41,9 @@ class _UserNotificationPageState extends State<UserNotificationPage> {
   bool isLoading = true;
   int selectedTabIndex = 0;
   List<String> _readNotificationIds = [];
+  // Key unik per user ─ format: 'read_notifications_<userId>'
+  // Supaya status baca antar akun tidak saling tercampur
+  String _prefKey = 'read_notifications';
 
   @override
   void initState() {
@@ -49,10 +52,16 @@ class _UserNotificationPageState extends State<UserNotificationPage> {
   }
 
   Future<void> _loadReadNotificationsAndFetch() async {
+    // Buat key per-user berdasarkan ID akun yang sedang login
+    final userId = Supabase.instance.client.auth.currentUser?.id;
+    if (userId != null) {
+      _prefKey = 'read_notifications_$userId';
+    }
+
     final prefs = await SharedPreferences.getInstance();
     if (mounted) {
       setState(() {
-        _readNotificationIds = prefs.getStringList('read_notifications') ?? [];
+        _readNotificationIds = prefs.getStringList(_prefKey) ?? [];
       });
     }
     _fetchNotifications();
@@ -178,7 +187,7 @@ class _UserNotificationPageState extends State<UserNotificationPage> {
     });
     
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setStringList('read_notifications', _readNotificationIds);
+    await prefs.setStringList(_prefKey, _readNotificationIds);
   }
 
   void _deleteNotification(String id) {
@@ -211,7 +220,7 @@ class _UserNotificationPageState extends State<UserNotificationPage> {
     });
     
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setStringList('read_notifications', _readNotificationIds);
+    await prefs.setStringList(_prefKey, _readNotificationIds);
   }
 
   void _clearAll() {

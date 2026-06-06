@@ -74,33 +74,55 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
               !readIds.contains(item['id_notifikasi'].toString()))
           .toList();
 
-      // Tampilkan satu per satu dengan delay supaya tidak bertumpuk
-      for (int i = 0; i < unread.length; i++) {
-        if (!mounted) break;
-        final item = unread[i];
-        final notifId = item['id_notifikasi'].toString();
+      if (unread.isEmpty) return;
 
-        await Future.delayed(Duration(milliseconds: i == 0 ? 400 : 600));
-        if (!mounted) break;
+      // ─── Tampilkan SATU popup saja ───
+      // Kalau 1 notif → tampilkan judul & pesan langsung
+      // Kalau >1 notif → tampilkan ringkasan supaya tidak ada
+      //   masalah numpuk di stack navigasi
+      await Future.delayed(const Duration(milliseconds: 400));
+      if (!mounted) return;
 
-        NotificationPopup.show(
-          context,
-          title: item['judul'] ?? 'Notifikasi',
-          message: item['pesan'] ?? '',
-          icon: Icons.notifications_rounded,
-          iconColor: AppColors.primary,
-          onTap: () {
-            // Tandai sebagai sudah dibaca saat di-tap (per user)
-            _markNotificationRead(notifId, readIds, prefs, prefKey);
-            // Navigasi ke halaman notifikasi
-            context.pushNamed('notifikasi');
-          },
-        );
-      }
+      final String popupTitle = unread.length == 1
+          ? (unread[0]['judul'] ?? 'Notifikasi Baru')
+          : '${unread.length} Notifikasi Baru';
+
+      final String popupMessage = unread.length == 1
+          ? (unread[0]['pesan'] ?? '')
+          : 'Anda memiliki ${unread.length} notifikasi yang belum dibaca';
+
+      NotificationPopup.show(
+        context,
+        title: popupTitle,
+        message: popupMessage,
+        icon: Icons.notifications_rounded,
+        iconColor: AppColors.primary,
+        onTap: () {
+          // Navigate SEKALI — tidak ada numpuk di stack
+          context.pushNamed('notifikasi');
+        },
+      );
     } catch (e) {
       debugPrint('Error fetching unread notifications: $e');
     }
   }
+
+  // Tandai semua notif yang dikirim ke popup sebagai sudah dibaca
+  Future<void> _markAllUnreadAsRead(
+    List<dynamic> unreadItems,
+    List<String> currentReadIds,
+    SharedPreferences prefs,
+    String prefKey,
+  ) async {
+    for (final item in unreadItems) {
+      final id = item['id_notifikasi'].toString();
+      if (!currentReadIds.contains(id)) {
+        currentReadIds.add(id);
+      }
+    }
+    await prefs.setStringList(prefKey, currentReadIds);
+  }
+
 
   Future<void> _markNotificationRead(
     String id,
