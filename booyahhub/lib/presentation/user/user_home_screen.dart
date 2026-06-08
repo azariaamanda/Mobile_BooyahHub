@@ -17,10 +17,13 @@ class UserHomeScreen extends StatefulWidget {
   const UserHomeScreen({super.key});
 
   @override
-  State<UserHomeScreen> createState() => _UserHomeScreenState();
+  State<UserHomeScreen> createState() => UserHomeScreenState();
 }
 
-class _UserHomeScreenState extends State<UserHomeScreen> {
+class UserHomeScreenState extends State<UserHomeScreen> {
+  void refreshProfile() {
+    setState(() {});
+  }
   int _selectedModeId = 0; // PERBAIKAN: jadikan variable, bukan final
   String _selectedSort = 'semua';
   final _supabase = Supabase.instance.client;
@@ -488,7 +491,12 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
                     final userData = snapshot.data;
                     final String namaTim =
                         userData?['nama_tim'] ?? "No Team Name";
-                    final String? fotoProfil = userData?['foto_profil'];
+                    String? fotoProfil = userData?['foto_profil'];
+
+                    if (fotoProfil != null && fotoProfil.isNotEmpty) {
+                      final separator = fotoProfil.contains('?') ? '&' : '?';
+                      fotoProfil = '$fotoProfil${separator}v=${DateTime.now().millisecondsSinceEpoch}';
+                    }
 
                     return TeamProfileHeader(
                       namaTim: namaTim,
