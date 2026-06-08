@@ -257,3 +257,166 @@ BEGIN
   );
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
+
+
+-- =============================================================
+-- BAGIAN 4: TABEL NOTIFIKASI + RLS + REALTIME
+-- Jalankan bagian ini di Supabase SQL Editor
+-- =============================================================
+
+CREATE TABLE IF NOT EXISTS notifikasi (
+  id_notifikasi  BIGSERIAL   PRIMARY KEY,
+  tipe           VARCHAR(50) NOT NULL,
+  judul          TEXT        NOT NULL,
+  pesan          TEXT        NOT NULL,
+  target_role    VARCHAR(20),               -- 'pengguna' / 'admin' / NULL = spesifik user
+  target_id_akun INT REFERENCES akun(id_akun) ON DELETE CASCADE,
+  data           JSONB       DEFAULT '{}',
+  sudah_dibaca   BOOLEAN     DEFAULT FALSE,
+  dikirim_pada   TIMESTAMPTZ DEFAULT NOW()  -- nama kolom sesuai kode Flutter
+);
+
+CREATE INDEX IF NOT EXISTS idx_notifikasi_target
+  ON notifikasi(target_id_akun, target_role, dikirim_pada DESC);
+
+-- Aktifkan Realtime
+ALTER PUBLICATION supabase_realtime ADD TABLE notifikasi;
+
+-- RLS: semua user terautentikasi boleh baca
+ALTER TABLE notifikasi ENABLE ROW LEVEL SECURITY;
+
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE tablename='notifikasi' AND policyname='notifikasi_read_all'
+  ) THEN
+    CREATE POLICY notifikasi_read_all
+      ON notifikasi FOR SELECT TO authenticated USING (true);
+  END IF;
+END $$;
+
+
+-- =============================================================
+-- BAGIAN 5: TRIGGER AUTO-NOTIFIKASI
+-- =============================================================
+
+-- ── 5A: Scrim baru → notif ke semua pengguna ─────────────────
+CREATE OR REPLACE FUNCTION fn_notif_scrim_baru()
+RETURNS TRIGGER AS $$
+BEGIN
+  INSERT INTO notifikasi (tipe, judul, pesan, target_role, data)
+  VALUES (
+    'scrim_baru',
+    'Scrim Baru Tersedia!',
+    'Scrim "' || NEW.nama_scrim || '" baru saja ditambahkan. Daftar sekarang!',
+    'pengguna',
+    jsonb_build_object('id_scrim', NEW.id_scrim, 'nama_scrim', NEW.nama_scrim)
+  );
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+DROP TRIGGER IF EXISTS trg_notif_scrim_baru ON scrim;
+CREATE TRIGGER trg_notif_scrim_baru
+  AFTER INSERT ON scrim
+  FOR EACH ROW
+  EXECUTE FUNCTION fn_notif_scrim_baru();
+
+
+-- ── 5B: Pendaftaran masuk → notif ke admin scrim ─────────────
+CREATE OR REPLACE FUNCTION fn_notif_pembayaran_masuk()
+RETURNS TRIGGER AS $$
+DECLARE
+  v_id_admin   INT;
+  v_nama_scrim TEXT;
+  v_nama_tim   TEXT;
+  v_id_scrim   INT;
+BEGIN
+  SELECT s.id_admin, s.nama_scrim, s.id_scrim
+  INTO   v_id_admin, v_nama_scrim, v_id_scrim
+  FROM   sesi_scrim ss
+  JOIN   scrim s ON s.id_scrim = ss.id_scrim
+  WHERE  ss.id_sesi = NEW.id_sesi;
+
+  SELECT pp.nama_tim INTO v_nama_tim
+  FROM   profil_pengguna pp
+  WHERE  pp.akun_id = NEW.akun_id
+  LIMIT  1;
+
+  IF v_id_admin IS NOT NULL THEN
+    INSERT INTO notifikasi (tipe, judul, pesan, target_id_akun, data)
+    VALUES (
+      'pembayaran_masuk',
+      'Pembayaran Baru Menunggu',
+      COALESCE(v_nama_tim, 'Tim baru') || ' mendaftar scrim "' ||
+        COALESCE(v_nama_scrim, '') || '". Verifikasi sekarang.',
+      v_id_admin,
+      jsonb_build_object(
+        'id_pendaftaran', NEW.id_pendaftaran,
+        'id_scrim',       v_id_scrim
+      )
+    );
+  END IF;
+
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+DROP TRIGGER IF EXISTS trg_notif_pembayaran_masuk ON pendaftaran_tim;
+CREATE TRIGGER trg_notif_pembayaran_masuk
+  AFTER INSERT ON pendaftaran_tim
+  FOR EACH ROW
+  EXECUTE FUNCTION fn_notif_pembayaran_masuk();
+
+
+-- ── 5C: Status pembayaran berubah → notif ke user ────────────
+CREATE OR REPLACE FUNCTION fn_notif_status_pembayaran()
+RETURNS TRIGGER AS $$
+DECLARE
+  v_nama_scrim TEXT;
+BEGIN
+  IF NEW.status_pembayaran::TEXT = OLD.status_pembayaran::TEXT THEN
+    RETURN NEW;
+  END IF;
+
+  IF NEW.status_pembayaran::TEXT NOT IN ('dikonfirmasi', 'ditolak') THEN
+    RETURN NEW;
+  END IF;
+
+  SELECT s.nama_scrim INTO v_nama_scrim
+  FROM   sesi_scrim ss
+  JOIN   scrim s ON s.id_scrim = ss.id_scrim
+  WHERE  ss.id_sesi = NEW.id_sesi;
+
+  IF NEW.status_pembayaran::TEXT = 'dikonfirmasi' THEN
+    INSERT INTO notifikasi (tipe, judul, pesan, target_id_akun, data)
+    VALUES (
+      'pembayaran_dikonfirmasi',
+      'Pembayaran Dikonfirmasi',
+      'Pendaftaran kamu untuk scrim "' || COALESCE(v_nama_scrim, '') ||
+        '" telah dikonfirmasi!',
+      NEW.akun_id,
+      jsonb_build_object('id_pendaftaran', NEW.id_pendaftaran)
+    );
+  ELSE
+    INSERT INTO notifikasi (tipe, judul, pesan, target_id_akun, data)
+    VALUES (
+      'pembayaran_ditolak',
+      'Pembayaran Ditolak',
+      'Pendaftaran kamu untuk scrim "' || COALESCE(v_nama_scrim, '') ||
+        '" ditolak. Hubungi admin.',
+      NEW.akun_id,
+      jsonb_build_object('id_pendaftaran', NEW.id_pendaftaran)
+    );
+  END IF;
+
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+DROP TRIGGER IF EXISTS trg_notif_status_pembayaran ON pendaftaran_tim;
+CREATE TRIGGER trg_notif_status_pembayaran
+  AFTER UPDATE ON pendaftaran_tim
+  FOR EACH ROW
+  EXECUTE FUNCTION fn_notif_status_pembayaran();
+
