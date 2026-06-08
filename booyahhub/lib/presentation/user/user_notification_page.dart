@@ -1,33 +1,14 @@
 import 'package:flutter/material.dart';
+<<<<<<< Updated upstream
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+=======
+import 'package:go_router/go_router.dart';
+>>>>>>> Stashed changes
 import '../../config/app_color.dart';
 import '../../config/app_constants.dart';
 import '../../config/app_text_styles.dart';
-
-enum NotificationType { info, warning, success, error }
-
-class Notification {
-  final String id;
-  final String title;
-  final String message;
-  final NotificationType type;
-  final DateTime timestamp;
-  final bool isRead;
-  final String? actionLabel;
-  final VoidCallback? onAction;
-
-  const Notification({
-    required this.id,
-    required this.title,
-    required this.message,
-    required this.type,
-    required this.timestamp,
-    this.isRead = false,
-    this.actionLabel,
-    this.onAction,
-  });
-}
+import '../../data/models/services/notification_service.dart';
 
 class UserNotificationPage extends StatefulWidget {
   const UserNotificationPage({super.key});
@@ -37,6 +18,7 @@ class UserNotificationPage extends StatefulWidget {
 }
 
 class _UserNotificationPageState extends State<UserNotificationPage> {
+<<<<<<< Updated upstream
   List<Notification> notifications = [];
   bool isLoading = true;
   int selectedTabIndex = 0;
@@ -44,10 +26,17 @@ class _UserNotificationPageState extends State<UserNotificationPage> {
   // Key unik per user ─ format: 'read_notifications_<userId>'
   // Supaya status baca antar akun tidak saling tercampur
   String _prefKey = 'read_notifications';
+=======
+  final _service = NotificationService();
+  List<NotifData> _notifications = [];
+  bool _isLoading = true;
+  int _selectedTab = 0;
+>>>>>>> Stashed changes
 
   @override
   void initState() {
     super.initState();
+<<<<<<< Updated upstream
     _loadReadNotificationsAndFetch();
   }
 
@@ -108,25 +97,28 @@ class _UserNotificationPageState extends State<UserNotificationPage> {
         });
       }
     }
+=======
+    _load();
+>>>>>>> Stashed changes
   }
 
-  List<Notification> get filteredNotifications {
-    switch (selectedTabIndex) {
-      case 0: // Semua
-        return notifications;
-      case 1: // Belum dibaca
-        return notifications.where((n) => !n.isRead).toList();
-      case 2: // Sudah dibaca
-        return notifications.where((n) => n.isRead).toList();
-      default:
-        return notifications;
+  Future<void> _load() async {
+    setState(() => _isLoading = true);
+    final data = await _service.fetchNotifications();
+    if (mounted) setState(() { _notifications = data; _isLoading = false; });
+  }
+
+  List<NotifData> get _filtered {
+    switch (_selectedTab) {
+      case 1: return _notifications.where((n) => !n.sudahDibaca).toList();
+      case 2: return _notifications.where((n) => n.sudahDibaca).toList();
+      default: return _notifications;
     }
   }
 
-  String _getTimeAgo(DateTime timestamp) {
-    final now = DateTime.now();
-    final difference = now.difference(timestamp);
+  int get _unreadCount => _notifications.where((n) => !n.sudahDibaca).length;
 
+<<<<<<< Updated upstream
     if (difference.inMinutes < 1) {
       return 'Baru saja';
     } else if (difference.inMinutes < 60) {
@@ -184,18 +176,28 @@ class _UserNotificationPageState extends State<UserNotificationPage> {
       if (!_readNotificationIds.contains(id)) {
         _readNotificationIds.add(id);
       }
+=======
+  Future<void> _markAsRead(NotifData notif) async {
+    if (notif.sudahDibaca) return;
+    await _service.markAsRead(notif.id);
+    setState(() {
+      final i = _notifications.indexWhere((n) => n.id == notif.id);
+      if (i != -1) _notifications[i] = notif.copyWith(sudahDibaca: true);
+>>>>>>> Stashed changes
     });
     
     final prefs = await SharedPreferences.getInstance();
     await prefs.setStringList(_prefKey, _readNotificationIds);
   }
 
-  void _deleteNotification(String id) {
+  Future<void> _markAllAsRead() async {
+    await _service.markAllAsRead();
     setState(() {
-      notifications.removeWhere((n) => n.id == id);
+      _notifications = _notifications.map((n) => n.copyWith(sudahDibaca: true)).toList();
     });
   }
 
+<<<<<<< Updated upstream
   Future<void> _markAllAsRead() async {
     setState(() {
       notifications = notifications
@@ -221,50 +223,39 @@ class _UserNotificationPageState extends State<UserNotificationPage> {
     
     final prefs = await SharedPreferences.getInstance();
     await prefs.setStringList(_prefKey, _readNotificationIds);
+=======
+  String _timeAgo(DateTime t) {
+    final diff = DateTime.now().difference(t);
+    if (diff.inMinutes < 1) return 'Baru saja';
+    if (diff.inMinutes < 60) return '${diff.inMinutes}m lalu';
+    if (diff.inHours < 24) return '${diff.inHours}j lalu';
+    if (diff.inDays < 7) return '${diff.inDays}h lalu';
+    return '${t.day}/${t.month}/${t.year}';
+>>>>>>> Stashed changes
   }
 
-  void _clearAll() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: AppColors.backgroundCard,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppConstants.radiusL),
-        ),
-        title: Text(
-          'Hapus Semua Notifikasi?',
-          style: AppTextStyles.poppinsTitleSmall,
-        ),
-        content: Text(
-          'Semua notifikasi akan dihapus secara permanen',
-          style: AppTextStyles.interBody,
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text('Batal', style: AppTextStyles.interLink),
-          ),
-          TextButton(
-            onPressed: () {
-              setState(() {
-                notifications.clear();
-              });
-              Navigator.pop(context);
-            },
-            child: Text(
-              'Hapus',
-              style: AppTextStyles.interLink.copyWith(color: AppColors.error),
-            ),
-          ),
-        ],
-      ),
-    );
+  Color _tipeColor(String tipe) {
+    switch (tipe) {
+      case 'pembayaran_dikonfirmasi': return AppColors.accent;
+      case 'pembayaran_ditolak': return AppColors.error;
+      case 'pembayaran_masuk': return AppColors.warning;
+      case 'scrim_baru': return AppColors.info;
+      default: return AppColors.primary;
+    }
+  }
+
+  IconData _tipeIcon(String tipe) {
+    switch (tipe) {
+      case 'pembayaran_dikonfirmasi': return Icons.check_circle_outline;
+      case 'pembayaran_ditolak': return Icons.cancel_outlined;
+      case 'pembayaran_masuk': return Icons.payment_outlined;
+      case 'scrim_baru': return Icons.sports_esports_outlined;
+      default: return Icons.notifications_outlined;
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final unreadCount = notifications.where((n) => !n.isRead).length;
-
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
@@ -272,16 +263,12 @@ class _UserNotificationPageState extends State<UserNotificationPage> {
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: AppColors.textPrimary),
-          onPressed: () => Navigator.of(context).pop(),
+          onPressed: () => context.pop(),
         ),
-        title: Text(
-          'Notifikasi',
-          style: AppTextStyles.poppinsTitle.copyWith(
-            color: AppColors.textPrimary,
-          ),
-        ),
+        title: Text('Notifikasi', style: AppTextStyles.poppinsTitle),
         centerTitle: false,
         actions: [
+<<<<<<< Updated upstream
           if (unreadCount > 0)
             IconButton(
               icon: const Icon(Icons.done_all, color: AppColors.primary),
@@ -293,63 +280,47 @@ class _UserNotificationPageState extends State<UserNotificationPage> {
               icon: const Icon(Icons.delete_outline, color: AppColors.error),
               tooltip: 'Hapus Semua',
               onPressed: _clearAll,
+=======
+          if (_unreadCount > 0)
+            TextButton(
+              onPressed: _markAllAsRead,
+              child: Text('Tandai Semua', style: AppTextStyles.interLink.copyWith(fontSize: 13)),
+>>>>>>> Stashed changes
             ),
           const SizedBox(width: 4),
         ],
       ),
       body: Column(
         children: [
-          // Header
           Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppConstants.paddingL,
-            ),
+            padding: const EdgeInsets.fromLTRB(
+              AppConstants.paddingL, 0, AppConstants.paddingL, AppConstants.paddingM),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const SizedBox(height: 16),
-                Text(
-                  'Notifikasi Anda',
-                  style: AppTextStyles.poppinsHeadline.copyWith(fontSize: 24),
-                ),
-                const SizedBox(height: 8),
-                if (unreadCount > 0)
-                  Text(
-                    'Anda memiliki $unreadCount notifikasi baru',
-                    style: AppTextStyles.interBody.copyWith(
-                      color: AppColors.warning,
-                    ),
-                  )
+                if (_unreadCount > 0)
+                  Text('$_unreadCount notifikasi belum dibaca',
+                      style: AppTextStyles.interBody.copyWith(color: AppColors.warning))
                 else
-                  Text(
-                    'Anda sudah melihat semua notifikasi',
-                    style: AppTextStyles.interBody,
+                  Text('Semua notifikasi sudah dibaca', style: AppTextStyles.interBody),
+                const SizedBox(height: AppConstants.paddingM),
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: [
+                      _buildTabBtn('Semua', 0),
+                      const SizedBox(width: 12),
+                      _buildTabBtn('Belum Dibaca', 1, _unreadCount),
+                      const SizedBox(width: 12),
+                      _buildTabBtn('Sudah Dibaca', 2),
+                    ],
                   ),
-                const SizedBox(height: 24),
+                ),
               ],
             ),
           ),
-
-          // Tab Bar
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppConstants.paddingL,
-            ),
-            child: Row(
-              children: [
-                _buildTabButton('Semua', 0),
-                const SizedBox(width: 12),
-                _buildTabButton('Belum Dibaca', 1, unreadCount),
-                const SizedBox(width: 12),
-                _buildTabButton('Sudah Dibaca', 2),
-              ],
-            ),
-          ),
-          const SizedBox(height: 24),
-
-          // List
           Expanded(
+<<<<<<< Updated upstream
             child: isLoading
                 ? const Center(
                     child: CircularProgressIndicator(color: AppColors.primary))
@@ -366,46 +337,53 @@ class _UserNotificationPageState extends State<UserNotificationPage> {
                       return _buildNotificationCard(notification);
                     },
                   ),
+=======
+            child: _isLoading
+                ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
+                : _filtered.isEmpty
+                    ? _buildEmpty()
+                    : RefreshIndicator(
+                        color: AppColors.primary,
+                        onRefresh: _load,
+                        child: ListView.separated(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: AppConstants.paddingL),
+                          itemCount: _filtered.length,
+                          separatorBuilder: (ctx, idx) => const SizedBox(height: 12),
+                          itemBuilder: (_, i) => _buildCard(_filtered[i]),
+                        ),
+                      ),
+>>>>>>> Stashed changes
           ),
         ],
       ),
     );
   }
 
-  Widget _buildTabButton(String label, int index, [int count = 0]) {
-    final isSelected = selectedTabIndex == index;
-    final displayLabel = count > 0 ? '$label ($count)' : label;
-
+  Widget _buildTabBtn(String label, int index, [int count = 0]) {
+    final isSelected = _selectedTab == index;
+    final display = count > 0 ? '$label ($count)' : label;
     return GestureDetector(
-      onTap: () {
-        setState(() {
-          selectedTabIndex = index;
-        });
-      },
+      onTap: () => setState(() => _selectedTab = index),
       child: Container(
         padding: const EdgeInsets.symmetric(
-          horizontal: AppConstants.paddingM,
-          vertical: AppConstants.paddingS,
-        ),
+            horizontal: AppConstants.paddingM, vertical: AppConstants.paddingS),
         decoration: BoxDecoration(
           color: isSelected ? AppColors.primary : AppColors.backgroundCard,
           borderRadius: BorderRadius.circular(AppConstants.radiusM),
           border: Border.all(
-            color: isSelected ? AppColors.primary : AppColors.inputBorder,
-            width: 1,
-          ),
+              color: isSelected ? AppColors.primary : AppColors.inputBorder),
         ),
-        child: Text(
-          displayLabel,
-          style: AppTextStyles.interBodyMedium.copyWith(
-            color: isSelected ? AppColors.buttonText : AppColors.textSecondary,
-            fontSize: 13,
-          ),
-        ),
+        child: Text(display,
+            style: AppTextStyles.interBodyMedium.copyWith(
+              color: isSelected ? AppColors.buttonText : AppColors.textSecondary,
+              fontSize: 13,
+            )),
       ),
     );
   }
 
+<<<<<<< Updated upstream
   void _showNotificationDetails(Notification notification) {
     _markAsRead(notification.id); // Otomatis tandai sudah dibaca
 
@@ -583,61 +561,91 @@ class _UserNotificationPageState extends State<UserNotificationPage> {
                 ),
               ),
             ],
+=======
+  Widget _buildCard(NotifData notif) {
+    final color = _tipeColor(notif.tipe);
+    final icon = _tipeIcon(notif.tipe);
+
+    return GestureDetector(
+      onTap: () => _markAsRead(notif),
+      child: Container(
+        padding: const EdgeInsets.all(AppConstants.paddingL),
+        decoration: BoxDecoration(
+          color: AppColors.backgroundCard,
+          borderRadius: BorderRadius.circular(AppConstants.radiusL),
+          border: Border.all(
+            color: notif.sudahDibaca
+                ? AppColors.inputBorder
+                : color.withValues(alpha: 0.4),
+            width: notif.sudahDibaca ? 1 : 1.5,
+>>>>>>> Stashed changes
           ),
-          if (notification.actionLabel != null) ...[
-            const SizedBox(height: 12),
-            SizedBox(
-              width: double.infinity,
-              child: OutlinedButton(
-                onPressed: () {
-                  notification.onAction?.call();
-                  _markAsRead(notification.id);
-                },
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: typeColor,
-                  side: BorderSide(color: typeColor.withOpacity(0.5)),
-                  padding: const EdgeInsets.symmetric(vertical: 8),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(AppConstants.radiusM),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(AppConstants.radiusM),
+              ),
+              child: Icon(icon, color: color, size: 22),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(notif.judul,
+                            style: AppTextStyles.poppinsTitleSmall.copyWith(
+                              fontSize: notif.sudahDibaca ? 13 : 14,
+                            )),
+                      ),
+                      if (!notif.sudahDibaca)
+                        Container(
+                          width: 8, height: 8,
+                          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+                        ),
+                    ],
                   ),
-                ),
-                child: Text(
-                  notification.actionLabel!,
-                  style: AppTextStyles.interBodyMedium.copyWith(
-                    color: typeColor,
-                    fontSize: 13,
-                  ),
-                ),
+                  const SizedBox(height: 4),
+                  Text(notif.pesan,
+                      style: AppTextStyles.interBody.copyWith(
+                          color: notif.sudahDibaca
+                              ? AppColors.textSecondary
+                              : AppColors.textPrimary),
+                      maxLines: 3,
+                      overflow: TextOverflow.ellipsis),
+                  const SizedBox(height: 6),
+                  Text(_timeAgo(notif.dibuatPada),
+                      style: AppTextStyles.interCaption.copyWith(
+                          color: AppColors.textDisabled)),
+                ],
               ),
             ),
           ],
-        ],
+        ),
       ),
     ));
   }
 
-  Widget _buildEmptyState() {
+  Widget _buildEmpty() {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            Icons.notifications_off_outlined,
-            size: 64,
-            color: AppColors.textHint,
-          ),
+          Icon(Icons.notifications_off_outlined, size: 64, color: AppColors.textHint),
           const SizedBox(height: 16),
-          Text(
-            'Tidak ada notifikasi',
-            style: AppTextStyles.poppinsTitleSmall.copyWith(
-              color: AppColors.textSecondary,
-            ),
-          ),
+          Text('Tidak ada notifikasi',
+              style: AppTextStyles.poppinsTitleSmall.copyWith(
+                  color: AppColors.textSecondary)),
           const SizedBox(height: 8),
-          Text(
-            'Anda sudah menangani semua notifikasi',
-            style: AppTextStyles.interBody,
-          ),
+          Text('Semua beres!', style: AppTextStyles.interBody),
         ],
       ),
     );

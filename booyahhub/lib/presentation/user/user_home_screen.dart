@@ -9,9 +9,9 @@ import '../../config/app_constants.dart';
 import '../../config/app_image_helper.dart';
 import '../../config/app_text_styles.dart';
 import '../../config/supabase_client.dart';
+import '../../data/models/services/notification_service.dart';
 import 'user_widgets/team_profile_header.dart';
 import 'user_widgets/scrim_item_card.dart';
-import 'user_widgets/claim_prize_notification.dart';
 
 class UserHomeScreen extends StatefulWidget {
   const UserHomeScreen({super.key});
@@ -21,8 +21,10 @@ class UserHomeScreen extends StatefulWidget {
 }
 
 class _UserHomeScreenState extends State<UserHomeScreen> {
-  int _selectedModeId = 0; // PERBAIKAN: jadikan variable, bukan final
+  int _selectedModeId = 0;
   String _selectedSort = 'semua';
+  int _unreadNotifCount = 0;
+  StreamSubscription<int>? _unreadSub;
   final _supabase = Supabase.instance.client;
 
   final List<Map<String, String>> _sortOptions = [
@@ -32,7 +34,6 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
     {'value': 'terbaru', 'label': 'Terkini'},
   ];
 
-  // Daftar mode untuk filter (ditambahkan)
   List<Map<String, dynamic>> _modes = [];
   bool _isLoadingModes = true;
 
@@ -40,6 +41,7 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
   void initState() {
     super.initState();
     _fetchModes();
+<<<<<<< Updated upstream
 
     // Tampilkan notifikasi yang belum dibaca setelah frame pertama selesai render
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -134,6 +136,22 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
       currentReadIds.add(id);
       await prefs.setStringList(prefKey, currentReadIds);
     }
+=======
+    _listenNotifCount();
+  }
+
+  void _listenNotifCount() {
+    _unreadNotifCount = NotificationService().unreadCount;
+    _unreadSub = NotificationService().unreadCountStream.listen((count) {
+      if (mounted) setState(() => _unreadNotifCount = count);
+    });
+  }
+
+  @override
+  void dispose() {
+    _unreadSub?.cancel();
+    super.dispose();
+>>>>>>> Stashed changes
   }
 
   // ─── FUNGSI AMBIL MODE ───
@@ -240,7 +258,8 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
         .inFilter('id_scrim', scrimIds);
 
     final sesiToScrim = <int, int>{
-      for (final s in sessions as List) s['id_sesi'] as int: s['id_scrim'] as int
+      for (final s in sessions as List)
+        s['id_sesi'] as int: s['id_scrim'] as int,
     };
     final sesiIds = sesiToScrim.keys.toList();
 
@@ -253,15 +272,17 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
       for (final p in pendaftaran as List) {
         if ((p['status_pembayaran'] as String? ?? '') != 'ditolak') {
           final scrimId = sesiToScrim[p['id_sesi'] as int];
-          if (scrimId != null) terisiMap[scrimId] = (terisiMap[scrimId] ?? 0) + 1;
+          if (scrimId != null)
+            terisiMap[scrimId] = (terisiMap[scrimId] ?? 0) + 1;
         }
       }
     }
 
-    return scrims.map((s) => {
-      ...s,
-      'terisi_count': terisiMap[s['id_scrim'] as int] ?? 0,
-    }).toList();
+    return scrims
+        .map(
+          (s) => {...s, 'terisi_count': terisiMap[s['id_scrim'] as int] ?? 0},
+        )
+        .toList();
   }
 
   // ─── BUILD MODE FILTER CHIP (DITAMBAHKAN) ───
@@ -337,7 +358,11 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
           child: Row(
             children: [
               Text('Lihat Lainnya', style: AppTextStyles.interLink),
-              const Icon(Icons.arrow_forward_ios, size: 12, color: AppColors.primary),
+              const Icon(
+                Icons.arrow_forward_ios,
+                size: 12,
+                color: AppColors.primary,
+              ),
             ],
           ),
         ),
@@ -353,12 +378,13 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
         itemCount: _sortOptions.length,
         itemBuilder: (context, index) {
           final sort = _sortOptions[index];
-          final isSelected = _selectedSort == sort['value'];
+          final String value = sort['value'] ?? 'semua';
+          final isSelected = _selectedSort == value;
 
           return GestureDetector(
             onTap: () {
               setState(() {
-                _selectedSort = sort['value']!;
+                _selectedSort = value;
               });
             },
             child: Container(
@@ -375,7 +401,7 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
                 ),
               ),
               child: Text(
-                sort['label']!,
+                sort['label'] ?? '',
                 style: isSelected
                     ? AppTextStyles.goldHighlight
                     : AppTextStyles.interBodyMedium,
@@ -414,7 +440,9 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
         return GridView.builder(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
-          itemCount: listScrim.length > 4 ? 4 : listScrim.length, // Hanya tampilkan 4 di home
+          itemCount: listScrim.length > 4
+              ? 4
+              : listScrim.length, // Hanya tampilkan 4 di home
           gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
             crossAxisCount: 2,
             crossAxisSpacing: 12,
@@ -474,27 +502,80 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Header Profil
-                FutureBuilder<Map<String, dynamic>?>(
-                  future: fetchUserData(),
-                  builder: (context, snapshot) {
-                    if (snapshot.connectionState == ConnectionState.waiting) {
-                      return const TeamProfileHeader(
-                        namaTim: "Memuat...",
-                        fotoProfilUrl: null,
-                      );
-                    }
-
-                    final userData = snapshot.data;
-                    final String namaTim =
-                        userData?['nama_tim'] ?? "No Team Name";
-                    final String? fotoProfil = userData?['foto_profil'];
-
-                    return TeamProfileHeader(
-                      namaTim: namaTim,
-                      fotoProfilUrl: fotoProfil,
-                    );
-                  },
+                // Header Profil + Bell Notifikasi
+                Row(
+                  children: [
+                    Expanded(
+                      child: FutureBuilder<Map<String, dynamic>?>(
+                        future: fetchUserData(),
+                        builder: (context, snapshot) {
+                          if (snapshot.connectionState ==
+                              ConnectionState.waiting) {
+                            return const TeamProfileHeader(
+                              namaTim: 'Memuat...',
+                              fotoProfilUrl: null,
+                            );
+                          }
+                          final userData = snapshot.data;
+                          return TeamProfileHeader(
+                            namaTim: userData?['nama_tim'] ?? 'No Team Name',
+                            fotoProfilUrl: userData?['foto_profil'],
+                          );
+                        },
+                      ),
+                    ),
+                    GestureDetector(
+                      onTap: () => context.pushNamed('notifikasi'),
+                      child: Stack(
+                        clipBehavior: Clip.none,
+                        children: [
+                          Container(
+                            width: 42,
+                            height: 42,
+                            decoration: BoxDecoration(
+                              color: AppColors.backgroundCard,
+                              borderRadius: BorderRadius.circular(
+                                AppConstants.radiusM,
+                              ),
+                              border: Border.all(color: AppColors.inputBorder),
+                            ),
+                            child: const Icon(
+                              Icons.notifications_outlined,
+                              color: AppColors.textPrimary,
+                              size: 22,
+                            ),
+                          ),
+                          if (_unreadNotifCount > 0)
+                            Positioned(
+                              top: -4,
+                              right: -4,
+                              child: Container(
+                                padding: const EdgeInsets.all(4),
+                                decoration: const BoxDecoration(
+                                  color: AppColors.error,
+                                  shape: BoxShape.circle,
+                                ),
+                                constraints: const BoxConstraints(
+                                  minWidth: 18,
+                                  minHeight: 18,
+                                ),
+                                child: Text(
+                                  _unreadNotifCount > 99
+                                      ? '99+'
+                                      : '$_unreadNotifCount',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
                 const SizedBox(height: AppConstants.paddingL),
 
@@ -506,7 +587,9 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
                       return const SizedBox(
                         height: 180,
                         child: Center(
-                          child: CircularProgressIndicator(color: AppColors.primary),
+                          child: CircularProgressIndicator(
+                            color: AppColors.primary,
+                          ),
                         ),
                       );
                     }
@@ -605,10 +688,12 @@ class _HomeBannerSliderState extends State<HomeBannerSlider> {
             itemBuilder: (context, index) {
               final bannerScrim = widget.banners[index];
 
-              final String bannerImageUrl = widget.getPosterUrl(
-                bannerScrim['poster'] as String?,
-                bannerScrim['id_scrim'],
-              )!;
+              final String bannerImageUrl =
+                  widget.getPosterUrl(
+                    bannerScrim['poster'] as String?,
+                    bannerScrim['id_scrim'],
+                  ) ??
+                  '';
 
               return GestureDetector(
                 onTap: () {
@@ -635,7 +720,7 @@ class _HomeBannerSliderState extends State<HomeBannerSlider> {
                         begin: Alignment.bottomCenter,
                         end: Alignment.topCenter,
                         colors: [
-                          AppColors.black.withOpacity(0.8),
+                          AppColors.black.withValues(alpha: 0.8),
                           Colors.transparent,
                         ],
                       ),
