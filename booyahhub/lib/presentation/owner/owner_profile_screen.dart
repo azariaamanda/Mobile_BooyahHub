@@ -32,6 +32,13 @@ class _OwnerProfileScreenState extends State<OwnerProfileScreen> {
       setState(() {
         _akunData = data['akun'].toJson();
         _profilData = data['profil'] as Map<String, dynamic>?;
+        
+        if (_profilData != null && _profilData!['foto_profil'] != null && _profilData!['foto_profil'].toString().isNotEmpty) {
+          final url = _profilData!['foto_profil'].toString();
+          final separator = url.contains('?') ? '&' : '?';
+          _profilData!['foto_profil'] = '$url${separator}v=${DateTime.now().millisecondsSinceEpoch}';
+        }
+        
         _isLoading = false;
       });
     } else {
