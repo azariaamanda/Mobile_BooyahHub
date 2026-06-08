@@ -38,7 +38,13 @@ class _UserProfilePageState extends State<UserProfilePage> {
       
       setState(() {
         _email = akun.email;
-        _fotoProfil = profil['foto_profil'];
+        if (profil['foto_profil'] != null && profil['foto_profil'].toString().isNotEmpty) {
+          final url = profil['foto_profil'].toString();
+          final separator = url.contains('?') ? '&' : '?';
+          _fotoProfil = '$url${separator}v=${DateTime.now().millisecondsSinceEpoch}';
+        } else {
+          _fotoProfil = null;
+        }
         if (data['role'] == 'pengguna') {
           _name = profil['nama_tim'] ?? 'Tim Tanpa Nama';
         } else if (data['role'] == 'admin') {
