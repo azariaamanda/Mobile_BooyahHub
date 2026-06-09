@@ -20,9 +20,9 @@ class AdminMainNavigator extends StatefulWidget {
 
 class _AdminMainNavigatorState extends State<AdminMainNavigator> {
   int _currentIndex = 0;
-  int _unreadCount = 0;
+  int _pendingCount = 0;
   StreamSubscription<NotifData>? _notifSub;
-  StreamSubscription<int>? _unreadSub;
+  RealtimeChannel? _pendingChannel;
 
   final List<Widget> _pages = const [
     AdminDashboardScreen(),
@@ -44,6 +44,30 @@ class _AdminMainNavigatorState extends State<AdminMainNavigator> {
   void initState() {
     super.initState();
     _initNotifications();
+    _fetchPendingCount();
+    _subscribePending();
+  }
+
+  Future<void> _fetchPendingCount() async {
+    try {
+      final res = await Supabase.instance.client
+          .from('pendaftaran_tim')
+          .select('id_pendaftaran')
+          .eq('status_pembayaran', 'menunggu');
+      if (mounted) setState(() => _pendingCount = (res as List).length);
+    } catch (_) {}
+  }
+
+  void _subscribePending() {
+    _pendingChannel = Supabase.instance.client
+        .channel('pending_pembayaran')
+        .onPostgresChanges(
+          event: PostgresChangeEvent.all,
+          schema: 'public',
+          table: 'pendaftaran_tim',
+          callback: (_) => _fetchPendingCount(),
+        )
+        .subscribe();
   }
 
   Future<void> _initNotifications() async {
@@ -60,12 +84,6 @@ class _AdminMainNavigatorState extends State<AdminMainNavigator> {
 
     final akunId = akun['id_akun'] as int;
     await NotificationService().initialize(akunId, 'admin');
-
-    setState(() => _unreadCount = NotificationService().unreadCount);
-
-    _unreadSub = NotificationService().unreadCountStream.listen((count) {
-      if (mounted) setState(() => _unreadCount = count);
-    });
 
     _notifSub = NotificationService().newNotifStream.listen((notif) {
       if (!mounted) return;
@@ -129,7 +147,7 @@ class _AdminMainNavigatorState extends State<AdminMainNavigator> {
   @override
   void dispose() {
     _notifSub?.cancel();
-    _unreadSub?.cancel();
+    _pendingChannel?.unsubscribe();
     super.dispose();
   }
 
@@ -175,8 +193,8 @@ class _AdminMainNavigatorState extends State<AdminMainNavigator> {
 
   Widget _buildNavItem(IconData icon, String label, int index) {
     final bool isSelected = _currentIndex == index;
-    // Badge merah hanya di tab Peserta (index 2) untuk notif pembayaran masuk
-    final bool showBadge = index == 2 && _unreadCount > 0;
+    // Badge merah di tab Peserta (index 2): hanya pembayaran pending
+    final bool showBadge = index == 2 && _pendingCount > 0;
 
     return InkWell(
       onTap: () => setState(() => _currentIndex = index),
@@ -225,7 +243,7 @@ class _AdminMainNavigatorState extends State<AdminMainNavigator> {
                         ),
                         child: Center(
                           child: Text(
-                            _unreadCount > 9 ? '9+' : '$_unreadCount',
+                            _pendingCount > 9 ? '9+' : '$_pendingCount',
                             style: const TextStyle(
                               color: Colors.white,
                               fontSize: 8,
