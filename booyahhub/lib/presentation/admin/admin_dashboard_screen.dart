@@ -83,20 +83,13 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
 
       final profil = await _supabase
           .from('profil_admin')
-<<<<<<< HEAD
-          .select('nama_lengkap, foto_profil')
+          .select('nama_lengkap, foto_profil, total_utang, limit_utang')
           .eq('akun_id', adminId)
           .maybeSingle();
       final nama = profil?['nama_lengkap'] as String? ?? 'Admin';
       final fotoPath = profil?['foto_profil'] as String?;
-=======
-          .select('nama_lengkap, total_utang, limit_utang')
-          .eq('akun_id', adminId)
-          .maybeSingle();
-      final nama = profil?['nama_lengkap'] as String? ?? 'Admin';
       final totalUtang = (profil?['total_utang'] as num? ?? 0).toDouble();
       final limitUtang = (profil?['limit_utang'] as num? ?? 50000).toDouble();
->>>>>>> 081ffdec4d81ba24e300dcf783533db0a6a3b13e
 
       // Admin's scrims
       final scrims = await _supabase
