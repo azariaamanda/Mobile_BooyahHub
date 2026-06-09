@@ -20,16 +20,12 @@ class UserHomeScreen extends StatefulWidget {
   State<UserHomeScreen> createState() => UserHomeScreenState();
 }
 
-<<<<<<< HEAD
 class UserHomeScreenState extends State<UserHomeScreen> {
   void refreshProfile() {
     setState(() {});
   }
-  int _selectedModeId = 0; // PERBAIKAN: jadikan variable, bukan final
-=======
-class _UserHomeScreenState extends State<UserHomeScreen> {
+
   int _selectedModeId = 0;
->>>>>>> cd46f7c90299f509cb5b215a9b37f9b4a06185d1
   String _selectedSort = 'semua';
   int _unreadNotifCount = 0;
   final _supabase = Supabase.instance.client;
@@ -478,34 +474,6 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-<<<<<<< HEAD
-                // Header Profil
-                FutureBuilder<Map<String, dynamic>?>(
-                  future: fetchUserData(),
-                  builder: (context, snapshot) {
-                    if (snapshot.connectionState == ConnectionState.waiting) {
-                      return const TeamProfileHeader(
-                        namaTim: "Memuat...",
-                        fotoProfilUrl: null,
-                      );
-                    }
-
-                    final userData = snapshot.data;
-                    final String namaTim =
-                        userData?['nama_tim'] ?? "No Team Name";
-                    String? fotoProfil = userData?['foto_profil'];
-
-                    if (fotoProfil != null && fotoProfil.isNotEmpty) {
-                      final separator = fotoProfil.contains('?') ? '&' : '?';
-                      fotoProfil = '$fotoProfil${separator}v=${DateTime.now().millisecondsSinceEpoch}';
-                    }
-
-                    return TeamProfileHeader(
-                      namaTim: namaTim,
-                      fotoProfilUrl: fotoProfil,
-                    );
-                  },
-=======
                 // Header Profil + Bell Notifikasi
                 Row(
                   children: [
@@ -521,9 +489,21 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
                             );
                           }
                           final userData = snapshot.data;
+                          final String namaTim =
+                              userData?['nama_tim'] ?? 'No Team Name';
+                          String? fotoProfil = userData?['foto_profil'];
+
+                          // PERBAIKAN: cache-busting agar foto profil selalu fresh
+                          if (fotoProfil != null && fotoProfil.isNotEmpty) {
+                            final separator =
+                                fotoProfil.contains('?') ? '&' : '?';
+                            fotoProfil =
+                                '$fotoProfil${separator}v=${DateTime.now().millisecondsSinceEpoch}';
+                          }
+
                           return TeamProfileHeader(
-                            namaTim: userData?['nama_tim'] ?? 'No Team Name',
-                            fotoProfilUrl: userData?['foto_profil'],
+                            namaTim: namaTim,
+                            fotoProfilUrl: fotoProfil,
                           );
                         },
                       ),
@@ -580,7 +560,6 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
                       ),
                     ),
                   ],
->>>>>>> cd46f7c90299f509cb5b215a9b37f9b4a06185d1
                 ),
                 const SizedBox(height: AppConstants.paddingL),
 
