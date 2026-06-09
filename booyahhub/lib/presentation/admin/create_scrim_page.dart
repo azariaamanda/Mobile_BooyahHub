@@ -302,37 +302,21 @@ class _CreateScrimPageState extends State<CreateScrimPage> {
           .from('master_mode_pertandingan')
           .select('id_mode, nama_mode')
           .order('id_mode', ascending: true);
-      
-      if (response.isEmpty) {
-        setState(() {
-          _modes = [
-            {'id_mode': 1, 'nama_mode': 'Clash Squad'},
-            {'id_mode': 2, 'nama_mode': 'Battle Royale'},
-            {'id_mode': 3, 'nama_mode': 'Ranked BR'},
-            {'id_mode': 4, 'nama_mode': 'Solo Vs Squad'},
-          ];
-          _selectedModeId = 1;
-        });
-      } else {
-        setState(() {
-          _modes = List<Map<String, dynamic>>.from(response);
-          if (_modes.isNotEmpty) {
-            _selectedModeId = _modes.first['id_mode'] as int;
-          }
-        });
-      }
-    } catch (e) {
+
       setState(() {
-        _modes = [
-          {'id_mode': 1, 'nama_mode': 'Clash Squad'},
-          {'id_mode': 2, 'nama_mode': 'Battle Royale'},
-          {'id_mode': 3, 'nama_mode': 'Ranked BR'},
-          {'id_mode': 4, 'nama_mode': 'Solo Vs Squad'},
-        ];
-        _selectedModeId = 1;
+        _modes = List<Map<String, dynamic>>.from(response);
+        if (_modes.isNotEmpty) {
+          _selectedModeId = _modes.first['id_mode'] as int;
+        }
       });
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Gagal memuat mode: $e')),
+        );
+      }
     } finally {
-      setState(() => _isLoadingModes = false);
+      if (mounted) setState(() => _isLoadingModes = false);
     }
   }
 
