@@ -33,11 +33,11 @@ class _UserMainNavigatorState extends State<UserMainNavigator>
     Icons.person_rounded,
   ];
 
-  final List<Widget> _pages = const [
-    UserHomeScreen(),
-    UserPesananPage(),
-    HistoryScrimPage(),
-    UserProfilePage(),
+  final List<Widget> _pages = [
+    UserHomeScreen(key: userHomeScreenKey),
+    const UserPesananPage(),
+    const HistoryScrimPage(),
+    const UserProfilePage(),
   ];
 
   @override

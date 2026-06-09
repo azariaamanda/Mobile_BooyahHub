@@ -5,6 +5,7 @@ import '../../config/app_color.dart';
 import '../../config/app_text_styles.dart';
 import '../../data/models/services/auth_service.dart';
 import '../../data/models/services/notification_service.dart';
+import 'user_home_screen.dart';
 
 import 'user_edit_profile_page.dart';
 import 'claim_prize_page.dart';
@@ -173,6 +174,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
 
                   // Reload dari database agar foto profil baru langsung tampil
                   _loadUserProfile();
+                  userHomeScreenKey.currentState?.refreshProfile();
                 },
               ),
               const SizedBox(height: 12),
