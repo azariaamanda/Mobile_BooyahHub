@@ -32,7 +32,7 @@ class HelpSupportPage extends StatelessWidget {
           children: [
             Text(
               'Pertanyaan Umum (FAQ)',
-              style: AppTextStyles.poppinsSubtitle.copyWith(
+              style: AppTextStyles.poppinsTitleSmall.copyWith(
                 color: AppColors.textPrimary,
                 fontWeight: FontWeight.bold,
               ),
@@ -101,7 +101,7 @@ class HelpSupportPage extends StatelessWidget {
             const SizedBox(height: 32),
             Text(
               'Kebijakan & Syarat Ketentuan',
-              style: AppTextStyles.poppinsSubtitle.copyWith(
+              style: AppTextStyles.poppinsTitleSmall.copyWith(
                 color: AppColors.textPrimary,
                 fontWeight: FontWeight.bold,
               ),
@@ -126,7 +126,7 @@ class HelpSupportPage extends StatelessWidget {
             const SizedBox(height: 32),
             Text(
               'Hubungi Kami',
-              style: AppTextStyles.poppinsSubtitle.copyWith(
+              style: AppTextStyles.poppinsTitleSmall.copyWith(
                 color: AppColors.textPrimary,
                 fontWeight: FontWeight.bold,
               ),

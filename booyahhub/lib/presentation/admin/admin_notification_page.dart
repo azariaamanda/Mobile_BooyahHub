@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../config/app_color.dart';
 import '../../config/app_constants.dart';
 import '../../config/app_text_styles.dart';
@@ -14,6 +15,7 @@ class _AdminNotificationPageState extends State<AdminNotificationPage> {
   String _targetPenerima = 'Semua User';
   late TextEditingController _judulController;
   late TextEditingController _pesanController;
+  bool _isSending = false;
 
   @override
   void initState() {
@@ -32,6 +34,48 @@ class _AdminNotificationPageState extends State<AdminNotificationPage> {
   void _reset() {
     _judulController.clear();
     _pesanController.clear();
+  }
+
+  // Mapping dropdown → target_role di tabel notifikasi
+  static const _roleMap = {
+    'Semua User': 'pengguna',
+    'Admin': 'admin',
+    'Owner': 'owner',
+    'Peserta': 'pengguna',
+  };
+
+  Future<void> _kirimNotifikasi() async {
+    final judul = _judulController.text.trim();
+    final pesan = _pesanController.text.trim();
+    if (judul.isEmpty || pesan.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Judul dan pesan tidak boleh kosong')),
+      );
+      return;
+    }
+
+    setState(() => _isSending = true);
+    try {
+      await Supabase.instance.client.from('notifikasi').insert({
+        'tipe': 'manual',
+        'judul': judul,
+        'pesan': pesan,
+        'target_role': _roleMap[_targetPenerima] ?? 'pengguna',
+      });
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Notifikasi dikirim ke $_targetPenerima')),
+      );
+      _reset();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Gagal mengirim notifikasi: $e')),
+      );
+    } finally {
+      if (mounted) setState(() => _isSending = false);
+    }
   }
 
   @override
@@ -185,16 +229,7 @@ class _AdminNotificationPageState extends State<AdminNotificationPage> {
               const SizedBox(width: 12),
               Expanded(
                 child: ElevatedButton.icon(
-                  onPressed: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          'Notifikasi dikirim ke ${_targetPenerima}',
-                        ),
-                      ),
-                    );
-                    _reset();
-                  },
+                  onPressed: _isSending ? null : _kirimNotifikasi,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primary,
                     padding: const EdgeInsets.symmetric(vertical: 12),

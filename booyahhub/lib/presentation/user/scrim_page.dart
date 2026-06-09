@@ -60,7 +60,8 @@ class _ScrimPageState extends State<ScrimPage> {
           .inFilter('id_scrim', scrimIds);
 
       final sesiToScrim = <int, int>{
-        for (final s in sessions as List) s['id_sesi'] as int: s['id_scrim'] as int
+        for (final s in sessions as List)
+          s['id_sesi'] as int: s['id_scrim'] as int,
       };
       final sesiIds = sesiToScrim.keys.toList();
 
@@ -73,15 +74,17 @@ class _ScrimPageState extends State<ScrimPage> {
         for (final p in pendaftaran as List) {
           if ((p['status_pembayaran'] as String? ?? '') != 'ditolak') {
             final scrimId = sesiToScrim[p['id_sesi'] as int];
-            if (scrimId != null) terisiMap[scrimId] = (terisiMap[scrimId] ?? 0) + 1;
+            if (scrimId != null)
+              terisiMap[scrimId] = (terisiMap[scrimId] ?? 0) + 1;
           }
         }
       }
 
-      return scrims.map((s) => {
-        ...s,
-        'terisi_count': terisiMap[s['id_scrim'] as int] ?? 0,
-      }).toList();
+      return scrims
+          .map(
+            (s) => {...s, 'terisi_count': terisiMap[s['id_scrim'] as int] ?? 0},
+          )
+          .toList();
     } catch (e) {
       print('EROR FETCH SCRIM PAGE: $e');
       return [];
@@ -137,20 +140,35 @@ class _ScrimPageState extends State<ScrimPage> {
                       _searchQuery = value;
                     });
                   },
-                  style: const TextStyle(color: AppColors.textPrimary, fontSize: 14),
+                  style: const TextStyle(
+                    color: AppColors.textPrimary,
+                    fontSize: 14,
+                  ),
                   decoration: InputDecoration(
                     hintText: 'Cari turnamen atau scrim...',
-                    hintStyle: const TextStyle(color: AppColors.textDisabled, fontSize: 14),
-                    border: InputBorder.none, // Mematikan border bawaan TextField agar tidak double box
+                    hintStyle: const TextStyle(
+                      color: AppColors.textDisabled,
+                      fontSize: 14,
+                    ),
+                    border: InputBorder
+                        .none, // Mematikan border bawaan TextField agar tidak double box
                     focusedBorder: InputBorder.none,
                     enabledBorder: InputBorder.none,
                     errorBorder: InputBorder.none,
                     disabledBorder: InputBorder.none,
-                    prefixIcon: const Icon(Icons.search, color: AppColors.textDisabled, size: 20),
+                    prefixIcon: const Icon(
+                      Icons.search,
+                      color: AppColors.textDisabled,
+                      size: 20,
+                    ),
                     // Menampilkan tombol "X" bersih di kanan hanya saat user mengetik sesuatu
                     suffixIcon: _searchQuery.isNotEmpty
                         ? IconButton(
-                            icon: const Icon(Icons.clear, color: AppColors.textDisabled, size: 18),
+                            icon: const Icon(
+                              Icons.clear,
+                              color: AppColors.textDisabled,
+                              size: 18,
+                            ),
                             onPressed: () {
                               setState(() {
                                 _searchController.clear();
@@ -169,35 +187,52 @@ class _ScrimPageState extends State<ScrimPage> {
               height: 38,
               child: ListView.builder(
                 scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: AppConstants.paddingM),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppConstants.paddingM,
+                ),
                 itemCount: _sortOptions.length,
                 itemBuilder: (context, index) {
                   final option = _sortOptions[index];
-                  final isSelected = _selectedSort == option['value'];
+                  final String value = option['value'] ?? 'semua';
+                  final isSelected = _selectedSort == value;
 
                   return GestureDetector(
                     onTap: () {
                       setState(() {
-                        _selectedSort = option['value']!;
+                        _selectedSort = value;
                       });
                     },
                     child: Container(
-                      margin: const EdgeInsets.only(right: AppConstants.paddingS),
-                      padding: const EdgeInsets.symmetric(horizontal: AppConstants.paddingL),
+                      margin: const EdgeInsets.only(
+                        right: AppConstants.paddingS,
+                      ),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: AppConstants.paddingL,
+                      ),
                       alignment: Alignment.center,
                       decoration: BoxDecoration(
-                        color: isSelected ? AppColors.primary : Colors.transparent,
-                        borderRadius: BorderRadius.circular(AppConstants.radiusXL),
+                        color: isSelected
+                            ? AppColors.primary
+                            : Colors.transparent,
+                        borderRadius: BorderRadius.circular(
+                          AppConstants.radiusXL,
+                        ),
                         border: Border.all(
-                          color: isSelected ? AppColors.primary : AppColors.inputBorder,
+                          color: isSelected
+                              ? AppColors.primary
+                              : AppColors.inputBorder,
                           width: 1.2,
                         ),
                       ),
                       child: Text(
-                        option['label']!,
+                        option['label'] ?? '',
                         style: TextStyle(
-                          color: isSelected ? AppColors.buttonText : AppColors.textSecondary,
-                          fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                          color: isSelected
+                              ? AppColors.buttonText
+                              : AppColors.textSecondary,
+                          fontWeight: isSelected
+                              ? FontWeight.bold
+                              : FontWeight.normal,
                           fontSize: 13,
                         ),
                       ),
@@ -215,11 +250,15 @@ class _ScrimPageState extends State<ScrimPage> {
                 builder: (context, snapshot) {
                   if (snapshot.connectionState == ConnectionState.waiting) {
                     return const Center(
-                      child: CircularProgressIndicator(color: AppColors.primary),
+                      child: CircularProgressIndicator(
+                        color: AppColors.primary,
+                      ),
                     );
                   }
 
-                  if (snapshot.hasError || !snapshot.hasData || snapshot.data!.isEmpty) {
+                  if (snapshot.hasError ||
+                      !snapshot.hasData ||
+                      snapshot.data!.isEmpty) {
                     return Center(
                       child: Text(
                         'Tidak ada scrim ditemukan bray.',
@@ -231,22 +270,34 @@ class _ScrimPageState extends State<ScrimPage> {
                   final listScrim = snapshot.data!;
 
                   return GridView.builder(
-                    padding: const EdgeInsets.symmetric(horizontal: AppConstants.paddingM),
-                    itemCount: listScrim.length,
-                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 2,
-                      crossAxisSpacing: 12,
-                      mainAxisSpacing: 12,
-                      childAspectRatio: 0.73,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppConstants.paddingM,
                     ),
+                    itemCount: listScrim.length,
+                    gridDelegate:
+                        const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 2,
+                          crossAxisSpacing: 12,
+                          mainAxisSpacing: 12,
+                          childAspectRatio: 0.73,
+                        ),
                     itemBuilder: (context, index) {
                       final scrim = listScrim[index];
 
-                      final double biaya = double.tryParse(scrim['biaya_pendaftaran'].toString()) ?? 0;
-                      final double hadiah = double.tryParse(scrim['total_hadiah'].toString()) ?? 0;
+                      final double biaya =
+                          double.tryParse(
+                            scrim['biaya_pendaftaran'].toString(),
+                          ) ??
+                          0;
+                      final double hadiah =
+                          double.tryParse(scrim['total_hadiah'].toString()) ??
+                          0;
                       final int maksPeserta = scrim['maks_peserta'] ?? 16;
 
-                      final String posterUrl = _getPosterUrl(scrim['poster'] as String?, scrim['id_scrim']);
+                      final String posterUrl = _getPosterUrl(
+                        scrim['poster'] as String?,
+                        scrim['id_scrim'],
+                      );
                       final int terisi = scrim['terisi_count'] as int? ?? 0;
 
                       return GestureDetector(

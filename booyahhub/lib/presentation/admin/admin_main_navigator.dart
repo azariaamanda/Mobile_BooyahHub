@@ -1,7 +1,10 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../config/app_color.dart';
 import '../../config/app_constants.dart';
 import '../../config/app_text_styles.dart';
+import '../../data/models/services/notification_service.dart';
 import 'admin_dashboard_screen.dart';
 import 'admin_scrim_page.dart';
 import 'peserta_management_page.dart';
@@ -17,16 +20,18 @@ class AdminMainNavigator extends StatefulWidget {
 
 class _AdminMainNavigatorState extends State<AdminMainNavigator> {
   int _currentIndex = 0;
+  int _unreadCount = 0;
+  StreamSubscription<NotifData>? _notifSub;
+  StreamSubscription<int>? _unreadSub;
 
   final List<Widget> _pages = const [
-    AdminDashboardScreen(), // 0: Dashboard
-    AdminScrimPage(), // 1: Scrim
-    PesertaManagementPage(), // 2: Peserta
-    AdminKeuanganPage(), // 3: Keuangan
-    AdminProfilePage(), // 4: Pengaturan
+    AdminDashboardScreen(),
+    AdminScrimPage(),
+    PesertaManagementPage(),
+    AdminKeuanganPage(),
+    AdminProfilePage(),
   ];
 
-  // Label DIPENDEKKAN supaya muat di nav 5 item.
   final List<Map<String, dynamic>> _menuItems = const [
     {'icon': Icons.dashboard, 'label': 'Home'},
     {'icon': Icons.add_circle_outline, 'label': 'Scrim'},
@@ -34,6 +39,99 @@ class _AdminMainNavigatorState extends State<AdminMainNavigator> {
     {'icon': Icons.account_balance_wallet, 'label': 'Keuangan'},
     {'icon': Icons.settings_outlined, 'label': 'Setting'},
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    _initNotifications();
+  }
+
+  Future<void> _initNotifications() async {
+    final email = Supabase.instance.client.auth.currentUser?.email;
+    if (email == null) return;
+
+    final akun = await Supabase.instance.client
+        .from('akun')
+        .select('id_akun')
+        .eq('email', email)
+        .maybeSingle();
+
+    if (akun == null || !mounted) return;
+
+    final akunId = akun['id_akun'] as int;
+    await NotificationService().initialize(akunId, 'admin');
+
+    setState(() => _unreadCount = NotificationService().unreadCount);
+
+    _unreadSub = NotificationService().unreadCountStream.listen((count) {
+      if (mounted) setState(() => _unreadCount = count);
+    });
+
+    _notifSub = NotificationService().newNotifStream.listen((notif) {
+      if (!mounted) return;
+      _showInAppBanner(notif);
+    });
+  }
+
+  void _showInAppBanner(NotifData notif) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        duration: const Duration(seconds: 4),
+        backgroundColor: AppColors.backgroundCard,
+        behavior: SnackBarBehavior.floating,
+        margin: const EdgeInsets.fromLTRB(16, 0, 16, 70),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppConstants.radiusL),
+          side: BorderSide(
+              color: AppColors.warning.withValues(alpha: 0.4)),
+        ),
+        content: Row(
+          children: [
+            Container(
+              width: 36, height: 36,
+              decoration: BoxDecoration(
+                color: AppColors.warning.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(AppConstants.radiusM),
+              ),
+              child: const Icon(Icons.payment_outlined,
+                  color: AppColors.warning, size: 18),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(notif.judul,
+                      style: AppTextStyles.poppinsTitleSmall
+                          .copyWith(fontSize: 13)),
+                  Text(notif.pesan,
+                      style: AppTextStyles.interCaption.copyWith(
+                          color: AppColors.textSecondary),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis),
+                ],
+              ),
+            ),
+            TextButton(
+              onPressed: () {
+                ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                setState(() => _currentIndex = 2); // buka tab Peserta
+              },
+              child: Text('Lihat', style: AppTextStyles.interLink.copyWith(fontSize: 12)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  @override
+  void dispose() {
+    _notifSub?.cancel();
+    _unreadSub?.cancel();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -60,7 +158,6 @@ class _AdminMainNavigatorState extends State<AdminMainNavigator> {
           ),
           padding: const EdgeInsets.symmetric(horizontal: 6),
           child: Row(
-            // Tiap item dapat slot lebar SAMA — anti-overflow.
             children: List.generate(_menuItems.length, (i) {
               return Expanded(
                 child: _buildNavItem(
@@ -78,6 +175,8 @@ class _AdminMainNavigatorState extends State<AdminMainNavigator> {
 
   Widget _buildNavItem(IconData icon, String label, int index) {
     final bool isSelected = _currentIndex == index;
+    // Badge merah hanya di tab Peserta (index 2) untuk notif pembayaran masuk
+    final bool showBadge = index == 2 && _unreadCount > 0;
 
     return InkWell(
       onTap: () => setState(() => _currentIndex = index),
@@ -111,7 +210,33 @@ class _AdminMainNavigatorState extends State<AdminMainNavigator> {
                   ],
                 ),
               )
-            : Icon(icon, color: AppColors.background, size: 22),
+            : Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  Icon(icon, color: AppColors.background, size: 22),
+                  if (showBadge)
+                    Positioned(
+                      top: -4, right: -6,
+                      child: Container(
+                        width: 14, height: 14,
+                        decoration: const BoxDecoration(
+                          color: AppColors.error,
+                          shape: BoxShape.circle,
+                        ),
+                        child: Center(
+                          child: Text(
+                            _unreadCount > 9 ? '9+' : '$_unreadCount',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 8,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
       ),
     );
   }
