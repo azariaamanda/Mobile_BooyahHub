@@ -165,7 +165,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           if (!tglDay.isBefore(todayStart)) bookingHariIni++;
           if (tglDay == yesterdayStart) bookingKemarin++;
 
-          if (status == 'dikonfirmasi') {
+          if (status == 'dikonfirmasi' || status == 'menunggu') {
             if (!tglDay.isBefore(thisMonthStart)) pendapatanBulanIni += biaya;
             if (!tglDay.isBefore(lastMonthStart) && tglDay.isBefore(thisMonthStart)) {
               pendapatanBulanLalu += biaya;
@@ -235,17 +235,20 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                     ),
                   ),
                   const SizedBox(width: 12),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('Halo,', style: AppTextStyles.interBody.copyWith(color: AppColors.textSecondary, fontSize: 13)),
-                      Text(
-                        _adminNama.isEmpty ? 'Admin' : _adminNama,
-                        style: AppTextStyles.poppinsTitleSmall.copyWith(fontSize: 18, fontWeight: FontWeight.w700),
-                      ),
-                    ],
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Halo,', style: AppTextStyles.interBody.copyWith(color: AppColors.textSecondary, fontSize: 13)),
+                        Text(
+                          _adminNama.isEmpty ? 'Admin' : _adminNama,
+                          style: AppTextStyles.poppinsTitleSmall.copyWith(fontSize: 18, fontWeight: FontWeight.w700),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
                   ),
-                  const Spacer(),
                   GestureDetector(
                     onTap: () => Navigator.of(context).push(
                       MaterialPageRoute(builder: (_) => const AdminNotificationPage()),

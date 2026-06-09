@@ -27,7 +27,6 @@ class UserHomeScreenState extends State<UserHomeScreen> {
 
   int _selectedModeId = 0;
   String _selectedSort = 'semua';
-  int _unreadNotifCount = 0;
   final _supabase = Supabase.instance.client;
 
   final List<Map<String, String>> _sortOptions = [
@@ -71,7 +70,6 @@ class UserHomeScreenState extends State<UserHomeScreen> {
               !readIds.contains(item['id_notifikasi'].toString()))
           .toList();
 
-      if (mounted) setState(() => _unreadNotifCount = unread.length);
 
       if (unread.isEmpty) return;
 
@@ -506,57 +504,6 @@ class UserHomeScreenState extends State<UserHomeScreen> {
                             fotoProfilUrl: fotoProfil,
                           );
                         },
-                      ),
-                    ),
-                    GestureDetector(
-                      onTap: () => context.pushNamed('notifikasi'),
-                      child: Stack(
-                        clipBehavior: Clip.none,
-                        children: [
-                          Container(
-                            width: 42,
-                            height: 42,
-                            decoration: BoxDecoration(
-                              color: AppColors.backgroundCard,
-                              borderRadius: BorderRadius.circular(
-                                AppConstants.radiusM,
-                              ),
-                              border: Border.all(color: AppColors.inputBorder),
-                            ),
-                            child: const Icon(
-                              Icons.notifications_outlined,
-                              color: AppColors.textPrimary,
-                              size: 22,
-                            ),
-                          ),
-                          if (_unreadNotifCount > 0)
-                            Positioned(
-                              top: -4,
-                              right: -4,
-                              child: Container(
-                                padding: const EdgeInsets.all(4),
-                                decoration: const BoxDecoration(
-                                  color: AppColors.error,
-                                  shape: BoxShape.circle,
-                                ),
-                                constraints: const BoxConstraints(
-                                  minWidth: 18,
-                                  minHeight: 18,
-                                ),
-                                child: Text(
-                                  _unreadNotifCount > 99
-                                      ? '99+'
-                                      : '$_unreadNotifCount',
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                  textAlign: TextAlign.center,
-                                ),
-                              ),
-                            ),
-                        ],
                       ),
                     ),
                   ],
