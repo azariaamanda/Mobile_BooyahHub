@@ -54,6 +54,10 @@ class _LoginScreenState extends State<LoginScreen> {
 
       if (role == 'pengguna') {
         context.go('/user/home');
+      } else if (role == 'admin') {
+        context.go('/admin/dashboard');
+      } else if (role == 'owner') {
+        context.go('/owner/dashboard');
       } else {
         setState(() => _errorText = 'Role tidak dikenal: $role');
       }
