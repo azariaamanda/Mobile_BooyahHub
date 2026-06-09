@@ -1,11 +1,132 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../config/app_color.dart';
 import '../../config/app_text_styles.dart';
 import 'request_claim_prize_page.dart';
 
-class ClaimPrizePage extends StatelessWidget {
+class ClaimPrizePage extends StatefulWidget {
   final int? pendaftaranId;
   const ClaimPrizePage({super.key, this.pendaftaranId});
+
+  @override
+  State<ClaimPrizePage> createState() => _ClaimPrizePageState();
+}
+
+class _ClaimPrizePageState extends State<ClaimPrizePage> {
+  bool _isLoading = true;
+  List<Map<String, dynamic>> _prizeList = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchPrizes();
+  }
+
+  Future<void> _fetchPrizes() async {
+    try {
+      final supabase = Supabase.instance.client;
+      // Ambil user yang login dari Supabase Auth
+      final authUser = supabase.auth.currentUser;
+      if (authUser == null) {
+        throw 'User belum login';
+      }
+
+      // 1. Ambil id_akun dari tabel akun berdasarkan email auth user
+      final akunResponse = await supabase
+          .from('akun')
+          .select('id_akun')
+          .eq('email', authUser.email!)
+          .maybeSingle();
+
+      if (akunResponse == null) {
+        throw 'Akun tidak ditemukan';
+      }
+      final int akunId = akunResponse['id_akun'];
+
+      // 2. Fetch pendaftaran yang sudah selesai
+      var query = supabase
+          .from('pendaftaran_tim')
+          .select('''
+            id_pendaftaran,
+            status_pertandingan,
+            sesi_scrim (
+              id_sesi,
+              scrim (
+                id_scrim,
+                nama_scrim,
+                total_hadiah
+              )
+            ),
+            hasil_pertandingan (*),
+            klaim_hadiah (*)
+          ''')
+          .eq('akun_id', akunId)
+          .eq('status_pertandingan', 'selesai');
+          
+      // Jika masuk dari detail spesifik, filter
+      if (widget.pendaftaranId != null) {
+        query = query.eq('id_pendaftaran', widget.pendaftaranId!);
+      }
+
+      final response = await query;
+      debugPrint("KLAIM PAGE - Response length: ${response.length}");
+      debugPrint("KLAIM PAGE - Response data: $response");
+      
+      final List<Map<String, dynamic>> loadedPrizes = [];
+      for (var item in response) {
+        debugPrint("KLAIM PAGE - Processing item: $item");
+        final scrimData = item['sesi_scrim']?['scrim'];
+        if (scrimData == null) {
+          debugPrint("KLAIM PAGE - scrimData is null! Skipping...");
+          continue;
+        }
+        
+        final List<dynamic> hasilList = item['hasil_pertandingan'] ?? [];
+        final List<dynamic> klaimList = item['klaim_hadiah'] ?? [];
+        
+        debugPrint("KLAIM PAGE - hasilList: $hasilList");
+        debugPrint("KLAIM PAGE - klaimList: $klaimList");
+
+        // Ambil status klaim jika ada
+        String statusKlaim = 'belum_diklaim';
+        if (klaimList.isNotEmpty) {
+           statusKlaim = klaimList[0]['status_klaim'] ?? 'diproses';
+        }
+
+        // Ambil rank
+        int rank = 0;
+        if (hasilList.isNotEmpty) {
+           rank = hasilList[0]['peringkat'] ?? 0;
+        }
+
+        loadedPrizes.add({
+          'id_pendaftaran': item['id_pendaftaran'],
+          'nama_scrim': scrimData['nama_scrim'] ?? 'Unnamed Scrim',
+          'total_hadiah': scrimData['total_hadiah'] ?? 0,
+          'rank': rank,
+          'status_klaim': statusKlaim,
+        });
+      }
+
+      debugPrint("KLAIM PAGE - loadedPrizes length: ${loadedPrizes.length}");
+
+      setState(() {
+        _prizeList = loadedPrizes;
+        _isLoading = false;
+      });
+    } catch (e, stacktrace) {
+      debugPrint("Error fetching prizes: $e");
+      debugPrint(stacktrace.toString());
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('DEBUG ERROR: $e'), backgroundColor: Colors.red),
+        );
+      }
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -24,7 +145,9 @@ class ClaimPrizePage extends StatelessWidget {
         ),
         centerTitle: false,
       ),
-      body: SingleChildScrollView(
+      body: _isLoading 
+          ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
+          : SingleChildScrollView(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 24.0),
           child: Column(
@@ -44,97 +167,124 @@ class ClaimPrizePage extends StatelessWidget {
               ),
               const SizedBox(height: 32),
               
-              // Belum Diklaim Card
-              _buildPrizeCard(
-                context,
-                statusText: 'PERLU TINDAKAN',
-                statusColor: AppColors.urgent,
-                title: 'Scrim Ganteng',
-                badgeText: 'Belum Diklaim',
-                badgeColor: AppColors.urgent.withOpacity(0.2),
-                badgeTextColor: const Color(0xFFF44336), // error / bright red
-                rank: 'Juara 1',
-                prize: 'Rp 250.000',
-                actionWidget: Container(
-                  width: double.infinity,
-                  margin: const EdgeInsets.only(top: 24),
-                  child: ElevatedButton(
-                    onPressed: () {
-                      Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (context) => RequestClaimPrizePage(
-                            title: 'Scrim Ganteng',
-                            rank: 'Juara 1',
-                            totalPrize: 'Rp 250.000',
-                            pendaftaranId: pendaftaranId,
-                          ),
-                        ),
-                      );
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primary,
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(
-                          'Ajukan Klaim',
-                          style: AppTextStyles.poppinsButton.copyWith(
-                            color: AppColors.black,
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        const Icon(Icons.chevron_right, color: AppColors.black, size: 20),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-
-              // Diproses Card
-              _buildPrizeCard(
-                context,
-                statusText: 'TRANSAKSI SEDANG BERLANGSUNG',
-                statusColor: AppColors.textHint,
-                title: 'Scrim Ganteng',
-                badgeText: 'Diproses',
-                badgeColor: AppColors.warning.withOpacity(0.15),
-                badgeTextColor: AppColors.warning,
-                rank: 'Juara 1',
-                prize: 'Rp 250.000',
-                actionWidget: Padding(
-                  padding: const EdgeInsets.only(top: 24),
-                  child: Center(
+              if (_prizeList.isEmpty)
+                Center(
+                  child: Padding(
+                    padding: const EdgeInsets.only(top: 40),
                     child: Text(
-                      'Estimasi transfer 1 - 2 hari kerja',
-                      style: AppTextStyles.interCaption,
+                      'Belum ada hadiah yang bisa diklaim.',
+                      style: AppTextStyles.interBody.copyWith(color: AppColors.textHint),
                     ),
                   ),
-                ),
-              ),
-              const SizedBox(height: 16),
-
-              // Selesai Card
-              _buildPrizeCard(
-                context,
-                statusText: 'TRANSAKSI SELESAI',
-                statusColor: AppColors.textHint,
-                title: 'Scrim Ganteng',
-                badgeText: 'Selesai',
-                badgeColor: AppColors.surfaceVariant,
-                badgeTextColor: AppColors.textSecondary,
-                rank: 'Juara 1',
-                prize: 'Rp 250.000',
-              ),
+                )
+              else
+                ..._prizeList.map((prizeData) => _buildDynamicPrizeCard(context, prizeData)).toList(),
+                
               const SizedBox(height: 32),
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildDynamicPrizeCard(BuildContext context, Map<String, dynamic> data) {
+    String statusKlaim = data['status_klaim'];
+    
+    // Status attributes
+    String statusText = '';
+    Color statusColor = Colors.white;
+    String badgeText = '';
+    Color badgeColor = Colors.transparent;
+    Color badgeTextColor = Colors.white;
+    Widget? actionWidget;
+
+    if (statusKlaim == 'belum_diklaim') {
+      statusText = 'PERLU TINDAKAN';
+      statusColor = AppColors.urgent;
+      badgeText = 'Belum Diklaim';
+      badgeColor = AppColors.urgent.withOpacity(0.2);
+      badgeTextColor = const Color(0xFFF44336);
+      
+      actionWidget = Container(
+        width: double.infinity,
+        margin: const EdgeInsets.only(top: 24),
+        child: ElevatedButton(
+          onPressed: () {
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (context) => RequestClaimPrizePage(
+                  title: data['nama_scrim'],
+                  rank: data['rank'] > 0 ? 'Juara ${data['rank']}' : 'Rank -',
+                  totalPrize: 'Rp ${data['total_hadiah']}',
+                  pendaftaranId: data['id_pendaftaran'],
+                ),
+              ),
+            ).then((_) {
+              // Refresh data after back
+              _fetchPrizes();
+            });
+          },
+          style: ElevatedButton.styleFrom(
+            backgroundColor: AppColors.primary,
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                'Ajukan Klaim',
+                style: AppTextStyles.poppinsButton.copyWith(
+                  color: AppColors.black,
+                ),
+              ),
+              const SizedBox(width: 8),
+              const Icon(Icons.chevron_right, color: AppColors.black, size: 20),
+            ],
+          ),
+        ),
+      );
+    } else if (statusKlaim == 'selesai' || statusKlaim == 'sukses') {
+      statusText = 'TRANSAKSI SELESAI';
+      statusColor = AppColors.textHint;
+      badgeText = 'Selesai';
+      badgeColor = AppColors.surfaceVariant;
+      badgeTextColor = AppColors.textSecondary;
+    } else {
+      // Menangani 'diajukan', 'diproses', 'pending', dll
+      statusText = 'TRANSAKSI SEDANG BERLANGSUNG';
+      statusColor = AppColors.textHint;
+      badgeText = 'Diproses';
+      badgeColor = AppColors.warning.withOpacity(0.15);
+      badgeTextColor = AppColors.warning;
+      
+      actionWidget = Padding(
+        padding: const EdgeInsets.only(top: 24),
+        child: Center(
+          child: Text(
+            'Estimasi transfer 1 - 2 hari kerja',
+            style: AppTextStyles.interCaption,
+          ),
+        ),
+      );
+    }
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16.0),
+      child: _buildPrizeCard(
+        context,
+        statusText: statusText,
+        statusColor: statusColor,
+        title: data['nama_scrim'],
+        badgeText: badgeText,
+        badgeColor: badgeColor,
+        badgeTextColor: badgeTextColor,
+        rank: data['rank'] > 0 ? 'Juara ${data['rank']}' : 'Rank -',
+        prize: 'Rp ${data['total_hadiah']}',
+        actionWidget: actionWidget,
       ),
     );
   }
@@ -249,3 +399,4 @@ class ClaimPrizePage extends StatelessWidget {
     );
   }
 }
+
