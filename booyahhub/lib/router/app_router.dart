@@ -2,9 +2,10 @@ import 'package:go_router/go_router.dart';
 import '../presentation/auth/splash_screen.dart';
 import '../presentation/auth/login_screen.dart';
 import '../presentation/auth/register_selection_page.dart';
-import '../presentation/auth/register_admin_page.dart';
 import '../presentation/auth/register_user_page.dart';
+import '../presentation/auth/register_admin_page.dart';
 import '../presentation/auth/register_owner_page.dart';
+import '../presentation/auth/reset_password_page.dart';
 import '../presentation/owner/premium_management_screen.dart';
 import '../presentation/owner/edit_profile_screen.dart';
 import '../presentation/owner/edit_premium_package_screen.dart';
@@ -74,6 +75,12 @@ class AppRouter {
         name: 'login',
         builder: (context, state) => const LoginScreen(),
       ),
+      GoRoute(
+        path: '/reset-password',
+        name: 'reset_password',
+        builder: (context, state) => const ResetPasswordPage(),
+      ),
+
       GoRoute(
         path: '/register/selection',
         name: 'register_selection',

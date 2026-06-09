@@ -1,4 +1,8 @@
+// lib/data/models/services/auth_service.dart
+
+import 'dart:convert';
 import 'dart:typed_data';
+import 'package:crypto/crypto.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../config/supabase_client.dart';
 import '../akun_model.dart';
@@ -7,25 +11,21 @@ import '../profil_model.dart';
 class AuthService {
   final _supabase = SupabaseClientHelper.client;
 
+  String _hashPassword(String password) {
+    final bytes = utf8.encode(password);
+    final digest = sha256.convert(bytes);
+    return digest.toString();
+  }
+
   // ============================================================
-  // LOGIN
+  // LOGIN - TANPA SUPABASE AUTH (LANGSUNG CEK DATABASE)
   // ============================================================
   Future<Map<String, dynamic>> login({
     required String email,
-    required String password,
+    required String password, // password sudah dalam bentuk hash dari UI
   }) async {
     try {
-      // 1. Login ke Supabase Auth
-      final response = await _supabase.auth.signInWithPassword(
-        email: email,
-        password: password,
-      );
-
-      if (response.user == null) {
-        return {'success': false, 'message': 'Email atau password salah'};
-      }
-
-      // 2. Ambil data akun dari tabel akun
+      // Cari user di tabel akun berdasarkan email
       final userData = await _supabase
           .from('akun')
           .select()
@@ -33,15 +33,33 @@ class AuthService {
           .maybeSingle();
 
       if (userData == null) {
-        return {
-          'success': false,
-          'message': 'Data akun tidak ditemukan di database',
-        };
+        return {'success': false, 'message': 'Email tidak terdaftar'};
       }
+
+      // Bandingkan hash password
+      if (userData['kata_sandi'] != password) {
+        return {'success': false, 'message': 'Password salah'};
+      }
+
+      // Cek status akun
+      final statusAkun = userData['status_akun'];
+      if (statusAkun != 'aktif') {
+        return {'success': false, 'message': 'Akun Anda belum aktif atau diblokir'};
+      }
+
+      // Optional: Login ke Supabase Auth untuk session (pakai password asli, bukan hash)
+      // Tapi karena kita sudah verifikasi, bisa skip atau pakai hash juga
+      try {
+        // Untuk session, kita perlu password asli. Tapi kita tidak punya.
+        // Jadi lebih baik tidak pakai Supabase Auth session.
+        // await _supabase.auth.signInWithPassword(
+        //   email: email,
+        //   password: password, // ini hash, bakal gagal
+        // );
+      } catch (_) {}
 
       final akun = Akun.fromJson(userData);
 
-      // 3. Ambil profil sesuai role
       Map<String, dynamic> profil = {};
       if (akun.role == 'pengguna') {
         final profilData = await _supabase
@@ -79,15 +97,6 @@ class AuthService {
         'profil': profil,
         'role': akun.role,
       };
-    } on AuthException catch (e) {
-      // Pesan error Supabase Auth lebih spesifik
-      String message = 'Email atau password salah';
-      if (e.message.contains('Email not confirmed')) {
-        message = 'Email belum dikonfirmasi. Cek inbox kamu.';
-      } else if (e.message.contains('Invalid login credentials')) {
-        message = 'Email atau password salah';
-      }
-      return {'success': false, 'message': message};
     } catch (e) {
       return {'success': false, 'message': 'Terjadi kesalahan: $e'};
     }
@@ -99,27 +108,22 @@ class AuthService {
   Future<Map<String, dynamic>> registerPengguna({
     required String namaTim,
     required String email,
-    required String password,
+    required String password, // password sudah dalam bentuk hash
   }) async {
     try {
-      final authResponse = await _supabase.auth.signUp(
-        email: email,
-        password: password,
-      );
-
-      if (authResponse.user == null) {
-        return {'success': false, 'message': 'Gagal membuat akun'};
-      }
-
       final akunData = await _supabase
           .from('akun')
-          .insert({'email': email, 'role': 'pengguna', 'status_akun': 'aktif'})
+          .insert({
+            'email': email,
+            'kata_sandi': password,
+            'role': 'pengguna',
+            'status_akun': 'aktif'
+          })
           .select()
           .single();
 
       final akun = Akun.fromJson(akunData);
 
-      // 3. Insert ke tabel profil_pengguna
       final profilData = await _supabase
           .from('profil_pengguna')
           .insert({'akun_id': akun.idAkun, 'nama_tim': namaTim})
@@ -134,15 +138,6 @@ class AuthService {
         'akun': akun,
         'profil': profil,
       };
-    } on AuthException catch (e) {
-      String message = 'Gagal mendaftar';
-      if (e.message.contains('over_email_send_rate_limit')) {
-        message =
-            'Terlalu banyak percobaan. Tunggu beberapa saat lalu coba lagi.';
-      } else if (e.message.contains('User already registered')) {
-        message = 'Email sudah terdaftar. Silakan login.';
-      }
-      return {'success': false, 'message': message};
     } catch (e) {
       return {'success': false, 'message': 'Terjadi kesalahan: $e'};
     }
@@ -155,23 +150,19 @@ class AuthService {
     required String namaLengkap,
     required String email,
     required String noHandphone,
-    required String password,
+    required String password, // password sudah dalam bentuk hash
     String? fotoProfilPath,
     required String fotoKtpPath,
   }) async {
     try {
-      final authResponse = await _supabase.auth.signUp(
-        email: email,
-        password: password,
-      );
-
-      if (authResponse.user == null) {
-        return {'success': false, 'message': 'Gagal membuat akun'};
-      }
-
       final akunData = await _supabase
           .from('akun')
-          .insert({'email': email, 'role': 'admin', 'status_akun': 'pending'})
+          .insert({
+            'email': email,
+            'kata_sandi': password,
+            'role': 'admin',
+            'status_akun': 'pending'
+          })
           .select()
           .single();
 
@@ -198,45 +189,28 @@ class AuthService {
         'akun': akun,
         'profil': profil,
       };
-    } on AuthException catch (e) {
-      String message = 'Gagal mendaftar';
-      if (e.message.contains('over_email_send_rate_limit')) {
-        message =
-            'Terlalu banyak percobaan. Tunggu beberapa saat lalu coba lagi.';
-      } else if (e.message.contains('User already registered')) {
-        message = 'Email sudah terdaftar.';
-      }
-      return {'success': false, 'message': message};
     } catch (e) {
       return {'success': false, 'message': 'Terjadi kesalahan: $e'};
     }
   }
 
-    // ============================================================
+  // ============================================================
   // REGISTER OWNER
   // ============================================================
   Future<Map<String, dynamic>> registerOwner({
     required String namaLengkap,
     required String email,
     required String noHandphone,
-    required String password,
+    required String password, // password sudah dalam bentuk hash
     String? bankOwner,
     String? nomorRekening,
   }) async {
     try {
-      final authResponse = await _supabase.auth.signUp(
-        email: email,
-        password: password,
-      );
-
-      if (authResponse.user == null) {
-        return {'success': false, 'message': 'Gagal membuat akun'};
-      }
-
       final akunData = await _supabase
           .from('akun')
           .insert({
             'email': email,
+            'kata_sandi': password,
             'role': 'owner',
             'status_akun': 'aktif'
           })
@@ -264,14 +238,6 @@ class AuthService {
         'akun': akun,
         'profil': profilData,
       };
-    } on AuthException catch (e) {
-      String message = 'Gagal mendaftar';
-      if (e.message.contains('over_email_send_rate_limit')) {
-        message = 'Terlalu banyak percobaan. Tunggu beberapa saat lalu coba lagi.';
-      } else if (e.message.contains('User already registered')) {
-        message = 'Email sudah terdaftar. Silakan login.';
-      }
-      return {'success': false, 'message': message};
     } catch (e) {
       return {'success': false, 'message': 'Terjadi kesalahan: $e'};
     }
@@ -353,34 +319,41 @@ class AuthService {
       
       final email = currentUser!.email!;
 
-      // 1. Verifikasi Password Lama & Update Password Baru
       if (oldPassword != null && oldPassword.isNotEmpty && newPassword != null && newPassword.isNotEmpty) {
-        try {
-          // Re-authenticate untuk memastikan password lama benar
-          await _supabase.auth.signInWithPassword(email: email, password: oldPassword);
-        } catch (e) {
+        // Cek password lama dengan hash
+        final userData = await _supabase
+            .from('akun')
+            .select('kata_sandi')
+            .eq('email', email)
+            .single();
+        
+        final hashedOldPassword = _hashPassword(oldPassword);
+        if (userData['kata_sandi'] != hashedOldPassword) {
           return {'success': false, 'message': 'Password lama salah'};
         }
 
-        // Update ke password baru
-        await _supabase.auth.updateUser(UserAttributes(password: newPassword));
+        final hashedNewPassword = _hashPassword(newPassword);
+        
+        // Update password di database
+        await _supabase
+            .from('akun')
+            .update({'kata_sandi': hashedNewPassword})
+            .eq('email', email);
       }
 
-      // 2. Upload Foto Profil jika ada
+      // Upload foto profil jika ada
       String? publicUrl;
-      String? publicUrlClean;
       if (newFotoProfil != null) {
+        final fileName = '${currentUser!.id}_${DateTime.now().millisecondsSinceEpoch}.jpg';
         await _supabase.storage.from('foto_profil').uploadBinary(
-          'pengguna/${currentUser!.id}/avatar.jpg',
+          fileName,
           newFotoProfil,
           fileOptions: const FileOptions(upsert: true),
         );
-        publicUrlClean = _supabase.storage.from('foto_profil').getPublicUrl('pengguna/${currentUser!.id}/avatar.jpg');
-        // URL bersih untuk disimpan ke database
-        publicUrl = publicUrlClean;
+        publicUrl = _supabase.storage.from('foto_profil').getPublicUrl(fileName);
       }
 
-      // 3. Update Nama Profil (dan Foto jika ada)
+      // Update nama profil
       if ((newName != null && newName.isNotEmpty) || publicUrl != null) {
         final akunData = await _supabase.from('akun').select().eq('email', email).single();
         final role = akunData['role'];

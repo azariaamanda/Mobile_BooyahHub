@@ -1,3 +1,5 @@
+import 'dart:convert';
+import 'package:crypto/crypto.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../config/app_color.dart';
@@ -26,6 +28,12 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
+  String _hashPassword(String password) {
+    final bytes = utf8.encode(password);
+    final digest = sha256.convert(bytes);
+    return digest.toString();
+  }
+
   Future<void> _onLogin() async {
     final valid = _formKey.currentState?.validate() ?? false;
     if (!valid) return;
@@ -36,9 +44,11 @@ class _LoginScreenState extends State<LoginScreen> {
     });
 
     try {
+      final hashedPassword = _hashPassword(_passwordController.text);
+
       final result = await AuthService().login(
         email: _emailController.text.trim(),
-        password: _passwordController.text,
+        password: hashedPassword,
       );
 
       if (result['success'] != true) {
@@ -207,7 +217,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                           GestureDetector(
                             onTap: () {
-                              // TODO: Implement forgot password
+                              context.go('/reset-password');
                             },
                             child: Text(
                               'LUPA PASSWORD?',
@@ -375,7 +385,6 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
               const SizedBox(height: 28),
               
-              // 🟢 DAFTAR SEBAGAI PENGGUNA
               Center(
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
