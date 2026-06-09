@@ -18,11 +18,23 @@ class AdminMainNavigator extends StatefulWidget {
   State<AdminMainNavigator> createState() => _AdminMainNavigatorState();
 }
 
-class _AdminMainNavigatorState extends State<AdminMainNavigator> {
+class _AdminMainNavigatorState extends State<AdminMainNavigator>
+    with SingleTickerProviderStateMixin {
   int _currentIndex = 0;
   int _pendingCount = 0;
   StreamSubscription<NotifData>? _notifSub;
   RealtimeChannel? _pendingChannel;
+
+  late final AnimationController _slideCtrl;
+  late Animation<double> _slideAnim;
+
+  static const _icons = [
+    Icons.dashboard,
+    Icons.add_circle_outline,
+    Icons.people_outline,
+    Icons.account_balance_wallet,
+    Icons.settings_outlined,
+  ];
 
   final List<Widget> _pages = const [
     AdminDashboardScreen(),
@@ -32,27 +44,66 @@ class _AdminMainNavigatorState extends State<AdminMainNavigator> {
     AdminProfilePage(),
   ];
 
-  final List<Map<String, dynamic>> _menuItems = const [
-    {'icon': Icons.dashboard, 'label': 'Home'},
-    {'icon': Icons.add_circle_outline, 'label': 'Scrim'},
-    {'icon': Icons.people_outline, 'label': 'Peserta'},
-    {'icon': Icons.account_balance_wallet, 'label': 'Keuangan'},
-    {'icon': Icons.settings_outlined, 'label': 'Setting'},
-  ];
-
   @override
   void initState() {
     super.initState();
+    _slideCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 350),
+    );
+    _slideAnim = AlwaysStoppedAnimation(0.0);
     _initNotifications();
     _fetchPendingCount();
     _subscribePending();
   }
 
+  void _selectTab(int index) {
+    if (index == _currentIndex) return;
+    final from = _slideAnim.value;
+    _slideAnim = Tween<double>(begin: from, end: index.toDouble()).animate(
+      CurvedAnimation(parent: _slideCtrl, curve: Curves.easeInOut),
+    );
+    _slideCtrl.forward(from: 0);
+    setState(() => _currentIndex = index);
+  }
+
   Future<void> _fetchPendingCount() async {
     try {
+      final user = Supabase.instance.client.auth.currentUser;
+      if (user == null) return;
+
+      final akunData = await Supabase.instance.client
+          .from('akun')
+          .select('id_akun')
+          .eq('email', user.email!)
+          .maybeSingle();
+      if (akunData == null) return;
+      final adminId = akunData['id_akun'] as int;
+
+      final scrims = await Supabase.instance.client
+          .from('scrim')
+          .select('id_scrim')
+          .eq('id_admin', adminId);
+      if ((scrims as List).isEmpty) {
+        if (mounted) setState(() => _pendingCount = 0);
+        return;
+      }
+      final scrimIds = scrims.map((s) => s['id_scrim'] as int).toList();
+
+      final sessions = await Supabase.instance.client
+          .from('sesi_scrim')
+          .select('id_sesi')
+          .inFilter('id_scrim', scrimIds);
+      if ((sessions as List).isEmpty) {
+        if (mounted) setState(() => _pendingCount = 0);
+        return;
+      }
+      final sesiIds = sessions.map((s) => s['id_sesi'] as int).toList();
+
       final res = await Supabase.instance.client
           .from('pendaftaran_tim')
           .select('id_pendaftaran')
+          .inFilter('id_sesi', sesiIds)
           .eq('status_pembayaran', 'menunggu');
       if (mounted) setState(() => _pendingCount = (res as List).length);
     } catch (_) {}
@@ -106,7 +157,8 @@ class _AdminMainNavigatorState extends State<AdminMainNavigator> {
         content: Row(
           children: [
             Container(
-              width: 36, height: 36,
+              width: 36,
+              height: 36,
               decoration: BoxDecoration(
                 color: AppColors.warning.withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(AppConstants.radiusM),
@@ -134,9 +186,10 @@ class _AdminMainNavigatorState extends State<AdminMainNavigator> {
             TextButton(
               onPressed: () {
                 ScaffoldMessenger.of(context).hideCurrentSnackBar();
-                setState(() => _currentIndex = 2); // buka tab Peserta
+                _selectTab(2);
               },
-              child: Text('Lihat', style: AppTextStyles.interLink.copyWith(fontSize: 12)),
+              child: Text('Lihat',
+                  style: AppTextStyles.interLink.copyWith(fontSize: 12)),
             ),
           ],
         ),
@@ -146,6 +199,7 @@ class _AdminMainNavigatorState extends State<AdminMainNavigator> {
 
   @override
   void dispose() {
+    _slideCtrl.dispose();
     _notifSub?.cancel();
     _pendingChannel?.unsubscribe();
     super.dispose();
@@ -156,105 +210,119 @@ class _AdminMainNavigatorState extends State<AdminMainNavigator> {
     return Scaffold(
       body: IndexedStack(index: _currentIndex, children: _pages),
       bottomNavigationBar: SafeArea(
-        child: Container(
-          margin: const EdgeInsets.only(
-            left: AppConstants.paddingM,
-            right: AppConstants.paddingM,
-            bottom: AppConstants.paddingM,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(
+            AppConstants.paddingM,
+            0,
+            AppConstants.paddingM,
+            AppConstants.paddingM,
           ),
-          height: 60,
-          decoration: BoxDecoration(
-            color: AppColors.primary,
-            borderRadius: BorderRadius.circular(AppConstants.radiusXL),
-            boxShadow: const [
-              BoxShadow(
-                color: AppColors.shadow,
-                blurRadius: 10,
-                offset: Offset(0, 4),
-              ),
-            ],
-          ),
-          padding: const EdgeInsets.symmetric(horizontal: 6),
-          child: Row(
-            children: List.generate(_menuItems.length, (i) {
-              return Expanded(
-                child: _buildNavItem(
-                  _menuItems[i]['icon'] as IconData,
-                  _menuItems[i]['label'] as String,
-                  i,
+          child: Container(
+            height: 64,
+            decoration: BoxDecoration(
+              color: AppColors.primary,
+              borderRadius: BorderRadius.circular(AppConstants.radiusXL),
+              boxShadow: const [
+                BoxShadow(
+                  color: AppColors.shadow,
+                  blurRadius: 12,
+                  offset: Offset(0, 4),
                 ),
-              );
-            }),
-          ),
-        ),
-      ),
-    );
-  }
+              ],
+            ),
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final itemW = constraints.maxWidth / _icons.length;
+                const circleSize = 46.0;
+                const circleTop = (64 - circleSize) / 2;
 
-  Widget _buildNavItem(IconData icon, String label, int index) {
-    final bool isSelected = _currentIndex == index;
-    // Badge merah di tab Peserta (index 2): hanya pembayaran pending
-    final bool showBadge = index == 2 && _pendingCount > 0;
+                return AnimatedBuilder(
+                  animation: _slideAnim,
+                  builder: (context, _) {
+                    final pos = _slideAnim.value;
+                    final circleLeft =
+                        pos * itemW + (itemW - circleSize) / 2;
 
-    return InkWell(
-      onTap: () => setState(() => _currentIndex = index),
-      borderRadius: BorderRadius.circular(AppConstants.radiusXL),
-      child: Center(
-        child: isSelected
-            ? Container(
-                margin: const EdgeInsets.symmetric(vertical: 6),
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-                decoration: BoxDecoration(
-                  color: AppColors.background,
-                  borderRadius: BorderRadius.circular(AppConstants.radiusXL),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(icon, color: AppColors.primary, size: 16),
-                    const SizedBox(width: 4),
-                    Flexible(
-                      child: Text(
-                        label,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: AppTextStyles.interCaption.copyWith(
-                          color: AppColors.primary,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 10,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              )
-            : Stack(
-                clipBehavior: Clip.none,
-                children: [
-                  Icon(icon, color: AppColors.background, size: 22),
-                  if (showBadge)
-                    Positioned(
-                      top: -4, right: -6,
-                      child: Container(
-                        width: 14, height: 14,
-                        decoration: const BoxDecoration(
-                          color: AppColors.error,
-                          shape: BoxShape.circle,
-                        ),
-                        child: Center(
-                          child: Text(
-                            _pendingCount > 9 ? '9+' : '$_pendingCount',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 8,
-                              fontWeight: FontWeight.bold,
+                    return Stack(
+                      children: [
+                        // Sliding circle
+                        Positioned(
+                          left: circleLeft,
+                          top: circleTop,
+                          width: circleSize,
+                          height: circleSize,
+                          child: Container(
+                            decoration: const BoxDecoration(
+                              color: AppColors.background,
+                              shape: BoxShape.circle,
                             ),
                           ),
                         ),
-                      ),
-                    ),
-                ],
-              ),
+                        // Icons
+                        Positioned.fill(
+                          child: Row(
+                            children: List.generate(_icons.length, (i) {
+                              final t =
+                                  (1.0 - (pos - i).abs()).clamp(0.0, 1.0);
+                              final iconColor = Color.lerp(
+                                AppColors.background,
+                                AppColors.primary,
+                                t,
+                              )!;
+                              final showBadge =
+                                  i == 2 && _pendingCount > 0;
+                              return Expanded(
+                                child: GestureDetector(
+                                  onTap: () => _selectTab(i),
+                                  behavior: HitTestBehavior.opaque,
+                                  child: Center(
+                                    child: Stack(
+                                      clipBehavior: Clip.none,
+                                      children: [
+                                        Icon(_icons[i],
+                                            color: iconColor, size: 22),
+                                        if (showBadge)
+                                          Positioned(
+                                            top: -4,
+                                            right: -6,
+                                            child: Container(
+                                              width: 14,
+                                              height: 14,
+                                              decoration: const BoxDecoration(
+                                                color: AppColors.error,
+                                                shape: BoxShape.circle,
+                                              ),
+                                              child: Center(
+                                                child: Text(
+                                                  _pendingCount > 9
+                                                      ? '9+'
+                                                      : '$_pendingCount',
+                                                  style: const TextStyle(
+                                                    color: Colors.white,
+                                                    fontSize: 8,
+                                                    fontWeight:
+                                                        FontWeight.bold,
+                                                  ),
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              );
+                            }),
+                          ),
+                        ),
+                      ],
+                    );
+                  },
+                );
+              },
+            ),
+          ),
+        ),
       ),
     );
   }

@@ -3,7 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../config/app_color.dart';
 import '../../config/app_constants.dart';
 import '../../config/app_text_styles.dart';
-import 'detail_klaim_page.dart';
+import 'daftar_klaim_aktif_page.dart';
 
 class AdminKeuanganPage extends StatefulWidget {
   const AdminKeuanganPage({super.key});
@@ -19,11 +19,11 @@ class _AdminKeuanganPageState extends State<AdminKeuanganPage> {
   String? _error;
 
   double _totalPendapatan = 0;
+  double _totalDanaKeluar = 0;
   int _klaimPendingCount = 0;
 
-  List<Map<String, dynamic>> _recentKlaim = [];
-  Map<String, dynamic>? _urgentKlaim;
-  Map<String, dynamic>? _completedKlaim;
+  List<Map<String, dynamic>> _urgentGroups = [];
+  List<Map<String, dynamic>> _completedGroups = [];
 
   @override
   void initState() {
@@ -48,10 +48,10 @@ class _AdminKeuanganPageState extends State<AdminKeuanganPage> {
           .single();
       final int idAkun = akunData['id_akun'] as int;
 
-      // 2. Ambil semua scrim milik admin ini
+      // 2. Ambil semua scrim milik admin ini (termasuk biaya_pendaftaran)
       final scrimsRaw = await _supabase
           .from('scrim')
-          .select('id_scrim, nama_scrim, maks_peserta')
+          .select('id_scrim, nama_scrim, maks_peserta, biaya_pendaftaran')
           .eq('id_admin', idAkun);
       final scrims = List<Map<String, dynamic>>.from(scrimsRaw);
       final scrimIds = scrims.map((s) => s['id_scrim'] as int).toList();
@@ -61,38 +61,50 @@ class _AdminKeuanganPageState extends State<AdminKeuanganPage> {
         return;
       }
 
-      // 3. Ambil keuangan_scrim untuk scrim admin ini → hitung total pendapatan
-      final keuanganRaw = await _supabase
-          .from('keuangan_scrim')
-          .select('total_pendaftaran, fee_admin_10persen, sisa_hadiah, id_scrim')
-          .inFilter('id_scrim', scrimIds);
+      final biayaPerScrim = <int, double>{
+        for (var s in scrims)
+          s['id_scrim'] as int: (s['biaya_pendaftaran'] as num? ?? 0).toDouble()
+      };
 
-      double totalPendapatan = 0;
-      for (final k in keuanganRaw) {
-        totalPendapatan += (k['total_pendaftaran'] as num? ?? 0).toDouble();
-      }
-      _totalPendapatan = totalPendapatan;
-
-      // 4. Ambil id_sesi dari scrim-scrim tersebut
+      // 3. Ambil id_sesi + id_scrim
+      final scrimMap = <int, Map<String, dynamic>>{
+        for (var s in scrims) s['id_scrim'] as int: Map<String, dynamic>.from(s)
+      };
       final sesiRaw = await _supabase
           .from('sesi_scrim')
-          .select('id_sesi')
+          .select('id_sesi, id_scrim')
           .inFilter('id_scrim', scrimIds);
-      final sesiIds = (sesiRaw as List).map((s) => s['id_sesi'] as int).toList();
+      final sesiToScrim = <int, int>{
+        for (var s in sesiRaw as List) s['id_sesi'] as int: s['id_scrim'] as int
+      };
+      final sesiIds = sesiToScrim.keys.toList();
 
       if (sesiIds.isEmpty) {
         setState(() => _isLoading = false);
         return;
       }
 
-      // 5. Ambil id_pendaftaran dari sesi-sesi tersebut
+      // 4. Ambil pendaftaran + status_pembayaran untuk hitung pendapatan
       final pendaftaranRaw = await _supabase
           .from('pendaftaran_tim')
-          .select('id_pendaftaran')
+          .select('id_pendaftaran, id_sesi, status_pembayaran')
           .inFilter('id_sesi', sesiIds);
-      final pendaftaranIds = (pendaftaranRaw as List)
-          .map((p) => p['id_pendaftaran'] as int)
-          .toList();
+      final pendaftaranToScrim = <int, int>{};
+      double totalPendapatan = 0;
+      for (final p in pendaftaranRaw as List) {
+        final scrimId = sesiToScrim[p['id_sesi'] as int];
+        if (scrimId == null) continue;
+        pendaftaranToScrim[p['id_pendaftaran'] as int] = scrimId;
+        if ((p['status_pembayaran'] as String? ?? '') == 'dikonfirmasi') {
+          totalPendapatan += biayaPerScrim[scrimId] ?? 0;
+        }
+      }
+      // Dana keluar = sisa setelah fee platform 5% dan admin 10%
+      const double feeTotal = 0.15;
+      _totalPendapatan = totalPendapatan;
+      _totalDanaKeluar = totalPendapatan * (1 - feeTotal);
+
+      final pendaftaranIds = pendaftaranToScrim.keys.toList();
 
       if (pendaftaranIds.isEmpty) {
         setState(() => _isLoading = false);
@@ -103,14 +115,11 @@ class _AdminKeuanganPageState extends State<AdminKeuanganPage> {
       final klaimRaw = await _supabase
           .from('klaim_hadiah')
           .select('''
-            id_klaim, status_klaim, jumlah_klaim,
+            id_klaim, id_pendaftaran, status_klaim, jumlah_klaim,
             diajukan_pada, dibayar_pada,
             pendaftaran_tim(
               nama_kapten, id_sesi,
-              sesi_scrim(
-                nama_sesi,
-                scrim(nama_scrim, maks_peserta)
-              )
+              sesi_scrim(nama_sesi, scrim(nama_scrim, maks_peserta))
             )
           ''')
           .inFilter('id_pendaftaran', pendaftaranIds)
@@ -118,25 +127,51 @@ class _AdminKeuanganPageState extends State<AdminKeuanganPage> {
 
       final allKlaim = List<Map<String, dynamic>>.from(klaimRaw);
 
-      // Hitung klaim pending
-      _klaimPendingCount =
-          allKlaim.where((k) => k['status_klaim'] == 'diajukan').length;
+      // Group klaim by scrim
+      final pendingByScrim = <int, List<Map<String, dynamic>>>{};
+      final completedByScrim = <int, List<Map<String, dynamic>>>{};
+      for (final k in allKlaim) {
+        final pendId = k['id_pendaftaran'] as int? ?? 0;
+        final scrimId = pendaftaranToScrim[pendId];
+        if (scrimId == null) continue;
+        final status = k['status_klaim'] as String? ?? '';
+        if (status == 'diajukan' || status == 'disetujui_admin' || status == 'diteruskan_owner') {
+          pendingByScrim.putIfAbsent(scrimId, () => []).add(Map<String, dynamic>.from(k));
+        } else if (status == 'dibayar') {
+          completedByScrim.putIfAbsent(scrimId, () => []).add(Map<String, dynamic>.from(k));
+        }
+      }
 
-      // Recent klaim untuk riwayat (max 5)
-      _recentKlaim = allKlaim.take(5).toList();
+      _urgentGroups = [];
+      pendingByScrim.forEach((scrimId, items) {
+        final scrim = scrimMap[scrimId];
+        if (scrim == null) return;
+        final total = items.fold<double>(0, (s, k) => s + ((k['jumlah_klaim'] as num?)?.toDouble() ?? 0));
+        final tgl = items.first['diajukan_pada'] as String?;
+        _urgentGroups.add({
+          'nama_event': scrim['nama_scrim'] ?? '-',
+          'tanggal': tgl != null ? _formatTanggal(tgl) : '-',
+          'jumlah_pending': items.length,
+          'jumlah_tim': scrim['maks_peserta'] as int? ?? 0,
+          'nominal': total,
+        });
+      });
 
-      // Klaim urgent = yang paling baru dengan status diajukan
-      final pendingList =
-          allKlaim.where((k) => k['status_klaim'] == 'diajukan').toList();
-      _urgentKlaim = pendingList.isNotEmpty ? pendingList.first : null;
+      _completedGroups = [];
+      completedByScrim.forEach((scrimId, items) {
+        if (pendingByScrim.containsKey(scrimId)) return;
+        final scrim = scrimMap[scrimId];
+        if (scrim == null) return;
+        final total = items.fold<double>(0, (s, k) => s + ((k['jumlah_klaim'] as num?)?.toDouble() ?? 0));
+        final tgl = items.first['dibayar_pada'] as String? ?? items.first['diajukan_pada'] as String?;
+        _completedGroups.add({
+          'nama_event': scrim['nama_scrim'] ?? '-',
+          'tanggal': tgl != null ? _formatTanggal(tgl) : '-',
+          'nominal': total,
+        });
+      });
 
-      // Klaim completed = yang paling baru dengan status dibayar/disetujui
-      final doneList = allKlaim
-          .where((k) =>
-              k['status_klaim'] == 'dibayar' ||
-              k['status_klaim'] == 'disetujui_admin')
-          .toList();
-      _completedKlaim = doneList.isNotEmpty ? doneList.first : null;
+      _klaimPendingCount = _urgentGroups.fold(0, (s, g) => s + (g['jumlah_pending'] as int));
     } catch (e) {
       _error = 'Gagal memuat data: ${e.toString()}';
       debugPrint('Error keuangan: $e');
@@ -182,33 +217,6 @@ class _AdminKeuanganPageState extends State<AdminKeuanganPage> {
     }
   }
 
-  String _namaScrimFromKlaim(Map<String, dynamic> klaim) {
-    try {
-      return klaim['pendaftaran_tim']['sesi_scrim']['scrim']['nama_scrim']
-              as String? ??
-          'Scrim';
-    } catch (_) {
-      return 'Scrim';
-    }
-  }
-
-  String _namaKaptenFromKlaim(Map<String, dynamic> klaim) {
-    try {
-      return klaim['pendaftaran_tim']['nama_kapten'] as String? ?? '-';
-    } catch (_) {
-      return '-';
-    }
-  }
-
-  int _maksPesertaFromKlaim(Map<String, dynamic> klaim) {
-    try {
-      return klaim['pendaftaran_tim']['sesi_scrim']['scrim']['maks_peserta']
-              as int? ??
-          0;
-    } catch (_) {
-      return 0;
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -292,24 +300,37 @@ class _AdminKeuanganPageState extends State<AdminKeuanganPage> {
             ),
             const SizedBox(height: 28),
 
-            // ── RIWAYAT KLAIM ──
-            Text(
-              'Riwayat Klaim',
-              style: AppTextStyles.poppinsSectionTitle.copyWith(fontSize: 18),
-            ),
-            const SizedBox(height: 10),
-            _buildRiwayatKlaim(),
-            const SizedBox(height: 28),
-
             // ── DAFTAR KLAIM AKTIF ──
             Text(
               'Daftar Klaim Aktif',
               style: AppTextStyles.poppinsSectionTitle.copyWith(fontSize: 18),
             ),
             const SizedBox(height: 14),
-            _buildUrgentCard(context),
-            const SizedBox(height: 12),
-            _buildCompletedCard(context),
+            if (_urgentGroups.isEmpty && _completedGroups.isEmpty)
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: AppColors.backgroundCard,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: Colors.white10),
+                ),
+                child: Center(
+                  child: Text(
+                    'Tidak ada klaim menunggu proses',
+                    style: AppTextStyles.interBody.copyWith(color: AppColors.textSecondary),
+                  ),
+                ),
+              )
+            else ...[
+              ..._urgentGroups.map((g) => Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: _buildUrgentCard(context, g),
+                  )),
+              ..._completedGroups.map((g) => Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: _buildCompletedCard(context, g),
+                  )),
+            ],
             const SizedBox(height: 16),
           ],
         ),
@@ -330,21 +351,26 @@ class _AdminKeuanganPageState extends State<AdminKeuanganPage> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Total Saldo Keuangan',
-            style: AppTextStyles.interLabel.copyWith(color: AppColors.textSecondary),
+            'TOTAL PENDAPATAN',
+            style: TextStyle(
+              color: AppColors.textSecondary,
+              fontSize: 10,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 1.2,
+            ),
           ),
           const SizedBox(height: 8),
           Text(
             _formatRupiah(_totalPendapatan),
-            style: AppTextStyles.poppinsMoneyLarge.copyWith(fontSize: 28),
+            style: AppTextStyles.poppinsMoneyLarge.copyWith(fontSize: 32),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 6),
           Row(
             children: [
-              const Icon(Icons.arrow_upward, color: AppColors.success, size: 16),
+              const Icon(Icons.arrow_upward, color: AppColors.success, size: 14),
               const SizedBox(width: 4),
               Text(
-                'Dari ${_klaimPendingCount > 0 ? "$_klaimPendingCount klaim menunggu" : "semua scrim aktif"}',
+                'Dari semua scrim aktif',
                 style: AppTextStyles.interCaption.copyWith(color: AppColors.success),
               ),
             ],
@@ -355,27 +381,40 @@ class _AdminKeuanganPageState extends State<AdminKeuanganPage> {
   }
 
   Widget _buildDanaKeluarButton() {
+    final pct = _totalPendapatan > 0
+        ? ((_totalDanaKeluar / _totalPendapatan) * 100).toStringAsFixed(0)
+        : '0';
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 16),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: AppColors.backgroundCard,
         borderRadius: BorderRadius.circular(AppConstants.radiusM),
         border: Border.all(color: AppColors.divider.withValues(alpha: 0.1)),
       ),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(Icons.money_off, color: AppColors.primary, size: 28),
-          const SizedBox(height: 8),
-          Text('Dana Keluar', style: AppTextStyles.interBody.copyWith(fontSize: 13)),
-          const SizedBox(height: 2),
           Text(
-            _completedKlaim != null
-                ? _formatRupiah(
-                    (_completedKlaim!['jumlah_klaim'] as num? ?? 0).toDouble())
-                : 'Rp 0',
-            style: AppTextStyles.interCaption.copyWith(
+            'DANA KELUAR',
+            style: TextStyle(
               color: AppColors.textSecondary,
-              fontSize: 11,
+              fontSize: 10,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.8,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            _formatRupiah(_totalDanaKeluar),
+            style: AppTextStyles.poppinsMoneyLarge.copyWith(fontSize: 20),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            '$pct% Terverifikasi',
+            style: TextStyle(
+              color: AppColors.success,
+              fontSize: 10,
+              fontWeight: FontWeight.w500,
             ),
           ),
         ],
@@ -384,191 +423,57 @@ class _AdminKeuanganPageState extends State<AdminKeuanganPage> {
   }
 
   Widget _buildKlaimPendingButton(BuildContext context) {
-    return InkWell(
-      onTap: () => Navigator.push(
-        context,
-        MaterialPageRoute(builder: (_) => const DetailKlaimPage()),
-      ),
-      borderRadius: BorderRadius.circular(AppConstants.radiusM),
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 16),
+    return Container(
+        padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           color: AppColors.backgroundCard,
           borderRadius: BorderRadius.circular(AppConstants.radiusM),
-          border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
+          border: Border.all(
+            color: _klaimPendingCount > 0
+                ? AppColors.primary.withValues(alpha: 0.4)
+                : AppColors.divider.withValues(alpha: 0.1),
+          ),
         ),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            Text(
+              'KLAIM PENDING',
+              style: TextStyle(
+                color: AppColors.textSecondary,
+                fontSize: 10,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 0.8,
+              ),
+            ),
+            const SizedBox(height: 6),
             Text(
               '$_klaimPendingCount',
               style: TextStyle(
-                color: AppColors.primary,
+                color: _klaimPendingCount > 0 ? AppColors.primary : AppColors.textPrimary,
                 fontSize: 28,
                 fontWeight: FontWeight.w800,
               ),
             ),
             const SizedBox(height: 4),
-            Text('Klaim Pending', style: AppTextStyles.interBody.copyWith(fontSize: 13)),
-            const SizedBox(height: 2),
             Text(
               'Segera Proses',
-              style: AppTextStyles.interCaption.copyWith(
+              style: TextStyle(
                 color: AppColors.textSecondary,
-                fontSize: 11,
+                fontSize: 10,
               ),
             ),
           ],
         ),
-      ),
     );
   }
 
-  Widget _buildRiwayatKlaim() {
-    if (_recentKlaim.isEmpty) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 32),
-          child: Column(
-            children: [
-              const Icon(Icons.receipt_long_outlined,
-                  size: 48, color: AppColors.textSecondary),
-              const SizedBox(height: 12),
-              Text(
-                'Belum ada klaim',
-                style: AppTextStyles.interBody.copyWith(color: AppColors.textSecondary),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
-
-    return ListView.separated(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      itemCount: _recentKlaim.length,
-      separatorBuilder: (_, _) => const SizedBox(height: 10),
-      itemBuilder: (_, index) {
-        final klaim = _recentKlaim[index];
-        final status = klaim['status_klaim'] as String? ?? '';
-        final isPaid = status == 'dibayar';
-        final Color color = isPaid ? AppColors.success : AppColors.primary;
-        final double jumlah =
-            (klaim['jumlah_klaim'] as num? ?? 0).toDouble();
-        final tanggal = _formatTanggal(klaim['diajukan_pada'] as String?);
-
-        return Container(
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            color: AppColors.backgroundCard,
-            borderRadius: BorderRadius.circular(AppConstants.radiusM),
-          ),
-          child: Row(
-            children: [
-              CircleAvatar(
-                backgroundColor: color.withValues(alpha: 0.1),
-                child: Icon(
-                  isPaid ? Icons.call_received : Icons.pending_actions,
-                  color: color,
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      _namaScrimFromKlaim(klaim),
-                      style: AppTextStyles.interBodyMedium.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      _namaKaptenFromKlaim(klaim),
-                      style: AppTextStyles.interCaption.copyWith(fontSize: 11),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(tanggal, style: AppTextStyles.interCaption),
-                  ],
-                ),
-              ),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Text(
-                    _formatRupiahFull(jumlah),
-                    style: AppTextStyles.poppinsMoneySmall.copyWith(
-                      color: color,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  _buildStatusChip(status),
-                ],
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildStatusChip(String status) {
-    late String label;
-    late Color color;
-    switch (status) {
-      case 'diajukan':
-        label = 'Menunggu';
-        color = AppColors.primary;
-        break;
-      case 'disetujui_admin':
-        label = 'Disetujui';
-        color = AppColors.success;
-        break;
-      case 'dibayar':
-        label = 'Dibayar';
-        color = AppColors.success;
-        break;
-      default:
-        label = status;
-        color = AppColors.textSecondary;
-    }
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.15),
-        borderRadius: BorderRadius.circular(4),
-      ),
-      child: Text(
-        label,
-        style: TextStyle(color: color, fontSize: 9, fontWeight: FontWeight.w700),
-      ),
-    );
-  }
-
-  Widget _buildUrgentCard(BuildContext context) {
-    if (_urgentKlaim == null) {
-      return Container(
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: AppColors.backgroundCard,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: Colors.white10),
-        ),
-        child: Center(
-          child: Text(
-            'Tidak ada klaim menunggu proses',
-            style: AppTextStyles.interBody.copyWith(color: AppColors.textSecondary),
-          ),
-        ),
-      );
-    }
-
-    final klaim = _urgentKlaim!;
-    final namaEvent = _namaScrimFromKlaim(klaim);
-    final tanggal = _formatTanggal(klaim['diajukan_pada'] as String?);
-    final jumlah = (klaim['jumlah_klaim'] as num? ?? 0).toDouble();
-    final maksPeserta = _maksPesertaFromKlaim(klaim);
+  Widget _buildUrgentCard(BuildContext context, Map<String, dynamic> g) {
+    final namaEvent = g['nama_event'] as String? ?? '-';
+    final tanggal = g['tanggal'] as String? ?? '-';
+    final jumlah = (g['nominal'] as num? ?? 0).toDouble();
+    final int pending = g['jumlah_pending'] as int? ?? 0;
+    final int tim = g['jumlah_tim'] as int? ?? 0;
 
     return Container(
       width: double.infinity,
@@ -632,7 +537,7 @@ class _AdminKeuanganPageState extends State<AdminKeuanganPage> {
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Text(
-                    '$_klaimPendingCount Pending',
+                    '$pending Pending',
                     style: TextStyle(
                       color: AppColors.primary,
                       fontSize: 11,
@@ -648,7 +553,7 @@ class _AdminKeuanganPageState extends State<AdminKeuanganPage> {
                 const Icon(Icons.people, color: Colors.grey, size: 14),
                 const SizedBox(width: 4),
                 Text(
-                  '$maksPeserta Tim',
+                  '$tim Tim',
                   style: const TextStyle(color: Colors.grey, fontSize: 12),
                 ),
                 const SizedBox(width: 8),
@@ -678,7 +583,7 @@ class _AdminKeuanganPageState extends State<AdminKeuanganPage> {
                 ),
                 onPressed: () => Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (_) => const DetailKlaimPage()),
+                  MaterialPageRoute(builder: (_) => const DaftarKlaimAktifPage()),
                 ),
                 child: const Text(
                   'Detail Klaim',
@@ -696,17 +601,10 @@ class _AdminKeuanganPageState extends State<AdminKeuanganPage> {
     );
   }
 
-  Widget _buildCompletedCard(BuildContext context) {
-    if (_completedKlaim == null) {
-      return const SizedBox.shrink();
-    }
-
-    final klaim = _completedKlaim!;
-    final namaEvent = _namaScrimFromKlaim(klaim);
-    final tanggal = _formatTanggal(
-      (klaim['dibayar_pada'] ?? klaim['diajukan_pada']) as String?,
-    );
-    final jumlah = (klaim['jumlah_klaim'] as num? ?? 0).toDouble();
+  Widget _buildCompletedCard(BuildContext context, Map<String, dynamic> g) {
+    final namaEvent = g['nama_event'] as String? ?? '-';
+    final tanggal = g['tanggal'] as String? ?? '-';
+    final jumlah = (g['nominal'] as num? ?? 0).toDouble();
 
     return Container(
       width: double.infinity,
@@ -775,7 +673,7 @@ class _AdminKeuanganPageState extends State<AdminKeuanganPage> {
                 ),
                 onPressed: () => Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (_) => const DetailKlaimPage()),
+                  MaterialPageRoute(builder: (_) => const DaftarKlaimAktifPage()),
                 ),
                 child: const Text(
                   'Lihat Riwayat',
