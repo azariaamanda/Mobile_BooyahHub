@@ -50,9 +50,41 @@ class _AdminMainNavigatorState extends State<AdminMainNavigator> {
 
   Future<void> _fetchPendingCount() async {
     try {
+      final user = Supabase.instance.client.auth.currentUser;
+      if (user == null) return;
+
+      final akunData = await Supabase.instance.client
+          .from('akun')
+          .select('id_akun')
+          .eq('email', user.email!)
+          .maybeSingle();
+      if (akunData == null) return;
+      final adminId = akunData['id_akun'] as int;
+
+      final scrims = await Supabase.instance.client
+          .from('scrim')
+          .select('id_scrim')
+          .eq('id_admin', adminId);
+      if ((scrims as List).isEmpty) {
+        if (mounted) setState(() => _pendingCount = 0);
+        return;
+      }
+      final scrimIds = scrims.map((s) => s['id_scrim'] as int).toList();
+
+      final sessions = await Supabase.instance.client
+          .from('sesi_scrim')
+          .select('id_sesi')
+          .inFilter('id_scrim', scrimIds);
+      if ((sessions as List).isEmpty) {
+        if (mounted) setState(() => _pendingCount = 0);
+        return;
+      }
+      final sesiIds = sessions.map((s) => s['id_sesi'] as int).toList();
+
       final res = await Supabase.instance.client
           .from('pendaftaran_tim')
           .select('id_pendaftaran')
+          .inFilter('id_sesi', sesiIds)
           .eq('status_pembayaran', 'menunggu');
       if (mounted) setState(() => _pendingCount = (res as List).length);
     } catch (_) {}

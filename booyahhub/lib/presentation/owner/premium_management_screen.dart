@@ -31,9 +31,26 @@ class _PremiumManagementScreenState extends State<PremiumManagementScreen> {
   Future<void> _fetchPackages() async {
     try {
       final data = await _supabase.from('paket_premium').select().order('harga', ascending: false);
+
+      // Hitung jumlah admin aktif per nama paket dari transaksi_premium
+      final activeTx = await _supabase
+          .from('transaksi_premium')
+          .select('nama_paket')
+          .eq('status', 'aktif');
+      final countMap = <String, int>{};
+      for (final tx in activeTx as List) {
+        final nama = tx['nama_paket'] as String? ?? '';
+        countMap[nama] = (countMap[nama] ?? 0) + 1;
+      }
+
       if (mounted) {
         setState(() {
-          _packages = (data as List).map((e) => PaketPremiumModel.fromJson(e)).toList();
+          _packages = (data as List).map((e) {
+            final map = Map<String, dynamic>.from(e as Map);
+            final nama = map['nama_paket'] as String? ?? '';
+            map['total_pengguna'] = countMap[nama] ?? 0;
+            return PaketPremiumModel.fromJson(map);
+          }).toList();
           _isLoading = false;
         });
       }
@@ -101,6 +118,115 @@ class _PremiumManagementScreenState extends State<PremiumManagementScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Gagal tolak: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
+  Future<void> _hapusPaket(PaketPremiumModel pkg) async {
+    final konfirm = await showDialog<bool>(
+      context: context,
+      barrierColor: Colors.black.withValues(alpha: 0.7),
+      builder: (_) => Dialog(
+        backgroundColor: const Color(0xFF131F2D),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 56, height: 56,
+                decoration: BoxDecoration(
+                  color: Colors.red.withValues(alpha: 0.12),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.delete_forever_rounded, color: Colors.red, size: 28),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Hapus Paket?',
+                style: AppTextStyles.poppinsTitleSmall.copyWith(
+                  color: Colors.white,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Paket "${pkg.namaPaket}" akan dihapus permanen dan tidak bisa dikembalikan.',
+                textAlign: TextAlign.center,
+                style: AppTextStyles.interBody.copyWith(
+                  color: Colors.white54,
+                  fontSize: 13,
+                  height: 1.5,
+                ),
+              ),
+              const SizedBox(height: 24),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () => Navigator.pop(context, false),
+                      style: OutlinedButton.styleFrom(
+                        side: const BorderSide(color: Colors.white24),
+                        padding: const EdgeInsets.symmetric(vertical: 13),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      ),
+                      child: Text(
+                        'Batal',
+                        style: AppTextStyles.interBody.copyWith(
+                          color: Colors.white70,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: () => Navigator.pop(context, true),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.red,
+                        foregroundColor: Colors.white,
+                        elevation: 0,
+                        padding: const EdgeInsets.symmetric(vertical: 13),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      ),
+                      child: Text(
+                        'Hapus',
+                        style: AppTextStyles.interBody.copyWith(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    if (konfirm != true || !mounted) return;
+
+    try {
+      await _supabase.from('paket_premium').delete().eq('id_langganan', pkg.idLangganan!);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Paket berhasil dihapus'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        _fetchPackages();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Gagal hapus: $e'), backgroundColor: Colors.red),
         );
       }
     }
@@ -462,7 +588,23 @@ class _PremiumManagementScreenState extends State<PremiumManagementScreen> {
                         ),
                       ],
                     ),
-                    const Icon(Icons.chevron_right_rounded, color: Colors.white70, size: 16),
+                    Row(
+                      children: [
+                        GestureDetector(
+                          onTap: () => _hapusPaket(pkg),
+                          child: Container(
+                            padding: const EdgeInsets.all(6),
+                            decoration: BoxDecoration(
+                              color: Colors.red.withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: const Icon(Icons.delete_outline_rounded, color: Colors.red, size: 16),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        const Icon(Icons.chevron_right_rounded, color: Colors.white70, size: 16),
+                      ],
+                    ),
                   ],
                 ),
               ],
