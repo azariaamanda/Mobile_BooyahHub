@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../config/app_session.dart';
@@ -98,14 +98,15 @@ class _UserPesananPageState extends State<UserPesananPage> {
                 nama_scrim,
                 poster,
                 biaya_pendaftaran,
-                total_hadiah
+                total_hadiah,
+                slot_tim,
+                tingkat_kesulitan,
+                tanggal_scrim,
+                metode_pembayaran_id,
+                id_admin
               )
             ),
-            hasil_pertandingan (
-              peringkat,
-              total_kill,
-              total_poin
-            ),
+            hasil_pertandingan (*),
             klaim_hadiah (
               status_klaim,
               diajukan_pada,

@@ -1,4 +1,4 @@
-﻿import 'dart:typed_data';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
@@ -82,7 +82,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
       await _supabase.storage.from('foto_profil').uploadBinary(
         fileName,
         imageBytes,
-        fileOptions: const FileOptions(upsert: true),
+        fileOptions: const FileOptions(upsert: false),
       );
       
       final publicUrl = _supabase.storage.from('foto_profil').getPublicUrl(fileName);

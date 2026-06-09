@@ -275,6 +275,10 @@ class _ManageBannerPageState extends State<ManageBannerPage> {
         backgroundColor: AppColors.background,
         elevation: 0,
         automaticallyImplyLeading: false,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios, color: AppColors.primary),
+          onPressed: () => Navigator.pop(context),
+        ),
         title: Text(
           'Kelola Banner',
           style: GoogleFonts.poppins(

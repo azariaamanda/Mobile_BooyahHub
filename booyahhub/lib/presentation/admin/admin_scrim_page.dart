@@ -5,6 +5,7 @@ import '../../config/app_session.dart';
 import '../../config/app_color.dart';
 import '../../config/app_constants.dart';
 import '../../config/app_text_styles.dart';
+import 'scrim_limit_page.dart';
 
 class ScrimSummary {
   final String id;
@@ -35,6 +36,7 @@ class _AdminScrimPageState extends State<AdminScrimPage>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
   bool _isLoading = false;
+  bool _isPremium = true;
   String? _error;
   List<ScrimSummary> _allScrims = [];
 
@@ -65,12 +67,13 @@ class _AdminScrimPageState extends State<AdminScrimPage>
 
       final akunResponse = await _supabase
           .from('akun')
-          .select('id_akun')
+          .select('id_akun, is_premium')
           .eq('email', userEmail)
           .maybeSingle();
 
       if (akunResponse == null) throw Exception('Akun tidak ditemukan');
       final adminId = akunResponse['id_akun'];
+      _isPremium = (akunResponse['is_premium'] ?? false) as bool;
 
       final scrimResponse = await _supabase
           .from('scrim')
@@ -230,6 +233,11 @@ class _AdminScrimPageState extends State<AdminScrimPage>
           ),
           GestureDetector(
             onTap: () async {
+              final isLocked = !_isPremium && _allScrims.isNotEmpty;
+              if (isLocked) {
+                Navigator.push(context, MaterialPageRoute(builder: (_) => const ScrimLimitPage()));
+                return;
+              }
               await context.push('/admin/scrim/buat');
               _fetchScrims();
             },
@@ -245,7 +253,11 @@ class _AdminScrimPageState extends State<AdminScrimPage>
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(Icons.add, color: Colors.black, size: 18),
+                  Icon(
+                    (!_isPremium && _allScrims.isNotEmpty) ? Icons.lock_outline_rounded : Icons.add,
+                    color: Colors.black,
+                    size: 18,
+                  ),
                   const SizedBox(width: AppConstants.paddingXS),
                   Text(
                     'Tambah Scrim',

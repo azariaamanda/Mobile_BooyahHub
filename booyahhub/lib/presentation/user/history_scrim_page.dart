@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../config/app_session.dart';
@@ -84,7 +84,7 @@ class _HistoryScrimPageState extends State<HistoryScrimPage> {
                 poster
               )
             ),
-            hasil_pertandingan(peringkat, total_poin)
+            hasil_pertandingan(*)
           ''')
           .eq('akun.email', userEmail)
           .order('dibuat_pada', ascending: false);
