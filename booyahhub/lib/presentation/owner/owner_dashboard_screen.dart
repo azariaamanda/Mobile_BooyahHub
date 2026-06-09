@@ -110,15 +110,8 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
   }
 
   String _formatCompactCurrency(double value) {
-    if (value >= 1000000000) {
-      return 'Rp ${(value / 1000000000).toStringAsFixed(1).replaceAll(RegExp(r'\.0$'), '')}B';
-    } else if (value >= 1000000) {
-      return 'Rp ${(value / 1000000).toStringAsFixed(1).replaceAll(RegExp(r'\.0$'), '')}M';
-    } else if (value >= 1000) {
-      return 'Rp ${(value / 1000).toStringAsFixed(1).replaceAll(RegExp(r'\.0$'), '')}K';
-    } else {
-      return 'Rp ${value.toInt()}';
-    }
+    if (value == 0) return 'Rp 0';
+    return 'Rp ${value.toInt().toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]}.')}';
   }
 
   Future<void> _fetchTotalRevenue() async {
