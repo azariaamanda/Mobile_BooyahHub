@@ -98,7 +98,17 @@ class _UserProfilePageState extends State<UserProfilePage> {
                   backgroundColor: AppColors.surfaceVariant,
                   backgroundImage: _fotoProfil != null && _fotoProfil!.isNotEmpty
                       ? NetworkImage(_fotoProfil!)
-                      : const NetworkImage('https://i.pravatar.cc/300'), // Fallback
+                      : null,
+                  child: (_fotoProfil == null || _fotoProfil!.isEmpty)
+                      ? Text(
+                          _name.isNotEmpty ? _name.substring(0, 1).toUpperCase() : '?',
+                          style: const TextStyle(
+                            color: AppColors.primary,
+                            fontSize: 40,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        )
+                      : null,
                 ),
               ),
               const SizedBox(height: 16),

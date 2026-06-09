@@ -26,7 +26,14 @@ class TeamProfileHeader extends StatelessWidget {
               backgroundColor: AppColors.primary, // Memakai AppColors.primary (Emas Utama)
               backgroundImage: (fotoProfilUrl != null && fotoProfilUrl!.isNotEmpty) ? NetworkImage(fotoProfilUrl!) : null,
               child: (fotoProfilUrl == null || fotoProfilUrl!.isEmpty)
-                  ? const Icon(Icons.sports_esports, color: AppColors.black)
+                  ? Text(
+                      namaTim.isNotEmpty ? namaTim.substring(0, 1).toUpperCase() : '?',
+                      style: const TextStyle(
+                        color: AppColors.black,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 20,
+                      ),
+                    )
                   : null,
             ),
             const SizedBox(width: AppConstants.paddingM), // Memakai AppConstants padding
