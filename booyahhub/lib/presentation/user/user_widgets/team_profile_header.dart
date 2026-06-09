@@ -7,11 +7,13 @@ import '../../../config/app_text_styles.dart';
 class TeamProfileHeader extends StatelessWidget {
   final String namaTim;
   final String? fotoProfilUrl;
+  final int unreadCount;
 
   const TeamProfileHeader({
     super.key,
     required this.namaTim,
     this.fotoProfilUrl,
+    this.unreadCount = 0,
   });
 
   @override
@@ -55,11 +57,39 @@ class TeamProfileHeader extends StatelessWidget {
             ],
           ),
         ),
-        IconButton(
-          icon: const Icon(Icons.notifications_none, color: AppColors.white),
-          onPressed: () {
-            context.pushNamed('notifikasi');
-          },
+        GestureDetector(
+          onTap: () => context.pushNamed('notifikasi'),
+          child: Stack(
+            clipBehavior: Clip.none,
+            children: [
+              const Padding(
+                padding: EdgeInsets.all(8),
+                child: Icon(Icons.notifications_none, color: AppColors.white, size: 26),
+              ),
+              if (unreadCount > 0)
+                Positioned(
+                  top: 2,
+                  right: 2,
+                  child: Container(
+                    padding: const EdgeInsets.all(3),
+                    decoration: const BoxDecoration(
+                      color: AppColors.error,
+                      shape: BoxShape.circle,
+                    ),
+                    constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
+                    child: Text(
+                      unreadCount > 99 ? '99+' : '$unreadCount',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 9,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                ),
+            ],
+          ),
         ),
       ],
     );

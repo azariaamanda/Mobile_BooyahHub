@@ -4,8 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../config/app_color.dart';
 import '../../config/app_constants.dart';
-import '../../config/app_text_styles.dart';
 import '../../data/models/services/notification_service.dart';
+import '../../widgets/top_notification_banner.dart';
 import 'user_home_screen.dart';
 import 'history_scrim_page.dart';
 import 'user_profile_page.dart';
@@ -82,50 +82,12 @@ class _UserMainNavigatorState extends State<UserMainNavigator>
   }
 
   void _showInAppBanner(NotifData notif) {
-    final color = _notifColor(notif.tipe);
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        duration: const Duration(seconds: 4),
-        backgroundColor: AppColors.backgroundCard,
-        behavior: SnackBarBehavior.floating,
-        margin: const EdgeInsets.fromLTRB(16, 0, 16, 80),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppConstants.radiusL),
-          side: BorderSide(color: color.withValues(alpha: 0.4)),
-        ),
-        content: Row(
-          children: [
-            Container(
-              width: 36,
-              height: 36,
-              decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(AppConstants.radiusM),
-              ),
-              child: Icon(_notifIcon(notif.tipe), color: color, size: 18),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(notif.judul,
-                      style: AppTextStyles.poppinsTitleSmall
-                          .copyWith(fontSize: 13)),
-                  Text(
-                    notif.pesan,
-                    style: AppTextStyles.interCaption
-                        .copyWith(color: AppColors.textSecondary),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
+    TopNotificationBanner.show(
+      context,
+      title: notif.judul,
+      message: notif.pesan,
+      icon: _notifIcon(notif.tipe),
+      color: _notifColor(notif.tipe),
     );
   }
 

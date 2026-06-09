@@ -5,6 +5,7 @@ import '../../config/app_color.dart';
 import '../../config/app_constants.dart';
 import '../../config/app_text_styles.dart';
 import '../../data/models/services/notification_service.dart';
+import '../../widgets/top_notification_banner.dart';
 import 'admin_dashboard_screen.dart';
 import 'admin_scrim_page.dart';
 import 'peserta_management_page.dart';
@@ -143,56 +144,21 @@ class _AdminMainNavigatorState extends State<AdminMainNavigator>
   }
 
   void _showInAppBanner(NotifData notif) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        duration: const Duration(seconds: 4),
-        backgroundColor: AppColors.backgroundCard,
-        behavior: SnackBarBehavior.floating,
-        margin: const EdgeInsets.fromLTRB(16, 0, 16, 70),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppConstants.radiusL),
-          side: BorderSide(
-              color: AppColors.warning.withValues(alpha: 0.4)),
+    TopNotificationBanner.show(
+      context,
+      title: notif.judul,
+      message: notif.pesan,
+      icon: Icons.payment_outlined,
+      color: AppColors.warning,
+      trailing: TextButton(
+        onPressed: () => _selectTab(2),
+        style: TextButton.styleFrom(
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+          minimumSize: Size.zero,
+          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
         ),
-        content: Row(
-          children: [
-            Container(
-              width: 36,
-              height: 36,
-              decoration: BoxDecoration(
-                color: AppColors.warning.withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(AppConstants.radiusM),
-              ),
-              child: const Icon(Icons.payment_outlined,
-                  color: AppColors.warning, size: 18),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(notif.judul,
-                      style: AppTextStyles.poppinsTitleSmall
-                          .copyWith(fontSize: 13)),
-                  Text(notif.pesan,
-                      style: AppTextStyles.interCaption.copyWith(
-                          color: AppColors.textSecondary),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis),
-                ],
-              ),
-            ),
-            TextButton(
-              onPressed: () {
-                ScaffoldMessenger.of(context).hideCurrentSnackBar();
-                _selectTab(2);
-              },
-              child: Text('Lihat',
-                  style: AppTextStyles.interLink.copyWith(fontSize: 12)),
-            ),
-          ],
-        ),
+        child: Text('Lihat',
+            style: AppTextStyles.interLink.copyWith(fontSize: 12)),
       ),
     );
   }
