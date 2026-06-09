@@ -54,10 +54,6 @@ class _LoginScreenState extends State<LoginScreen> {
 
       if (role == 'pengguna') {
         context.go('/user/home');
-      } else if (role == 'admin') {
-        context.go('/admin/dashboard');
-      } else if (role == 'owner') {
-        context.go('/owner/dashboard');
       } else {
         setState(() => _errorText = 'Role tidak dikenal: $role');
       }
@@ -389,7 +385,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                     GestureDetector(
                       onTap: () {
-                        context.go('/register/pengguna');
+                        context.go('/register/selection');
                       },
                       child: Text(
                         'Daftar',
@@ -406,69 +402,6 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
               ),
               const SizedBox(height: 12),
-              
-              // 🟢 DAFTAR SEBAGAI ADMIN
-              Center(
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      'Daftar Sebagai Admin? ',
-                      style: AppTextStyles.interBody.copyWith(
-                        fontSize: 13,
-                        color: Colors.white.withOpacity(0.5),
-                      ),
-                    ),
-                    GestureDetector(
-                      onTap: () {
-                        context.go('/register/admin');
-                      },
-                      child: Text(
-                        'Daftar',
-                        style: AppTextStyles.interLink.copyWith(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.primary,
-                          decoration: TextDecoration.underline,
-                          decorationColor: AppColors.primary,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              
-              // 🆕 TAMBAHKAN: DAFTAR SEBAGAI OWNER
-              const SizedBox(height: 12),
-              Center(
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      'Daftar Sebagai Owner? ',
-                      style: AppTextStyles.interBody.copyWith(
-                        fontSize: 13,
-                        color: Colors.white.withOpacity(0.5),
-                      ),
-                    ),
-                    GestureDetector(
-                      onTap: () {
-                        context.go('/register/owner');
-                      },
-                      child: Text(
-                        'Daftar',
-                        style: AppTextStyles.interLink.copyWith(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.primary,
-                          decoration: TextDecoration.underline,
-                          decorationColor: AppColors.primary,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
             ],
           ),
         ),
