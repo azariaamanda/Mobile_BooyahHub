@@ -145,7 +145,17 @@ class _UserEditProfilePageState extends State<UserEditProfilePage> {
                             ? MemoryImage(_selectedImage!) as ImageProvider
                             : (widget.initialFotoProfil != null && widget.initialFotoProfil!.isNotEmpty
                                 ? NetworkImage(widget.initialFotoProfil!)
-                                : const NetworkImage('https://i.pravatar.cc/300')), // Fallback
+                                : null),
+                        child: _selectedImage == null && (widget.initialFotoProfil == null || widget.initialFotoProfil!.isEmpty)
+                            ? Text(
+                                widget.initialName.isNotEmpty ? widget.initialName.substring(0, 1).toUpperCase() : '?',
+                                style: const TextStyle(
+                                  color: AppColors.primary,
+                                  fontSize: 40,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              )
+                            : null,
                       ),
                     ),
                     Container(

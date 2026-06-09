@@ -4,6 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../config/app_color.dart';
 import '../../config/app_constants.dart';
 import '../../config/app_text_styles.dart';
+import '../../config/app_image_helper.dart';
 import 'admin_notification_page.dart';
 
 class AdminDashboardScreen extends StatefulWidget {
@@ -19,6 +20,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   bool _isLoading = true;
   String _adminNama = '';
   String _adminInitials = '';
+  String _adminFotoUrl = '';
   int _bookingHariIni = 0;
   int _bookingKemarin = 0;
   int _verifikasiCount = 0;
@@ -79,10 +81,11 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
 
       final profil = await _supabase
           .from('profil_admin')
-          .select('nama_lengkap')
+          .select('nama_lengkap, foto_profil')
           .eq('akun_id', adminId)
           .maybeSingle();
       final nama = profil?['nama_lengkap'] as String? ?? 'Admin';
+      final fotoPath = profil?['foto_profil'] as String?;
 
       // Admin's scrims
       final scrims = await _supabase
@@ -91,7 +94,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           .eq('id_admin', adminId);
       if ((scrims as List).isEmpty) {
         if (mounted) {
-          setState(() { _adminNama = nama; _adminInitials = _initials(nama); _isLoading = false; });
+          setState(() { _adminNama = nama; _adminInitials = _initials(nama); _adminFotoUrl = fotoPath ?? ''; _isLoading = false; });
         }
         return;
       }
@@ -111,6 +114,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           setState(() {
             _adminNama = nama;
             _adminInitials = _initials(nama);
+            _adminFotoUrl = fotoPath ?? '';
             _totalSlot = totalSlot;
             _sisaSlot = totalSlot;
             _isLoading = false;
@@ -183,6 +187,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         setState(() {
         _adminNama = nama;
         _adminInitials = _initials(nama);
+        _adminFotoUrl = fotoPath ?? '';
         _bookingHariIni = bookingHariIni;
         _bookingKemarin = bookingKemarin;
         _verifikasiCount = verifikasiCount;
@@ -220,19 +225,27 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                 children: [
                   Container(
                     width: 44, height: 44,
-                    decoration: const BoxDecoration(
+                    decoration: BoxDecoration(
                       color: AppColors.primary,
                       shape: BoxShape.circle,
+                      image: (_adminFotoUrl.isNotEmpty)
+                          ? DecorationImage(
+                              image: NetworkImage(AppImageHelper.fotoProfil(_adminFotoUrl)),
+                              fit: BoxFit.cover,
+                            )
+                          : null,
                     ),
                     alignment: Alignment.center,
-                    child: Text(
-                      _adminInitials.isEmpty ? 'AD' : _adminInitials,
-                      style: AppTextStyles.poppinsButton.copyWith(
-                        color: AppColors.background,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
+                    child: _adminFotoUrl.isEmpty
+                        ? Text(
+                            _adminInitials.isEmpty ? 'AD' : _adminInitials,
+                            style: AppTextStyles.poppinsButton.copyWith(
+                              color: AppColors.background,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          )
+                        : null,
                   ),
                   const SizedBox(width: 12),
                   Column(

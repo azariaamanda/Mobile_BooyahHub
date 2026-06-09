@@ -139,6 +139,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
               Container(
                 width: 110,
                 height: 110,
+                alignment: Alignment.center,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   border: Border.all(color: const Color(0xFFFFD700), width: 3),
@@ -148,14 +149,20 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                           image: NetworkImage(fotoUrl),
                           fit: BoxFit.cover,
                         )
-                      : const DecorationImage(
-                          image: NetworkImage('https://i.pravatar.cc/300'),
-                          fit: BoxFit.cover,
-                        ),
+                      : null,
                 ),
                 child: _isUploading 
                   ? const Center(child: CircularProgressIndicator(color: Color(0xFFFFD700)))
-                  : null,
+                  : (fotoUrl == null
+                      ? Text(
+                          name.isNotEmpty ? name.substring(0, 1).toUpperCase() : 'O',
+                          style: const TextStyle(
+                            color: Color(0xFFFFD700),
+                            fontSize: 40,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        )
+                      : null),
               ),
               Container(
                 padding: const EdgeInsets.all(6),

@@ -117,6 +117,7 @@ class _OwnerProfileScreenState extends State<OwnerProfileScreen> {
         Container(
           width: 100,
           height: 100,
+          alignment: Alignment.center,
           decoration: BoxDecoration(
             color: const Color(0xFF131F2D),
             borderRadius: BorderRadius.circular(20),
@@ -126,11 +127,18 @@ class _OwnerProfileScreenState extends State<OwnerProfileScreen> {
                     image: NetworkImage(fotoUrl),
                     fit: BoxFit.cover,
                   )
-                : const DecorationImage(
-                    image: NetworkImage('https://i.pravatar.cc/300'),
-                    fit: BoxFit.cover,
-                  ),
+                : null,
           ),
+          child: fotoUrl == null
+              ? Text(
+                  name.isNotEmpty ? name.substring(0, 1).toUpperCase() : 'O',
+                  style: const TextStyle(
+                    color: Color(0xFFFFD700),
+                    fontSize: 40,
+                    fontWeight: FontWeight.bold,
+                  ),
+                )
+              : null,
         ),
         const SizedBox(height: 16),
         Text(
