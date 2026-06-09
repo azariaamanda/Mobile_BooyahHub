@@ -1,6 +1,7 @@
 import 'package:go_router/go_router.dart';
 import '../presentation/auth/splash_screen.dart';
 import '../presentation/auth/login_screen.dart';
+import '../presentation/auth/register_selection_page.dart';
 import '../presentation/auth/register_admin_page.dart';
 import '../presentation/auth/register_user_page.dart';
 import '../presentation/auth/register_owner_page.dart';
@@ -72,6 +73,11 @@ class AppRouter {
         path: '/login',
         name: 'login',
         builder: (context, state) => const LoginScreen(),
+      ),
+      GoRoute(
+        path: '/register/selection',
+        name: 'register_selection',
+        builder: (context, state) => const RegisterSelectionPage(),
       ),
       GoRoute(
         path: '/register/pengguna',
