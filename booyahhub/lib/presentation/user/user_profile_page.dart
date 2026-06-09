@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../config/app_color.dart';
 import '../../config/app_text_styles.dart';
 import '../../data/models/services/auth_service.dart';
+import '../../data/models/services/notification_service.dart';
 
 import 'user_edit_profile_page.dart';
 import 'claim_prize_page.dart';
@@ -16,6 +18,8 @@ class UserProfilePage extends StatefulWidget {
 }
 
 class _UserProfilePageState extends State<UserProfilePage> {
+  static const _notifPopupPrefKey = 'notifikasi_popup_aktif';
+
   String _name = 'Memuat...';
   String _email = 'Memuat...';
   String? _fotoProfil;
@@ -26,6 +30,16 @@ class _UserProfilePageState extends State<UserProfilePage> {
   void initState() {
     super.initState();
     _loadUserProfile();
+    _loadNotificationPreference();
+  }
+
+  Future<void> _loadNotificationPreference() async {
+    final prefs = await SharedPreferences.getInstance();
+    final isActive = prefs.getBool(_notifPopupPrefKey) ?? true;
+    if (!mounted) return;
+    setState(() {
+      _isNotifikasiAktif = isActive;
+    });
   }
 
   Future<void> _loadUserProfile() async {
@@ -183,7 +197,10 @@ class _UserProfilePageState extends State<UserProfilePage> {
                   activeTrackColor: const Color(0xFFD4AF37), // Matches the yellowish primary color in screenshot
                   inactiveThumbColor: Colors.white70,
                   inactiveTrackColor: AppColors.surfaceVariant,
-                  onChanged: (val) {
+                  onChanged: (val) async {
+                    final prefs = await SharedPreferences.getInstance();
+                    await prefs.setBool(_notifPopupPrefKey, val);
+                    if (!mounted) return;
                     setState(() {
                       _isNotifikasiAktif = val;
                     });
@@ -243,6 +260,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
                           TextButton(
                             onPressed: () {
                               Navigator.of(context).pop(); // Close dialog
+                              NotificationService().clear();
                               context.go('/login'); // Navigate to login
                             },
                             child: Text('Ya', style: AppTextStyles.interLink.copyWith(color: AppColors.error)),

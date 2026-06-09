@@ -82,6 +82,10 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
 >>>>>>> Stashed changes
       if (unread.isEmpty) return;
 
+      final prefs = await SharedPreferences.getInstance();
+      final shouldShowPopup = prefs.getBool('notifikasi_popup_aktif') ?? true;
+      if (!shouldShowPopup) return;
+
       await Future.delayed(const Duration(milliseconds: 400));
       if (!mounted) return;
 
