@@ -35,8 +35,11 @@ class _CreateScrimPageState extends State<CreateScrimPage> {
   List<Map<String, dynamic>> _modes = [];
   
   // Fee settings from database
-  int _feePlatformPersen = 5;
+  int _feePlatformPersen = 25;
+  int _nominalMinimumPlatform = 5000;
   int _feeAdminPersen = 10;
+  int _feeAdminTetap = 10000;
+  bool _isPersentaseAdmin = true;
   bool _isLoadingFee = true;
   
   // Calendar state
@@ -75,12 +78,15 @@ class _CreateScrimPageState extends State<CreateScrimPage> {
     try {
       final feeSetting = await _supabase
           .from('pengaturan_fee')
-          .select('fee_platform_persen, fee_admin_persen')
+          .select()
           .maybeSingle();
       
       if (feeSetting != null) {
-        _feePlatformPersen = feeSetting['fee_platform_persen'] ?? 5;
+        _feePlatformPersen = feeSetting['fee_platform_persen'] ?? 25;
+        _nominalMinimumPlatform = feeSetting['nominal_minimum_platform'] ?? 5000;
         _feeAdminPersen = feeSetting['fee_admin_persen'] ?? 10;
+        _feeAdminTetap = feeSetting['fee_admin_tetap'] ?? 10000;
+        _isPersentaseAdmin = feeSetting['is_persentase_admin'] ?? true;
       }
     } catch (e) {
       print('Error fetch fee settings: $e');
@@ -386,9 +392,14 @@ class _CreateScrimPageState extends State<CreateScrimPage> {
       final maksPeserta = int.tryParse(_maksPesertaController.text) ?? 16;
       final totalPendaftaran = biaya * maksPeserta;
       
-      // Gunakan fee dari database
-      final feePlatform = totalPendaftaran * _feePlatformPersen ~/ 100;
-      final feeAdmin = totalPendaftaran * _feeAdminPersen ~/ 100;
+      // Gunakan fee dari database dengan logika lengkap
+      int feePlatform = totalPendaftaran * _feePlatformPersen ~/ 100;
+      if (feePlatform < _nominalMinimumPlatform) feePlatform = _nominalMinimumPlatform;
+      
+      int feeAdmin = _isPersentaseAdmin 
+          ? (totalPendaftaran * _feeAdminPersen ~/ 100)
+          : _feeAdminTetap;
+          
       final totalHadiah = totalPendaftaran - (feePlatform + feeAdmin);
       final jumlahMatch = int.tryParse(_jumlahMatchController.text) ?? 3;
 
@@ -474,8 +485,13 @@ class _CreateScrimPageState extends State<CreateScrimPage> {
     final peserta = int.tryParse(_maksPesertaController.text) ?? 0;
     final totalPendaftaran = biaya * peserta;
     
-    final feePlatform = totalPendaftaran * _feePlatformPersen ~/ 100;
-    final feeAdmin = totalPendaftaran * _feeAdminPersen ~/ 100;
+    int feePlatform = totalPendaftaran * _feePlatformPersen ~/ 100;
+    if (feePlatform < _nominalMinimumPlatform) feePlatform = _nominalMinimumPlatform;
+    
+    int feeAdmin = _isPersentaseAdmin 
+        ? (totalPendaftaran * _feeAdminPersen ~/ 100)
+        : _feeAdminTetap;
+        
     final totalHadiah = totalPendaftaran - (feePlatform + feeAdmin);
 
     return Scaffold(
@@ -906,14 +922,29 @@ class _CreateScrimPageState extends State<CreateScrimPage> {
             Text(_formatRupiah(totalPendaftaran), style: AppTextStyles.poppinsMoney.copyWith(fontSize: 14)),
           ]),
           const SizedBox(height: 4),
-          Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-            Text('Fee Platform ($_feePlatformPersen%)', style: AppTextStyles.interBody),
-            Text('- ${_formatRupiah(feePlatform)}', style: AppTextStyles.interBody.copyWith(color: AppColors.error)),
-          ]),
-          Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-            Text('Fee Admin ($_feeAdminPersen%)', style: AppTextStyles.interBody),
-            Text('- ${_formatRupiah(feeAdmin)}', style: AppTextStyles.interBody.copyWith(color: AppColors.error)),
-          ]),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                feePlatform == _nominalMinimumPlatform 
+                    ? 'Fee Platform (Min. Rp${_nominalMinimumPlatform ~/ 1000}K)' 
+                    : 'Fee Platform ($_feePlatformPersen%)', 
+                style: AppTextStyles.interBody
+              ),
+              Text('- ${_formatRupiah(feePlatform)}', style: AppTextStyles.interBody.copyWith(color: AppColors.error)),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                _isPersentaseAdmin ? 'Fee Admin ($_feeAdminPersen%)' : 'Fee Admin (Tetap)', 
+                style: AppTextStyles.interBody
+              ),
+              Text('- ${_formatRupiah(feeAdmin)}', style: AppTextStyles.interBody.copyWith(color: AppColors.error)),
+            ],
+          ),
           const Divider(height: 16, color: AppColors.divider),
           Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
             Text('TOTAL HADIAH', style: AppTextStyles.goldHighlight),

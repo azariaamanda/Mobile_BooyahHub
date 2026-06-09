@@ -35,11 +35,40 @@ class _EditScrimPageState extends State<EditScrimPage> {
   List<Map<String, dynamic>> _modes = [];
   String _statusScrim = 'aktif';
 
+  // Fee settings from database
+  int _feePlatformPersen = 25;
+  int _nominalMinimumPlatform = 5000;
+  int _feeAdminPersen = 10;
+  int _feeAdminTetap = 10000;
+  bool _isPersentaseAdmin = true;
+
   @override
   void initState() {
     super.initState();
     _fetchData();
     _fetchModes();
+    _fetchFeeSettings();
+  }
+
+  Future<void> _fetchFeeSettings() async {
+    try {
+      final feeSetting = await _supabase
+          .from('pengaturan_fee')
+          .select()
+          .maybeSingle();
+      
+      if (feeSetting != null && mounted) {
+        setState(() {
+          _feePlatformPersen = feeSetting['fee_platform_persen'] ?? 25;
+          _nominalMinimumPlatform = feeSetting['nominal_minimum_platform'] ?? 5000;
+          _feeAdminPersen = feeSetting['fee_admin_persen'] ?? 10;
+          _feeAdminTetap = feeSetting['fee_admin_tetap'] ?? 10000;
+          _isPersentaseAdmin = feeSetting['is_persentase_admin'] ?? true;
+        });
+      }
+    } catch (e) {
+      print('Error fetch fee settings: $e');
+    }
   }
 
   Future<void> _fetchData() async {
@@ -141,7 +170,16 @@ class _EditScrimPageState extends State<EditScrimPage> {
       final posterUrl = await _uploadPoster();
       final biaya = int.tryParse(_biayaController.text) ?? 0;
       final maksPeserta = int.tryParse(_maksPesertaController.text) ?? 16;
-      final totalHadiah = (biaya * maksPeserta) * 85 ~/ 100;
+      final totalPendaftaran = biaya * maksPeserta;
+
+      int feePlatform = totalPendaftaran * _feePlatformPersen ~/ 100;
+      if (feePlatform < _nominalMinimumPlatform) feePlatform = _nominalMinimumPlatform;
+      
+      int feeAdmin = _isPersentaseAdmin 
+          ? (totalPendaftaran * _feeAdminPersen ~/ 100)
+          : _feeAdminTetap;
+          
+      final totalHadiah = totalPendaftaran - (feePlatform + feeAdmin);
 
       await _supabase
           .from('scrim')
@@ -183,9 +221,15 @@ class _EditScrimPageState extends State<EditScrimPage> {
     final biaya = int.tryParse(_biayaController.text) ?? 0;
     final peserta = int.tryParse(_maksPesertaController.text) ?? 0;
     final totalPendaftaran = biaya * peserta;
-    final totalHadiah = totalPendaftaran * 85 ~/ 100;
-    final feePlatform = totalPendaftaran * 5 ~/ 100;
-    final feeAdmin = totalPendaftaran * 10 ~/ 100;
+    
+    int feePlatform = totalPendaftaran * _feePlatformPersen ~/ 100;
+    if (feePlatform < _nominalMinimumPlatform) feePlatform = _nominalMinimumPlatform;
+    
+    int feeAdmin = _isPersentaseAdmin 
+        ? (totalPendaftaran * _feeAdminPersen ~/ 100)
+        : _feeAdminTetap;
+        
+    final totalHadiah = totalPendaftaran - (feePlatform + feeAdmin);
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -608,7 +652,12 @@ class _EditScrimPageState extends State<EditScrimPage> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('Fee Platform (5%)', style: AppTextStyles.interBody),
+              Text(
+                feePlatform == _nominalMinimumPlatform 
+                    ? 'Fee Platform (Min. Rp${_nominalMinimumPlatform ~/ 1000}K)' 
+                    : 'Fee Platform ($_feePlatformPersen%)', 
+                style: AppTextStyles.interBody
+              ),
               Text(
                 '- ${_formatRupiah(feePlatform)}',
                 style: AppTextStyles.interBody.copyWith(color: AppColors.error),
@@ -618,7 +667,10 @@ class _EditScrimPageState extends State<EditScrimPage> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('Fee Admin (10%)', style: AppTextStyles.interBody),
+              Text(
+                _isPersentaseAdmin ? 'Fee Admin ($_feeAdminPersen%)' : 'Fee Admin (Tetap)', 
+                style: AppTextStyles.interBody
+              ),
               Text(
                 '- ${_formatRupiah(feeAdmin)}',
                 style: AppTextStyles.interBody.copyWith(color: AppColors.error),
@@ -629,7 +681,7 @@ class _EditScrimPageState extends State<EditScrimPage> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('TOTAL HADIAH (85%)', style: AppTextStyles.goldHighlight),
+              Text('TOTAL HADIAH (NET)', style: AppTextStyles.goldHighlight),
               Text(
                 _formatRupiah(totalHadiah),
                 style: AppTextStyles.poppinsMoneyLarge.copyWith(fontSize: 18),

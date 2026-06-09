@@ -1,9 +1,280 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../config/app_color.dart';
 import '../../config/app_text_styles.dart';
+import 'owner_notification_page.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import '../user/user_widgets/claim_prize_notification.dart';
 
-class OwnerDashboardScreen extends StatelessWidget {
+class OwnerDashboardScreen extends StatefulWidget {
   const OwnerDashboardScreen({super.key});
+
+  @override
+  State<OwnerDashboardScreen> createState() => _OwnerDashboardScreenState();
+}
+
+class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
+  int _totalAdmin = 0;
+  bool _isLoadingAdmin = true;
+
+  int _totalActiveSessions = 0;
+  bool _isLoadingActiveSessions = true;
+
+  int _totalPendingBills = 0;
+  bool _isLoadingPendingBills = true;
+
+  String _ownerName = 'Memuat...';
+  String? _ownerPhotoUrl;
+  bool _isLoadingProfile = true;
+
+  double _totalRevenue = 0.0;
+  List<double> _monthlyRevenue = List.filled(6, 0.0);
+  List<String> _monthLabels = [];
+  bool _isLoadingRevenue = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchOwnerProfile();
+    _fetchTotalAdmin();
+    _fetchActiveSessions();
+    _fetchPendingBills();
+    _fetchTotalRevenue();
+
+    // Tampilkan popup notifikasi belum terbaca
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _showUnreadNotifications();
+    });
+  }
+
+  Future<void> _showUnreadNotifications() async {
+    try {
+      final userId = Supabase.instance.client.auth.currentUser?.id;
+      if (userId == null) return;
+
+      final prefs = await SharedPreferences.getInstance();
+      final prefKey = 'read_notifications_$userId';
+      final readIds = prefs.getStringList(prefKey) ?? [];
+
+      final response = await Supabase.instance.client
+          .from('profil_admin')
+          .select('akun_id, nama_lengkap, total_utang, limit_utang');
+
+      final List<Map<String, dynamic>> unread = [];
+      for (var item in response) {
+        final totalUtang = item['total_utang'] ?? 0;
+        final limitUtang = item['limit_utang'] ?? 0;
+        
+        if (totalUtang >= limitUtang && limitUtang > 0) {
+          final notifId = 'suspend_${item['akun_id']}';
+          if (!readIds.contains(notifId)) {
+            final adminName = item['nama_lengkap'] ?? 'Admin';
+            unread.add({
+              'id': notifId,
+              'judul': 'Admin Terkena Suspend',
+              'pesan': 'Akun admin $adminName telah otomatis di-suspend karena utangnya (Rp$totalUtang) melebihi batas limit (Rp$limitUtang).'
+            });
+          }
+        }
+      }
+
+      if (!mounted || unread.isEmpty) return;
+
+      await Future.delayed(const Duration(milliseconds: 400));
+      if (!mounted) return;
+
+      final String popupTitle = unread.length == 1
+          ? (unread[0]['judul'] ?? 'Notifikasi Baru')
+          : '${unread.length} Notifikasi Baru';
+
+      final String popupMessage = unread.length == 1
+          ? (unread[0]['pesan'] ?? '')
+          : 'Ada ${unread.length} admin yang terkena suspend dan belum Anda cek';
+
+      NotificationPopup.show(
+        context,
+        title: popupTitle,
+        message: popupMessage,
+        icon: Icons.notifications_rounded,
+        iconColor: AppColors.error,
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const OwnerNotificationPage()),
+          );
+        },
+      );
+    } catch (e) {
+      debugPrint('Error fetching unread notifications for popup: $e');
+    }
+  }
+
+  String _formatCompactCurrency(double value) {
+    if (value == 0) return 'Rp 0';
+    return 'Rp ${value.toInt().toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]}.')}';
+  }
+
+  Future<void> _fetchTotalRevenue() async {
+    try {
+      final supabase = Supabase.instance.client;
+      final response = await supabase
+          .from('pelunasan_utang_admin')
+          .select() // Ambil semua kolom untuk jaga-jaga
+          .eq('status', 'diverifikasi');
+
+      double total = 0;
+      final now = DateTime.now();
+      List<double> tempMonthly = List.filled(6, 0.0);
+
+      for (var row in response as List) {
+        double nominal = (row['nominal'] ?? 0).toDouble();
+        total += nominal;
+        
+        // Coba cari tanggal mana saja yang tersedia
+        final dateStr = row['diverifikasi_pada'] ?? row['created_at'] ?? row['dibuat_pada'] ?? row['tanggal'];
+        if (dateStr != null) {
+          final date = DateTime.parse(dateStr.toString());
+          // Hitung selisih bulan
+          int monthDiff = (now.year - date.year) * 12 + now.month - date.month;
+          if (monthDiff >= 0 && monthDiff < 6) {
+             // Index 5 adalah bulan ini, 0 adalah 5 bulan lalu
+             tempMonthly[5 - monthDiff] += nominal;
+          }
+        } else {
+          // Jika tidak ada data tanggal sama sekali, masukkan ke bulan ini
+          tempMonthly[5] += nominal;
+        }
+      }
+
+      // Generate nama bulan (Jan, Feb, ...)
+      final monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Ags', 'Sep', 'Okt', 'Nov', 'Des'];
+      List<String> tempLabels = [];
+      for (int i = 5; i >= 0; i--) {
+        int m = now.month - i - 1;
+        if (m < 0) m += 12;
+        tempLabels.add(monthNames[m]);
+      }
+
+      if (mounted) {
+        setState(() {
+          _totalRevenue = total;
+          _monthlyRevenue = tempMonthly;
+          _monthLabels = tempLabels;
+          _isLoadingRevenue = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error fetch revenue: $e');
+      if (mounted) {
+        setState(() {
+          _isLoadingRevenue = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _fetchOwnerProfile() async {
+    try {
+      final supabase = Supabase.instance.client;
+      final currentUser = supabase.auth.currentUser;
+      if (currentUser?.email == null) return;
+
+      final response = await supabase
+          .from('profil_owner')
+          .select('nama_lengkap, foto_profil, akun!inner(email)')
+          .eq('akun.email', currentUser!.email!)
+          .maybeSingle();
+
+      if (mounted && response != null) {
+        setState(() {
+          _ownerName = response['nama_lengkap'] ?? 'Owner';
+          _ownerPhotoUrl = response['foto_profil'];
+          _isLoadingProfile = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error fetch owner profile: $e');
+      if (mounted) {
+        setState(() {
+          _ownerName = 'Owner';
+          _isLoadingProfile = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _fetchPendingBills() async {
+    try {
+      final supabase = Supabase.instance.client;
+      // Mengambil pelunasan utang admin yang sedang menunggu (pending)
+      final response = await supabase
+          .from('pelunasan_utang_admin')
+          .select('id_pelunasan')
+          .eq('status', 'pending');
+          
+      if (mounted) {
+        setState(() {
+          _totalPendingBills = (response as List).length;
+          _isLoadingPendingBills = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error fetch pending bills: $e');
+      if (mounted) {
+        setState(() {
+          _isLoadingPendingBills = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _fetchActiveSessions() async {
+    try {
+      final supabase = Supabase.instance.client;
+      final response = await supabase
+          .from('scrim')
+          .select('id_scrim')
+          .eq('status_scrim', 'aktif');
+          
+      if (mounted) {
+        setState(() {
+          _totalActiveSessions = (response as List).length;
+          _isLoadingActiveSessions = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error fetch active sessions: $e');
+      if (mounted) {
+        setState(() {
+          _isLoadingActiveSessions = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _fetchTotalAdmin() async {
+    try {
+      final supabase = Supabase.instance.client;
+      final response = await supabase
+          .from('profil_admin')
+          .select('id_profil_admin')
+          .eq('status_verifikasi_ktp', 'terverifikasi');
+          
+      if (mounted) {
+        setState(() {
+          _totalAdmin = (response as List).length;
+          _isLoadingAdmin = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error fetch total admin: $e');
+      if (mounted) {
+        setState(() {
+          _isLoadingAdmin = false;
+        });
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -35,27 +306,35 @@ class OwnerDashboardScreen extends StatelessWidget {
             Container(
               width: 50,
               height: 50,
-              decoration: const BoxDecoration(
-                color: Color(0xFFFFD700), // Yellow
+              decoration: BoxDecoration(
+                color: const Color(0xFFFFD700), // Yellow
                 shape: BoxShape.circle,
+                image: _ownerPhotoUrl != null && _ownerPhotoUrl!.isNotEmpty
+                    ? DecorationImage(
+                        image: NetworkImage(_ownerPhotoUrl!),
+                        fit: BoxFit.cover,
+                      )
+                    : null,
               ),
-              child: Center(
-                child: Text(
-                  'AA',
-                  style: AppTextStyles.poppinsHeadline.copyWith(
-                    color: Colors.black,
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
+              child: _ownerPhotoUrl == null || _ownerPhotoUrl!.isEmpty
+                  ? Center(
+                      child: Text(
+                        _ownerName.isNotEmpty ? _ownerName[0].toUpperCase() : 'O',
+                        style: AppTextStyles.poppinsHeadline.copyWith(
+                          color: Colors.black,
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    )
+                  : null,
             ),
             const SizedBox(width: 16),
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Selamat datang, Azaria',
+                  'Selamat datang,\n$_ownerName',
                   style: AppTextStyles.poppinsTitleSmall.copyWith(
                     color: Colors.white,
                     fontWeight: FontWeight.bold,
@@ -73,30 +352,38 @@ class OwnerDashboardScreen extends StatelessWidget {
             ),
           ],
         ),
-        Container(
-          width: 40,
-          height: 40,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            border: Border.all(color: const Color(0xFFFFD700), width: 1.5),
-          ),
-          child: Stack(
-            alignment: Alignment.center,
-            children: [
-              const Icon(Icons.notifications_none_rounded, color: Colors.white, size: 22),
-              Positioned(
-                right: 8,
-                top: 8,
-                child: Container(
-                  width: 8,
-                  height: 8,
-                  decoration: const BoxDecoration(
-                    color: Color(0xFFFFD700),
-                    shape: BoxShape.circle,
+        GestureDetector(
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const OwnerNotificationPage()),
+            );
+          },
+          child: Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              border: Border.all(color: const Color(0xFFFFD700), width: 1.5),
+            ),
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                const Icon(Icons.notifications_none_rounded, color: Colors.white, size: 22),
+                Positioned(
+                  right: 8,
+                  top: 8,
+                  child: Container(
+                    width: 8,
+                    height: 8,
+                    decoration: const BoxDecoration(
+                      color: Color(0xFFFFD700),
+                      shape: BoxShape.circle,
+                    ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ],
@@ -112,19 +399,19 @@ class OwnerDashboardScreen extends StatelessWidget {
               child: _buildSummaryCard(
                 title: 'PENDAPATAN',
                 icon: Icons.account_balance_wallet_rounded,
-                value: 'Rp\n12.000.000',
-                subtitle: '+12.5%',
-                subtitleColor: const Color(0xFF00FF87),
+                value: _isLoadingRevenue ? '...' : _formatCompactCurrency(_totalRevenue),
+                subtitle: 'Total klaim dilunasi',
+                subtitleColor: Colors.blueGrey,
                 iconColor: const Color(0xFFFFD700),
               ),
             ),
             const SizedBox(width: 16),
             Expanded(
               child: _buildSummaryCard(
-                title: 'TAGIHAN\nMENUNGGU',
+                title: 'PELUNASAN\nMENUNGGU',
                 icon: Icons.receipt_long_rounded,
-                value: '12 Tagihan',
-                subtitle: 'menunggu review',
+                value: _isLoadingPendingBills ? '...' : '$_totalPendingBills Pengajuan',
+                subtitle: 'menunggu verifikasi',
                 subtitleColor: const Color(0xFFFFD700),
                 iconColor: const Color(0xFFFFD700),
               ),
@@ -136,9 +423,9 @@ class OwnerDashboardScreen extends StatelessWidget {
           children: [
             Expanded(
               child: _buildSummaryCard(
-                title: 'SESI AKTIF',
+                title: 'SCRIM AKTIF',
                 icon: Icons.videogame_asset_rounded,
-                value: '24 Sesi',
+                value: _isLoadingActiveSessions ? '...' : '$_totalActiveSessions Scrim',
                 subtitle: 'Berlangsung Sekarang',
                 subtitleColor: Colors.blueGrey,
                 iconColor: const Color(0xFFFFD700),
@@ -150,7 +437,7 @@ class OwnerDashboardScreen extends StatelessWidget {
               child: _buildSummaryCard(
                 title: 'ADMIN',
                 icon: Icons.people_alt_rounded,
-                value: '1.250 Admin',
+                value: _isLoadingAdmin ? '...' : '$_totalAdmin Admin',
                 subtitle: 'admin terverifikasi',
                 subtitleColor: const Color(0xFFFFD700),
                 iconColor: const Color(0xFFFFD700),
@@ -272,25 +559,39 @@ class OwnerDashboardScreen extends StatelessWidget {
             color: const Color(0xFF131F2D),
             borderRadius: BorderRadius.circular(16),
           ),
-          child: Column(
+          child: _isLoadingRevenue 
+              ? const Center(child: CircularProgressIndicator(color: Color(0xFFFFD700)))
+              : Column(
             children: [
               Expanded(
-                child: Center(
-                  // Safe mockup line chart instead of CustomPaint
-                  child: Container(
-                    width: double.infinity,
-                    height: 2,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFFFD700).withValues(alpha: 0.3),
-                      boxShadow: [
-                        BoxShadow(
-                          color: const Color(0xFFFFD700).withValues(alpha: 0.2),
-                          blurRadius: 10,
-                          spreadRadius: 2,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: List.generate(6, (index) {
+                    double maxVal = _monthlyRevenue.reduce((curr, next) => curr > next ? curr : next);
+                    if (maxVal == 0) maxVal = 1; // Hindari division by zero
+                    double heightRatio = _monthlyRevenue[index] / maxVal;
+                    
+                    return Tooltip(
+                      message: _formatCompactCurrency(_monthlyRevenue[index]),
+                      child: Container(
+                        width: 24,
+                        height: 90 * heightRatio + 4,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFFD700),
+                          borderRadius: BorderRadius.circular(4),
+                          boxShadow: [
+                            if (heightRatio > 0)
+                              BoxShadow(
+                                color: const Color(0xFFFFD700).withOpacity(0.4),
+                                blurRadius: 6,
+                                offset: const Offset(0, -2),
+                              )
+                          ],
                         ),
-                      ],
-                    ),
-                  ),
+                      ),
+                    );
+                  }),
                 ),
               ),
               const SizedBox(height: 12),
@@ -301,12 +602,9 @@ class OwnerDashboardScreen extends StatelessWidget {
               ),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceAround,
-                children: [
-                  _buildChartLabel('Jan'),
-                  _buildChartLabel('Feb'),
-                  _buildChartLabel('Apr'),
-                  _buildChartLabel('Jun'),
-                ],
+                children: List.generate(6, (index) {
+                   return _buildChartLabel(_monthLabels.isNotEmpty ? _monthLabels[index] : '');
+                }),
               ),
             ],
           ),

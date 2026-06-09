@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../config/app_color.dart';
 import '../../config/app_constants.dart';
 import '../../config/app_text_styles.dart';
@@ -393,8 +394,52 @@ class _ClaimDetailPageState extends State<ClaimDetailPage> {
 
   static const int _total = 600000;
   static const int _jmlTim = 12;
-  int get _feePlatform => (_total * 0.05).round();
-  int get _feeAdmin => (_total * 0.10).round();
+
+  // Fee settings from database
+  int _feePlatformPersen = 25;
+  int _nominalMinimumPlatform = 5000;
+  int _feeAdminPersen = 10;
+  int _feeAdminTetap = 10000;
+  bool _isPersentaseAdmin = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchFeeSettings();
+  }
+
+  Future<void> _fetchFeeSettings() async {
+    try {
+      final feeSetting = await Supabase.instance.client
+          .from('pengaturan_fee')
+          .select()
+          .maybeSingle();
+      
+      if (feeSetting != null && mounted) {
+        setState(() {
+          _feePlatformPersen = feeSetting['fee_platform_persen'] ?? 25;
+          _nominalMinimumPlatform = feeSetting['nominal_minimum_platform'] ?? 5000;
+          _feeAdminPersen = feeSetting['fee_admin_persen'] ?? 10;
+          _feeAdminTetap = feeSetting['fee_admin_tetap'] ?? 10000;
+          _isPersentaseAdmin = feeSetting['is_persentase_admin'] ?? true;
+        });
+      }
+    } catch (e) {
+      print('Error fetch fee settings: $e');
+    }
+  }
+
+  int get _feePlatform {
+    int fee = (_total * _feePlatformPersen ~/ 100);
+    return fee < _nominalMinimumPlatform ? _nominalMinimumPlatform : fee;
+  }
+  
+  int get _feeAdmin {
+    return _isPersentaseAdmin 
+        ? (_total * _feeAdminPersen ~/ 100)
+        : _feeAdminTetap;
+  }
+  
   int get _sisa => _total - _feePlatform - _feeAdmin;
   int get _juara1 => (_sisa * 0.50).round();
   int get _juara2 => (_sisa * 0.30).round();
@@ -528,8 +573,8 @@ class _ClaimDetailPageState extends State<ClaimDetailPage> {
             ],
           ),
           const SizedBox(height: 8),
-          _bullet('Fee Platform: 5% dari total pendaftaran'),
-          _bullet('Fee Admin: 10% dari total pendaftaran'),
+          _bullet('Fee Platform: ${_feePlatform == _nominalMinimumPlatform ? "Min. Rp${_nominalMinimumPlatform ~/ 1000}K" : "$_feePlatformPersen%"} dari total pendaftaran'),
+          _bullet('Fee Admin: ${_isPersentaseAdmin ? "$_feeAdminPersen%" : "Tetap Rp${_feeAdminTetap ~/ 1000}K"} dari total pendaftaran'),
           _bullet('Hadiah: Juara 1 = 50%, Juara 2 = 30%, Juara 3 = 20%'),
           const SizedBox(height: 6),
           Text(
@@ -668,9 +713,17 @@ class _ClaimDetailPageState extends State<ClaimDetailPage> {
                   ),
                 ),
                 const SizedBox(height: 12),
-                _feeRow('Fee Platform (5%)', '- ${_rp(_feePlatform)}'),
+                _feeRow(
+                  _feePlatform == _nominalMinimumPlatform 
+                      ? 'Fee Platform (Min. Rp${_nominalMinimumPlatform ~/ 1000}K)' 
+                      : 'Fee Platform ($_feePlatformPersen%)', 
+                  '- ${_rp(_feePlatform)}'
+                ),
                 const SizedBox(height: 8),
-                _feeRow('Fee Admin (10%)', '- ${_rp(_feeAdmin)}'),
+                _feeRow(
+                  _isPersentaseAdmin ? 'Fee Admin ($_feeAdminPersen%)' : 'Fee Admin (Tetap)', 
+                  '- ${_rp(_feeAdmin)}'
+                ),
                 const Padding(
                   padding: EdgeInsets.symmetric(vertical: 12),
                   child: Divider(height: 1, color: AppColors.divider),
