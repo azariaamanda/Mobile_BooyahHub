@@ -3,9 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-
-final GlobalKey<UserHomeScreenState> userHomeScreenKey = GlobalKey<UserHomeScreenState>();
-
 import '../../config/app_color.dart';
 import '../../config/app_constants.dart';
 import '../../config/app_image_helper.dart';
@@ -15,6 +12,7 @@ import 'user_widgets/claim_prize_notification.dart';
 import 'user_widgets/team_profile_header.dart';
 import 'user_widgets/scrim_item_card.dart';
 
+final GlobalKey<UserHomeScreenState> userHomeScreenKey = GlobalKey<UserHomeScreenState>();
 class UserHomeScreen extends StatefulWidget {
   const UserHomeScreen({super.key});
 
