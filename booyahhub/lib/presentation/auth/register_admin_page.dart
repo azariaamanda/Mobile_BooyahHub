@@ -313,7 +313,41 @@ class _RegisterAdminPageState extends State<RegisterAdminPage> {
       final int akunId = akunResponse['id_akun'];
       
       // ============================================================
-      // STEP 7: INSERT KE TABEL PROFIL_ADMIN
+      // STEP 7: INSERT METODE PEMBAYARAN BANK
+      // ============================================================
+      int? primaryMetodeId;
+
+      if (_pilihBank) {
+        final bankRes = await supabase.from('metode_pembayaran_penyelenggara').insert({
+          'akun_id': akunId,
+          'role': 'admin',
+          'jenis_metode': 'bank_transfer',
+          'nama_bank': _selectedBank,
+          'nomor_rekening': _bankAccountController.text.trim(),
+          'nama_pemilik': _bankAccountNameController.text.trim(),
+          'is_active': true,
+        }).select('id_metode').single();
+        primaryMetodeId = bankRes['id_metode'];
+      }
+      
+      // ============================================================
+      // STEP 8: INSERT METODE PEMBAYARAN QRIS
+      // ============================================================
+      if (_pilihQris && qrisImagePath != null) {
+        final qrisRes = await supabase.from('metode_pembayaran_penyelenggara').insert({
+          'akun_id': akunId,
+          'role': 'admin',
+          'jenis_metode': 'qris',
+          'qris_image': qrisImagePath,
+          'is_active': true,
+        }).select('id_metode').single();
+        
+        // Jika bank tidak dipilih, jadikan QRIS sebagai metode utama
+        primaryMetodeId ??= qrisRes['id_metode'];
+      }
+
+      // ============================================================
+      // STEP 9: INSERT KE TABEL PROFIL_ADMIN
       // ============================================================
       await supabase.from('profil_admin').insert({
         'akun_id': akunId,
@@ -322,35 +356,8 @@ class _RegisterAdminPageState extends State<RegisterAdminPage> {
         'foto_profil': fotoProfilUrl,
         'foto_ktp': ktpPath,
         'status_verifikasi_ktp': 'pending',
+        if (primaryMetodeId != null) 'metode_pembayaran_id': primaryMetodeId,
       });
-      
-      // ============================================================
-      // STEP 8: INSERT METODE PEMBAYARAN BANK
-      // ============================================================
-      if (_pilihBank) {
-        await supabase.from('metode_pembayaran_penyelenggara').insert({
-          'akun_id': akunId,
-          'role': 'admin',
-          'jenis_metode': 'bank_transfer',
-          'nama_bank': _selectedBank,
-          'nomor_rekening': _bankAccountController.text.trim(),
-          'nama_pemilik': _bankAccountNameController.text.trim(),
-          'is_active': true,
-        });
-      }
-      
-      // ============================================================
-      // STEP 9: INSERT METODE PEMBAYARAN QRIS
-      // ============================================================
-      if (_pilihQris && qrisImagePath != null) {
-        await supabase.from('metode_pembayaran_penyelenggara').insert({
-          'akun_id': akunId,
-          'role': 'admin',
-          'jenis_metode': 'qris',
-          'qris_image': qrisImagePath,
-          'is_active': true,
-        });
-      }
       
       _showSnackBar('Pendaftaran admin berhasil! Menunggu verifikasi owner.');
       
