@@ -24,18 +24,10 @@ class _DetailSessionPageState extends State<DetailSessionPage>
   Map<String, dynamic>? _session;
   Map<String, dynamic>? _scrim;
   List<Map<String, dynamic>> _teams = [];
-  int _totalPeserta = 0;
-  int _slotMaksimal = 12;
   int _jumlahMatch = 4;
 
   final List<TextEditingController> _roomIdControllers = [];
   final List<TextEditingController> _passwordControllers = [];
-
-  String? _posterPublicUrl(String? path) {
-    if (path == null || path.isEmpty) return null;
-    if (path.startsWith('http')) return path;
-    return _supabase.storage.from('posters').getPublicUrl(path);
-  }
 
   @override
   void initState() {
@@ -61,7 +53,6 @@ class _DetailSessionPageState extends State<DetailSessionPage>
           .eq('id_sesi', widget.sesiId)
           .single();
       _session = sessionData;
-      _slotMaksimal = sessionData['slot_maksimal'] ?? 12;
 
       final scrimData = await _supabase
           .from('scrim')
@@ -76,26 +67,25 @@ class _DetailSessionPageState extends State<DetailSessionPage>
           .select('id_pendaftaran, akun_id, nama_kapten')
           .eq('id_sesi', widget.sesiId)
           .eq('status_pembayaran', 'dikonfirmasi');
-      _totalPeserta = pendaftaran.length;
 
       List<Map<String, dynamic>> teamList = [];
       for (var p in pendaftaran) {
         final akunId = p['akun_id'] as int?;
         String namaTim = 'Tim ${akunId ?? '?'}';
         String kapten = p['nama_kapten'] ?? '';
-        
+
         if (akunId != null) {
           final profilData = await _supabase
               .from('profil_pengguna')
               .select('nama_tim')
               .eq('akun_id', akunId)
               .maybeSingle();
-          
+
           if (profilData != null && profilData['nama_tim'] != null) {
             namaTim = profilData['nama_tim'];
           }
         }
-        
+
         teamList.add({
           'id_pendaftaran': p['id_pendaftaran'],
           'nama_tim': namaTim,
@@ -109,20 +99,19 @@ class _DetailSessionPageState extends State<DetailSessionPage>
       for (int i = 0; i < _jumlahMatch; i++) {
         _roomIdControllers.add(TextEditingController());
         _passwordControllers.add(TextEditingController());
-        
+
         final existing = await _supabase
             .from('hasil_pertandingan')
             .select('room_id, password')
             .eq('id_sesi', widget.sesiId)
             .eq('match_ke', i + 1)
             .maybeSingle();
-            
+
         if (existing != null) {
           _roomIdControllers[i].text = existing['room_id'] ?? '';
           _passwordControllers[i].text = existing['password'] ?? '';
         }
       }
-
     } catch (e) {
       print('Error: $e');
     } finally {
@@ -138,7 +127,7 @@ class _DetailSessionPageState extends State<DetailSessionPage>
           .eq('id_sesi', widget.sesiId)
           .eq('match_ke', matchKe)
           .maybeSingle();
-          
+
       if (existing != null) {
         await _supabase.from('hasil_pertandingan').update({
           'room_id': roomId.isEmpty ? null : roomId,
@@ -152,20 +141,24 @@ class _DetailSessionPageState extends State<DetailSessionPage>
           'password': password.isEmpty ? null : password,
         });
       }
-      
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Room ID Match $matchKe disimpan'), backgroundColor: AppColors.success),
-      );
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Room ID Match $matchKe disimpan'), backgroundColor: AppColors.success),
+        );
+      }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Gagal: $e'), backgroundColor: AppColors.error),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Gagal: $e'), backgroundColor: AppColors.error),
+        );
+      }
     }
   }
 
   Future<void> _distributeToAll(int matchKe, String roomId, String password) async {
     if (_teams.isEmpty) return;
-    
+
     try {
       for (var team in _teams) {
         final existing = await _supabase
@@ -174,7 +167,7 @@ class _DetailSessionPageState extends State<DetailSessionPage>
             .eq('id_pendaftaran', team['id_pendaftaran'])
             .eq('match_ke', matchKe)
             .maybeSingle();
-            
+
         if (existing != null) {
           await _supabase.from('hasil_pertandingan').update({
             'room_id': roomId.isEmpty ? null : roomId,
@@ -190,28 +183,19 @@ class _DetailSessionPageState extends State<DetailSessionPage>
           });
         }
       }
-      
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Match $matchKe didistribusikan ke semua tim'), backgroundColor: AppColors.success),
-      );
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Match $matchKe didistribusikan ke semua tim'), backgroundColor: AppColors.success),
+        );
+      }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Gagal: $e'), backgroundColor: AppColors.error),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Gagal: $e'), backgroundColor: AppColors.error),
+        );
+      }
     }
-  }
-
-  String _formatTime(String? dateTimeStr) {
-    if (dateTimeStr == null) return '-';
-    final date = DateTime.parse(dateTimeStr);
-    return '${date.hour.toString().padLeft(2, '0')}.${date.minute.toString().padLeft(2, '0')}';
-  }
-
-  String _formatDate(String? dateTimeStr) {
-    if (dateTimeStr == null) return '-';
-    final date = DateTime.parse(dateTimeStr);
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
-    return '${date.day} ${months[date.month - 1]} ${date.year}'.toUpperCase();
   }
 
   Color _statusColor(String? status) {
@@ -232,7 +216,6 @@ class _DetailSessionPageState extends State<DetailSessionPage>
       );
     }
 
-    final posterUrl = _posterPublicUrl(_scrim?['poster'] as String?);
     final status = _scrim?['status_scrim'] as String? ?? 'aktif';
     final mode = _scrim?['mode'];
 
@@ -248,7 +231,6 @@ class _DetailSessionPageState extends State<DetailSessionPage>
       ),
       body: Column(
         children: [
-          _buildHeroCard(status, posterUrl, mode),
           _buildTabBar(),
           Expanded(
             child: TabBarView(
@@ -262,115 +244,6 @@ class _DetailSessionPageState extends State<DetailSessionPage>
           ),
         ],
       ),
-    );
-  }
-
-  Widget _buildHeroCard(String status, String? posterUrl, dynamic mode) {
-    return Container(
-      margin: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.backgroundCard,
-        borderRadius: BorderRadius.circular(AppConstants.radiusL),
-        border: Border.all(color: AppColors.surfaceVariant, width: 1),
-      ),
-      child: Column(
-        children: [
-          _buildPosterImage(posterUrl),
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _buildStatusBadge(status, _statusColor(status)),
-                const SizedBox(height: 10),
-                Text(
-                  _scrim?['nama_scrim'] ?? '',
-                  style: AppTextStyles.poppinsHeadline.copyWith(fontSize: 22),
-                ),
-                const SizedBox(height: 8),
-                if (mode != null)
-                  Text(
-                    mode['nama_mode'] ?? '',
-                    style: AppTextStyles.interCaption.copyWith(color: AppColors.textSecondary),
-                  ),
-                const SizedBox(height: 16),
-                Row(
-                  children: [
-                    Icon(Icons.access_time, size: 14, color: AppColors.primary),
-                    const SizedBox(width: 6),
-                    Text(
-                      '${_formatTime(_session?['waktu_mulai'])} - ${_formatTime(_session?['waktu_selesai'])}',
-                      style: AppTextStyles.interLabel,
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 4),
-                Row(
-                  children: [
-                    Icon(Icons.calendar_today, size: 14, color: AppColors.primary),
-                    const SizedBox(width: 6),
-                    Text(
-                      _formatDate(_session?['waktu_mulai']),
-                      style: AppTextStyles.interLabel,
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                Row(
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text('SLOT TERISI', style: AppTextStyles.interLabel.copyWith(fontSize: 10)),
-                          const SizedBox(height: 4),
-                          Text(
-                            '$_totalPeserta/$_slotMaksimal',
-                            style: AppTextStyles.poppinsMoneyLarge.copyWith(fontSize: 20),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildPosterImage(String? url) {
-    const double height = 140;
-    if (url != null && url.isNotEmpty) {
-      return SizedBox(
-        height: height,
-        width: double.infinity,
-        child: Image.network(url, fit: BoxFit.cover, errorBuilder: (_, __, ___) => _gradientPlaceholder(height)),
-      );
-    }
-    return _gradientPlaceholder(height);
-  }
-
-  Widget _gradientPlaceholder(double height) {
-    return Container(
-      height: height,
-      width: double.infinity,
-      decoration: const BoxDecoration(gradient: LinearGradient(colors: [Color(0xFF0A1A26), Color(0xFF1A2B38)])),
-      child: Center(child: Icon(Icons.sports_esports_outlined, size: 40, color: AppColors.primary.withOpacity(0.4))),
-    );
-  }
-
-  Widget _buildStatusBadge(String status, Color color) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
-      decoration: BoxDecoration(color: color.withOpacity(0.15), borderRadius: BorderRadius.circular(20), border: Border.all(color: color.withOpacity(0.4))),
-      child: Row(mainAxisSize: MainAxisSize.min, children: [
-        Icon(Icons.circle, size: 8, color: color),
-        const SizedBox(width: 6),
-        Text(status.toUpperCase(), style: AppTextStyles.interLabel.copyWith(color: color, fontWeight: FontWeight.w700)),
-      ]),
     );
   }
 
@@ -412,10 +285,6 @@ class _DetailSessionPageState extends State<DetailSessionPage>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'Detail Room & Password',
-            style: AppTextStyles.poppinsTitleSmall.copyWith(color: AppColors.primary),
-          ),
           const SizedBox(height: 12),
 
           Row(
@@ -456,23 +325,23 @@ class _DetailSessionPageState extends State<DetailSessionPage>
                     obscureText: true,
                   ),
                   const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: ElevatedButton(
-                          onPressed: () => _saveRoomId(
-                            matchNum,
-                            _roomIdControllers[matchIndex].text,
-                            _passwordControllers[matchIndex].text,
-                          ),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.primary,
-                            foregroundColor: Colors.black,
-                          ),
-                          child: Text('SET MATCH $matchNum ID & PASSWORD', style: AppTextStyles.poppinsButton.copyWith(fontSize: 11)),
-                        ),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: () => _saveRoomId(
+                        matchNum,
+                        _roomIdControllers[matchIndex].text,
+                        _passwordControllers[matchIndex].text,
                       ),
-                    ],
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        foregroundColor: Colors.black,
+                      ),
+                      child: Text(
+                        'SET MATCH $matchNum ID & PASSWORD',
+                        style: AppTextStyles.poppinsButton.copyWith(fontSize: 11),
+                      ),
+                    ),
                   ),
                   const SizedBox(height: 8),
                   Center(
@@ -583,7 +452,9 @@ class _DetailSessionPageState extends State<DetailSessionPage>
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: AppTextStyles.interLabel.copyWith(color: AppColors.textSecondary, fontSize: 11)),
+        Text(label,
+            style: AppTextStyles.interLabel.copyWith(
+                color: AppColors.textSecondary, fontSize: 11)),
         const SizedBox(height: 4),
         TextFormField(
           controller: controller,
