@@ -74,6 +74,10 @@ class UserHomeScreenState extends State<UserHomeScreen> {
       if (mounted) setState(() => _unreadNotifCount = unread.length);
       if (unread.isEmpty) return;
 
+      final prefs = await SharedPreferences.getInstance();
+      final shouldShowPopup = prefs.getBool('notifikasi_popup_aktif') ?? true;
+      if (!shouldShowPopup) return;
+
       await Future.delayed(const Duration(milliseconds: 400));
       if (!mounted) return;
 

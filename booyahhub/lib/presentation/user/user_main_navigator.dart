@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:booyahhub/presentation/user/user_pesanan.dart';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../config/app_color.dart';
 import '../../config/app_constants.dart';
@@ -81,7 +82,11 @@ class _UserMainNavigatorState extends State<UserMainNavigator>
     });
   }
 
-  void _showInAppBanner(NotifData notif) {
+  Future<void> _showInAppBanner(NotifData notif) async {
+    final prefs = await SharedPreferences.getInstance();
+    final enabled = prefs.getBool('notifikasi_popup_aktif') ?? true;
+    if (!enabled || !mounted) return;
+
     TopNotificationBanner.show(
       context,
       title: notif.judul,
