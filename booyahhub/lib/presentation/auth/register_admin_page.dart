@@ -134,7 +134,7 @@ class _RegisterAdminPageState extends State<RegisterAdminPage> {
     
     if (_uploadedQrisPath != null) {
       try {
-        await supabase.storage.from('dokumen_qris').remove([_uploadedQrisPath!]);
+        await supabase.storage.from('qr_qris').remove([_uploadedQrisPath!]);
       } catch (_) {}
     }
   }
@@ -229,7 +229,34 @@ class _RegisterAdminPageState extends State<RegisterAdminPage> {
       final timestamp = DateTime.now().millisecondsSinceEpoch;
       
       // ============================================================
-      // STEP 1: UPLOAD KTP TERLEBIH DAHULU (PALING KRITIS)
+      // STEP 1: CEK EMAIL SUDAH TERDAFTAR
+      // ============================================================
+      final existingAkun = await supabase
+          .from('akun')
+          .select('id_akun')
+          .eq('email', email)
+          .maybeSingle();
+      
+      if (existingAkun != null) {
+        _showSnackBar('Email sudah terdaftar, silakan login', isError: true);
+        setState(() => _isLoading = false);
+        return;
+      }
+      
+      // ============================================================
+      // STEP 2: REGISTER KE SUPABASE AUTH
+      // ============================================================
+      final authResponse = await supabase.auth.signUp(
+        email: email,
+        password: _passwordController.text,
+      );
+      
+      if (authResponse.user == null) {
+        throw Exception('Gagal registrasi akun');
+      }
+
+      // ============================================================
+      // STEP 3: UPLOAD KTP (PALING KRITIS)
       // ============================================================
       final ktpFileName = 'admin_${timestamp}_ktp.jpg';
       final ktpPath = 'admin/$ktpFileName';
@@ -241,7 +268,7 @@ class _RegisterAdminPageState extends State<RegisterAdminPage> {
       _uploadedKtpPath = ktpPath;
       
       // ============================================================
-      // STEP 2: UPLOAD LOGO (JIKA ADA)
+      // STEP 4: UPLOAD LOGO (JIKA ADA)
       // ============================================================
       String? fotoProfilUrl;
       if (_logoBytes != null) {
@@ -254,43 +281,15 @@ class _RegisterAdminPageState extends State<RegisterAdminPage> {
       }
       
       // ============================================================
-      // STEP 3: UPLOAD QRIS (JIKA DIPILIH)
+      // STEP 5: UPLOAD QRIS (JIKA DIPILIH)
       // ============================================================
       String? qrisImagePath;
       if (_pilihQris && _qrisBytes != null) {
         final qrisFileName = 'admin/qris_${timestamp}.jpg';
-        qrisImagePath = await _uploadFileToStorage(_qrisBytes!, 'dokumen_qris', qrisFileName);
+        qrisImagePath = await _uploadFileToStorage(_qrisBytes!, 'qr_qris', qrisFileName);
         if (qrisImagePath != null) {
           _uploadedQrisPath = qrisFileName;
         }
-      }
-      
-      // ============================================================
-      // STEP 4: CEK EMAIL SUDAH TERDAFTAR
-      // ============================================================
-      final existingAkun = await supabase
-          .from('akun')
-          .select('id_akun')
-          .eq('email', email)
-          .maybeSingle();
-      
-      if (existingAkun != null) {
-        await _rollbackUploads();
-        _showSnackBar('Email sudah terdaftar, silakan login', isError: true);
-        setState(() => _isLoading = false);
-        return;
-      }
-      
-      // ============================================================
-      // STEP 5: REGISTER KE SUPABASE AUTH
-      // ============================================================
-      final authResponse = await supabase.auth.signUp(
-        email: email,
-        password: _passwordController.text,
-      );
-      
-      if (authResponse.user == null) {
-        throw Exception('Gagal registrasi akun');
       }
       
       // ============================================================
