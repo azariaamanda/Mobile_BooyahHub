@@ -3,7 +3,6 @@ import '../../config/app_color.dart';
 import '../../config/app_constants.dart';
 import 'owner_dashboard_screen.dart';
 import 'admin_verification_page.dart';
-import 'manage_banner_page.dart';
 import 'premium_management_screen.dart';
 import 'owner_profile_screen.dart';
 
@@ -24,7 +23,6 @@ class _OwnerMainNavigatorState extends State<OwnerMainNavigator>
   static const _icons = [
     Icons.grid_view_rounded,
     Icons.people_alt_outlined,
-    Icons.campaign_rounded,
     Icons.stars_rounded,
     Icons.person_outline_rounded,
   ];
@@ -32,7 +30,6 @@ class _OwnerMainNavigatorState extends State<OwnerMainNavigator>
   late final List<Widget> _pages = [
     const OwnerDashboardScreen(),
     const AdminVerificationPage(),
-    const ManageBannerPage(),
     const PremiumManagementScreen(),
     OwnerProfileScreen(
       onNavigateTab: (index) => _selectTab(index),

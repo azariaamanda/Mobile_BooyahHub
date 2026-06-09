@@ -2,11 +2,11 @@
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../config/app_session.dart';
+import 'manage_banner_page.dart';
 import '../../config/app_color.dart';
 import '../../config/app_constants.dart';
 import '../../config/app_text_styles.dart';
 import '../../config/app_image_helper.dart';
-import 'admin_keuangan_page.dart';
 
 class AdminProfilePage extends StatefulWidget {
   const AdminProfilePage({super.key});
@@ -23,7 +23,6 @@ class _AdminProfilePageState extends State<AdminProfilePage> {
 
   bool _notificationEnabled = true;
   bool _isPremium = false;
-  int _klaimPendingCount = 0;
 
   @override
   void initState() {
@@ -59,12 +58,6 @@ class _AdminProfilePageState extends State<AdminProfilePage> {
         _notificationEnabled = (profilData['notifikasi_aktif'] ?? true) as bool;
       }
 
-      // Ambil jumlah klaim pending dari tabel klaim_hadiah
-      final klaimData = await _supabase
-          .from('klaim_hadiah')
-          .select('id_klaim')
-          .eq('status_klaim', 'diajukan');
-      _klaimPendingCount = (klaimData as List).length;
     } catch (e) {
       debugPrint('Error fetching profile: $e');
     } finally {
@@ -213,26 +206,6 @@ class _AdminProfilePageState extends State<AdminProfilePage> {
               value: _notificationEnabled,
               onChanged: _updateNotifikasi,
             ),
-
-            const SizedBox(height: 24),
-
-            // ── PUSAT KONTROL ──
-            _buildSectionTitle('PUSAT KONTROL'),
-            const SizedBox(height: 8),
-
-            // Keuangan — data dari Supabase (klaim pending)
-            _buildMenuItemWithBadge(
-              icon: Icons.account_balance_wallet_outlined,
-              title: 'Keuangan',
-              subtitle: _klaimPendingCount > 0
-                  ? '$_klaimPendingCount klaim menunggu proses'
-                  : 'Semua klaim telah diproses',
-              badgeCount: _klaimPendingCount,
-              onTap: () => Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const AdminKeuanganPage()),
-              ),
-            ),
             const SizedBox(height: 8),
 
             // Layanan Premium — status dari Supabase
@@ -241,6 +214,16 @@ class _AdminProfilePageState extends State<AdminProfilePage> {
               title: 'Layanan Premium',
               isActive: _isPremium,
               onTap: () => context.push('/admin/premium'),
+            ),
+            const SizedBox(height: 8),
+            _buildMenuItemLockable(
+              icon: Icons.campaign_rounded,
+              title: 'Kelola Banner',
+              isLocked: !_isPremium,
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const ManageBannerPage()),
+              ),
             ),
 
             const SizedBox(height: 24),
@@ -379,6 +362,104 @@ class _AdminProfilePageState extends State<AdminProfilePage> {
     );
   }
 
+  Widget _buildMenuItemLockable({
+    required IconData icon,
+    required String title,
+    required bool isLocked,
+    required VoidCallback onTap,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.backgroundCard,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.divider, width: 1),
+      ),
+      child: GestureDetector(
+        onTap: isLocked
+            ? () => _showPremiumRequiredDialog(title)
+            : onTap,
+        behavior: HitTestBehavior.opaque,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          child: Row(
+            children: [
+              Icon(icon, size: 22, color: isLocked ? AppColors.textSecondary : AppColors.primary),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Text(
+                  title,
+                  style: AppTextStyles.interBody.copyWith(
+                    fontSize: 15,
+                    color: isLocked ? AppColors.textSecondary : null,
+                  ),
+                ),
+              ),
+              if (isLocked)
+                const Icon(Icons.lock_outline_rounded, size: 18, color: AppColors.textSecondary)
+              else
+                const Icon(Icons.chevron_right, size: 20, color: AppColors.textSecondary),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showPremiumRequiredDialog(String featureName) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.backgroundCard,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        contentPadding: const EdgeInsets.fromLTRB(24, 24, 24, 16),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: AppColors.surfaceVariant,
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.lock_outline_rounded, size: 36, color: AppColors.primary),
+            ),
+            const SizedBox(height: 16),
+            Text('Fitur Premium', style: AppTextStyles.poppinsTitle),
+            const SizedBox(height: 8),
+            Text(
+              '$featureName hanya tersedia untuk admin Premium. Upgrade sekarang untuk mengakses fitur ini.',
+              style: AppTextStyles.interBody.copyWith(color: AppColors.textSecondary, height: 1.5),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 20),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: () {
+                  Navigator.pop(ctx);
+                  context.push('/admin/premium');
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.black,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                ),
+                icon: const Icon(Icons.stars_rounded, size: 18),
+                label: Text('Upgrade ke Premium', style: AppTextStyles.poppinsButton),
+              ),
+            ),
+            const SizedBox(height: 8),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: Text('Nanti saja', style: AppTextStyles.interBody.copyWith(color: AppColors.textSecondary)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildMenuItemWithSwitch({
     required IconData icon,
     required String title,
@@ -426,67 +507,6 @@ class _AdminProfilePageState extends State<AdminProfilePage> {
     );
   }
 
-  Widget _buildMenuItemWithBadge({
-    required IconData icon,
-    required String title,
-    required String subtitle,
-    required int badgeCount,
-    required VoidCallback onTap,
-  }) {
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColors.backgroundCard,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.divider, width: 1),
-      ),
-      child: GestureDetector(
-        onTap: onTap,
-        behavior: HitTestBehavior.opaque,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-          child: Row(
-            children: [
-              Icon(icon, size: 22, color: AppColors.primary),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(title, style: AppTextStyles.interBody.copyWith(fontSize: 15)),
-                    Text(
-                      subtitle,
-                      style: AppTextStyles.interCaption.copyWith(
-                        color: badgeCount > 0 ? AppColors.primary : AppColors.success,
-                        fontSize: 11,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              if (badgeCount > 0)
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                  decoration: BoxDecoration(
-                    color: AppColors.primary,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Text(
-                    '$badgeCount',
-                    style: const TextStyle(
-                      color: Colors.black,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                )
-              else
-                Icon(Icons.chevron_right, size: 20, color: AppColors.textSecondary),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
 
   Widget _buildMenuItemWithStatus({
     required IconData icon,
