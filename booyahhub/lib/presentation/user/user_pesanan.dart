@@ -86,34 +86,23 @@ class _UserPesananPageState extends State<UserPesananPage> {
             id_player_3,
             id_player_4,
             metode_pembayaran_daftar,
-            sesi_scrim!inner (
+            sesi_scrim (
               id_sesi,
               nama_sesi,
               waktu_mulai,
               waktu_selesai,
               room_id,
               password,
-              scrim!inner (
+              scrim (
                 id_scrim,
                 nama_scrim,
                 poster,
                 biaya_pendaftaran,
-                total_hadiah,
-                slot_tim,
-                tingkat_kesulitan,
-                tanggal_scrim,
-                metode_pembayaran_id,
-                id_admin
+                total_hadiah
               )
             ),
             hasil_pertandingan (*),
-            klaim_hadiah (
-              status_klaim,
-              diajukan_pada,
-              disetujui_admin_pada,
-              dibayar_pada,
-              jumlah_klaim
-            )
+            klaim_hadiah (*)
           ''')
           .eq('akun_id', akunId)
           .order('dibuat_pada', ascending: false);
@@ -145,10 +134,11 @@ class _UserPesananPageState extends State<UserPesananPage> {
         _filterPesanan();
         _isLoading = false;
       });
-    } catch (e) {
+    } catch (e, s) {
       debugPrint('Error fetch pesanan: $e');
+      debugPrint(s.toString());
       setState(() {
-        _errorMessage = 'Gagal memuat data pesanan';
+        _errorMessage = 'Gagal memuat data pesanan: $e';
         _isLoading = false;
       });
     }
@@ -226,8 +216,20 @@ class _UserPesananPageState extends State<UserPesananPage> {
 
   // ─── POP UP DETAIL PESANAN ───
   void _showDetailPopup(Map<String, dynamic> pesanan) {
-    final sesi = pesanan['sesi_scrim'] as Map<String, dynamic>;
-    final scrim = sesi['scrim'] as Map<String, dynamic>;
+    final sesi = pesanan['sesi_scrim'] as Map<String, dynamic>?;
+    if (sesi == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Data sesi tidak ditemukan'), backgroundColor: Colors.red),
+      );
+      return;
+    }
+    final scrim = sesi['scrim'] as Map<String, dynamic>?;
+    if (scrim == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Data scrim tidak ditemukan'), backgroundColor: Colors.red),
+      );
+      return;
+    }
     final String namaTim = pesanan['nama_tim'] ?? 'No Team';
     final status = pesanan['status_pembayaran'] ?? 'menunggu';
     
@@ -271,7 +273,7 @@ class _UserPesananPageState extends State<UserPesananPage> {
 
               Text('Informasi Scrim', style: AppTextStyles.poppinsTitleSmall),
               const SizedBox(height: AppConstants.paddingS),
-              _buildInfoRow(Icons.sports_esports, 'Nama Scrim: ${scrim['nama_scrim'] ?? '-'}'),
+              _buildInfoRow(Icons.sports_esports, 'Nama Scrim: ${scrim?['nama_scrim'] ?? '-'}'),
               const SizedBox(height: 6),
               _buildInfoRow(Icons.calendar_today, 'Tanggal: ${_formatDate(waktuMulai)}'),
               const SizedBox(height: 6),
@@ -545,13 +547,13 @@ class _UserPesananPageState extends State<UserPesananPage> {
   }
 
   Widget _buildPesananCard(Map<String, dynamic> pesanan) {
-    final sesi = pesanan['sesi_scrim'] as Map<String, dynamic>;
-    final scrim = sesi['scrim'] as Map<String, dynamic>;
+    final sesi = pesanan['sesi_scrim'] as Map<String, dynamic>?;
+    final scrim = sesi?['scrim'] as Map<String, dynamic>?;
     final String namaTim = pesanan['nama_tim'] ?? 'No Team';
-    final waktuMulai = DateTime.tryParse(sesi['waktu_mulai'] ?? '') ?? DateTime.now();
+    final waktuMulai = sesi != null ? (DateTime.tryParse(sesi['waktu_mulai'] ?? '') ?? DateTime.now()) : DateTime.now();
     final status = pesanan['status_pembayaran'] ?? 'menunggu';
     final isConfirmed = status == 'dikonfirmasi';
-    final hasRoomId = sesi['room_id'] != null && sesi['room_id'].toString().isNotEmpty;
+    final hasRoomId = sesi?['room_id'] != null && sesi!['room_id'].toString().isNotEmpty;
     final hasilList = pesanan['hasil_pertandingan'] as List?;
     final hasil = (hasilList != null && hasilList.isNotEmpty) ? hasilList[0] : null;
 
@@ -571,7 +573,7 @@ class _UserPesananPageState extends State<UserPesananPage> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Expanded(child: Text(scrim['nama_scrim'] ?? 'No Title', style: AppTextStyles.poppinsTitleSmall, overflow: TextOverflow.ellipsis)),
+                      Expanded(child: Text(scrim?['nama_scrim'] ?? 'No Title', style: AppTextStyles.poppinsTitleSmall, overflow: TextOverflow.ellipsis)),
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: AppConstants.paddingS, vertical: AppConstants.paddingXS),
                         decoration: BoxDecoration(color: _getStatusColor(status).withOpacity(0.2), borderRadius: BorderRadius.circular(AppConstants.radiusXL)),

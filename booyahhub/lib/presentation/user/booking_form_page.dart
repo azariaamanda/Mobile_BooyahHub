@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../config/app_color.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -16,32 +16,95 @@ class BookingFormPage extends StatefulWidget {
 class _BookingFormPageState extends State<BookingFormPage> {
   final _formKey = GlobalKey<FormState>();
 
-  // Controller (tanpa nama_tim)
   final _namaKaptenController = TextEditingController();
   final _whatsappController = TextEditingController();
-
-  // Controller ID Player
   final _idPlayer1Controller = TextEditingController();
   final _idPlayer2Controller = TextEditingController();
   final _idPlayer3Controller = TextEditingController();
   final _idPlayer4Controller = TextEditingController();
 
-  // State
   String? _selectedPaymentMethod;
   bool _isLoading = false;
+  bool _isLoadingMethods = true;
   String _namaTim = 'Memuat...';
 
-  final List<Map<String, String>> _paymentOptions = [
-    {'value': 'bank_transfer', 'label': 'Transfer Bank'},
-    {'value': 'ewallet', 'label': 'E-Wallet'},
-    {'value': 'qris', 'label': 'QRIS Otomatis'},
-    {'value': 'virtual_account', 'label': 'Virtual Account (VA)'},
-  ];
+  // Payment options dinamis dari database
+  List<Map<String, String>> _paymentOptions = [];
 
   @override
   void initState() {
     super.initState();
     _loadUserData();
+    _loadPaymentMethods();
+  }
+
+  // ─── AMBIL METODE PEMBAYARAN DARI ADMIN PENYELENGGARA ───
+  Future<void> _loadPaymentMethods() async {
+    try {
+      final supabase = Supabase.instance.client;
+
+      // 1. Ambil id_scrim dari sesi_scrim
+      final sesiResponse = await supabase
+          .from('sesi_scrim')
+          .select('id_scrim')
+          .eq('id_sesi', widget.sesiId)
+          .maybeSingle();
+
+      if (sesiResponse == null) {
+        setState(() => _isLoadingMethods = false);
+        return;
+      }
+
+      // 2. Ambil id_admin dari scrim
+      final scrimResponse = await supabase
+          .from('scrim')
+          .select('id_admin')
+          .eq('id_scrim', sesiResponse['id_scrim'])
+          .maybeSingle();
+
+      if (scrimResponse == null) {
+        setState(() => _isLoadingMethods = false);
+        return;
+      }
+
+      final int adminId = scrimResponse['id_admin'];
+
+      // 3. Ambil metode pembayaran milik admin tersebut yang aktif
+      final metodesResponse = await supabase
+          .from('metode_pembayaran_penyelenggara')
+          .select('jenis_metode')
+          .eq('akun_id', adminId)
+          .eq('is_active', true);
+
+      final List<Map<String, String>> options = [];
+      bool hasBankTransfer = false;
+      bool hasQris = false;
+
+      for (var metode in metodesResponse) {
+        final jenis = metode['jenis_metode'] as String?;
+        if (jenis == 'bank_transfer') hasBankTransfer = true;
+        if (jenis == 'qris') hasQris = true;
+      }
+
+      if (hasBankTransfer) {
+        options.add({'value': 'bank_transfer', 'label': 'Transfer Bank'});
+      }
+      if (hasQris) {
+        options.add({'value': 'qris', 'label': 'QRIS Otomatis'});
+      }
+
+      setState(() {
+        _paymentOptions = options;
+        // Auto-select jika hanya ada 1 metode
+        if (options.length == 1) {
+          _selectedPaymentMethod = options[0]['value'];
+        }
+        _isLoadingMethods = false;
+      });
+    } catch (e) {
+      debugPrint('Error loading payment methods: $e');
+      setState(() => _isLoadingMethods = false);
+    }
   }
 
   // ─── AMBIL DATA USER YANG LOGIN ───
@@ -55,7 +118,6 @@ class _BookingFormPageState extends State<BookingFormPage> {
         return;
       }
 
-      // 1. Cari id_akun dari email
       final akunResponse = await supabase
           .from('akun')
           .select('id_akun')
@@ -69,7 +131,6 @@ class _BookingFormPageState extends State<BookingFormPage> {
 
       final int akunId = akunResponse['id_akun'];
 
-      // 2. Cari profil_pengguna berdasarkan akun_id
       final profilResponse = await supabase
           .from('profil_pengguna')
           .select('nama_tim')
@@ -114,7 +175,6 @@ class _BookingFormPageState extends State<BookingFormPage> {
 
         if (email == null) throw Exception('User tidak login');
 
-        // 1. Cari id_akun dari email user
         final akunResponse = await supabase
             .from('akun')
             .select('id_akun')
@@ -124,7 +184,6 @@ class _BookingFormPageState extends State<BookingFormPage> {
         if (akunResponse == null) throw Exception('Akun tidak ditemukan');
         final int akunId = akunResponse['id_akun'];
 
-        // 2. Cari id_profil_pengguna (sebagai id_tim)
         final profilResponse = await supabase
             .from('profil_pengguna')
             .select('id_profil_pengguna')
@@ -136,7 +195,6 @@ class _BookingFormPageState extends State<BookingFormPage> {
         }
         final int timId = profilResponse['id_profil_pengguna'];
 
-        // 3. INSERT DATA (TANPA 'nama_tim')
         final response = await supabase
             .from('pendaftaran_tim')
             .insert({
@@ -201,7 +259,7 @@ class _BookingFormPageState extends State<BookingFormPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Top Banner: Info Tim (READ ONLY, dari profil)
+              // Top Banner: Info Tim
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -262,37 +320,65 @@ class _BookingFormPageState extends State<BookingFormPage> {
               ),
               const SizedBox(height: 24),
 
-              // Section 3: METODE PEMBAYARAN
+              // Section 3: METODE PEMBAYARAN (DINAMIS dari database)
               _buildSectionTitle('METODE PEMBAYARAN'),
               const SizedBox(height: 8),
               _buildYellowCard(
                 children: [
                   _buildFieldLabel('Pilih Metode Pembayaran'),
-                  DropdownButtonFormField<String>(
-                    value: _selectedPaymentMethod,
-                    dropdownColor: AppColors.backgroundCard,
-                    icon: const Icon(Icons.arrow_drop_down, color: Color(0xFF1A2B38)),
-                    selectedItemBuilder: (context) => _paymentOptions.map((option) => Container(
-                      alignment: Alignment.centerLeft,
-                      child: Text(option['label']!, style: const TextStyle(color: Colors.black87, fontSize: 14, fontWeight: FontWeight.w500)),
-                    )).toList(),
-                    items: _paymentOptions.map((option) => DropdownMenuItem(
-                      value: option['value'],
-                      child: Text(option['label']!, style: const TextStyle(color: AppColors.textPrimary, fontSize: 14, fontWeight: FontWeight.w500)),
-                    )).toList(),
-                    onChanged: (value) => setState(() => _selectedPaymentMethod = value),
-                    decoration: InputDecoration(
-                      hintText: 'Pilih Metode',
-                      hintStyle: TextStyle(color: Colors.grey.shade500, fontSize: 14),
-                      filled: true,
-                      fillColor: const Color(0xFFF3F3F3),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-                      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-                      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFF020C15), width: 1.5)),
+                  if (_isLoadingMethods)
+                    const Center(
+                      child: Padding(
+                        padding: EdgeInsets.symmetric(vertical: 16),
+                        child: CircularProgressIndicator(color: AppColors.background, strokeWidth: 2),
+                      ),
+                    )
+                  else if (_paymentOptions.isEmpty)
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF3F3F3),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Row(
+                        children: [
+                          Icon(Icons.warning_amber_rounded, color: Colors.orange, size: 18),
+                          SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'Penyelenggara belum mengatur metode pembayaran',
+                              style: TextStyle(color: Colors.orange, fontSize: 13),
+                            ),
+                          ),
+                        ],
+                      ),
+                    )
+                  else
+                    DropdownButtonFormField<String>(
+                      value: _selectedPaymentMethod,
+                      dropdownColor: AppColors.backgroundCard,
+                      icon: const Icon(Icons.arrow_drop_down, color: Color(0xFF1A2B38)),
+                      selectedItemBuilder: (context) => _paymentOptions.map((option) => Container(
+                        alignment: Alignment.centerLeft,
+                        child: Text(option['label']!, style: const TextStyle(color: Colors.black87, fontSize: 14, fontWeight: FontWeight.w500)),
+                      )).toList(),
+                      items: _paymentOptions.map((option) => DropdownMenuItem(
+                        value: option['value'],
+                        child: Text(option['label']!, style: const TextStyle(color: AppColors.textPrimary, fontSize: 14, fontWeight: FontWeight.w500)),
+                      )).toList(),
+                      onChanged: (value) => setState(() => _selectedPaymentMethod = value),
+                      decoration: InputDecoration(
+                        hintText: _paymentOptions.length == 1 ? _paymentOptions[0]['label'] : 'Pilih Metode',
+                        hintStyle: TextStyle(color: Colors.grey.shade500, fontSize: 14),
+                        filled: true,
+                        fillColor: const Color(0xFFF3F3F3),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFF020C15), width: 1.5)),
+                      ),
+                      validator: (value) => value == null ? 'Silakan pilih metode pembayaran' : null,
                     ),
-                    validator: (value) => value == null ? 'Silakan pilih metode pembayaran' : null,
-                  ),
                 ],
               ),
               const SizedBox(height: 32),
