@@ -46,27 +46,35 @@ class _UserProfilePageState extends State<UserProfilePage> {
   Future<void> _loadUserProfile() async {
     final authService = AuthService();
     final data = await authService.getCurrentAkunAndProfil();
-    
+
     if (mounted && data != null) {
       final akun = data['akun'];
-      final profil = data['profil'];
-      
+      final profil = data['profil'] as Map<String, dynamic>?;
+      final role = (data['role'] as String?) ?? akun.role;
+
       setState(() {
         _email = akun.email;
-        if (profil['foto_profil'] != null && profil['foto_profil'].toString().isNotEmpty) {
+
+        if (profil != null && profil['foto_profil'] != null && profil['foto_profil'].toString().isNotEmpty) {
           final url = profil['foto_profil'].toString();
           final separator = url.contains('?') ? '&' : '?';
           _fotoProfil = '$url${separator}v=${DateTime.now().millisecondsSinceEpoch}';
         } else {
           _fotoProfil = null;
         }
-        if (data['role'] == 'pengguna') {
-          _name = profil['nama_tim'] ?? 'Tim Tanpa Nama';
-        } else if (data['role'] == 'admin') {
-          _name = profil['nama_lengkap'] ?? 'Admin';
+
+        if (profil != null) {
+          if (role == 'pengguna') {
+            _name = profil['nama_tim'] ?? 'Tim Tanpa Nama';
+          } else if (role == 'admin') {
+            _name = profil['nama_lengkap'] ?? 'Admin';
+          } else {
+            _name = profil['nama_owner'] ?? 'Owner';
+          }
         } else {
-          _name = profil['nama_owner'] ?? 'Owner';
+          _name = akun.email.isNotEmpty ? akun.email : 'Pengguna';
         }
+
         _isLoading = false;
       });
     } else if (mounted) {
