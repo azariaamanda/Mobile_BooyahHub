@@ -581,15 +581,19 @@ class _ParticipantDetailPageState extends State<ParticipantDetailPage> {
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
+        mainAxisSize: MainAxisSize.min,
         children: [
           Icon(dikonfirmasi ? Icons.verified : Icons.block,
               color: color, size: 20),
           const SizedBox(width: AppConstants.paddingS),
-          Text(
-            dikonfirmasi
-                ? 'Pembayaran sudah dikonfirmasi'
-                : 'Pembayaran ditolak',
-            style: AppTextStyles.poppinsButton.copyWith(color: color),
+          Flexible(
+            child: Text(
+              dikonfirmasi
+                  ? 'Pembayaran sudah dikonfirmasi'
+                  : 'Pembayaran ditolak',
+              style: AppTextStyles.poppinsButton.copyWith(color: color),
+              overflow: TextOverflow.ellipsis,
+            ),
           ),
         ],
       ),

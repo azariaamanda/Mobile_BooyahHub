@@ -77,21 +77,21 @@ class ScrimItemCard extends StatelessWidget {
               children: [
                 const Icon(Icons.emoji_events, color: AppColors.primary, size: 14),
                 const SizedBox(width: AppConstants.paddingXS),
-                Text(prize, style: AppTextStyles.interCaption.copyWith(color: AppColors.white)),
+                Flexible(child: Text(prize, style: AppTextStyles.interCaption.copyWith(color: AppColors.white), overflow: TextOverflow.ellipsis)),
               ],
             ),
             Row(
               children: [
                 const Icon(Icons.payments, color: AppColors.primary, size: 14),
                 const SizedBox(width: AppConstants.paddingXS),
-                Text(fee, style: AppTextStyles.interCaption.copyWith(color: AppColors.white)),
+                Flexible(child: Text(fee, style: AppTextStyles.interCaption.copyWith(color: AppColors.white), overflow: TextOverflow.ellipsis)),
               ],
             ),
             Row(
               children: [
                 const Icon(Icons.people, color: AppColors.primary, size: 14),
                 const SizedBox(width: AppConstants.paddingXS),
-                Text(slotsInfo, style: AppTextStyles.interCaption.copyWith(color: AppColors.white)),
+                Flexible(child: Text(slotsInfo, style: AppTextStyles.interCaption.copyWith(color: AppColors.white), overflow: TextOverflow.ellipsis)),
               ],
             ),
           ],

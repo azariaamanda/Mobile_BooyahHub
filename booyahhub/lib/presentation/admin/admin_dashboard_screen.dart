@@ -28,6 +28,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   int _totalSlot = 0;
   double _pendapatanBulanIni = 0;
   double _pendapatanBulanLalu = 0;
+  double _totalUtang = 0;
+  double _limitUtang = 50000;
   List<double> _trendData = List.filled(7, 0);
 
   @override
@@ -81,11 +83,20 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
 
       final profil = await _supabase
           .from('profil_admin')
+<<<<<<< HEAD
           .select('nama_lengkap, foto_profil')
           .eq('akun_id', adminId)
           .maybeSingle();
       final nama = profil?['nama_lengkap'] as String? ?? 'Admin';
       final fotoPath = profil?['foto_profil'] as String?;
+=======
+          .select('nama_lengkap, total_utang, limit_utang')
+          .eq('akun_id', adminId)
+          .maybeSingle();
+      final nama = profil?['nama_lengkap'] as String? ?? 'Admin';
+      final totalUtang = (profil?['total_utang'] as num? ?? 0).toDouble();
+      final limitUtang = (profil?['limit_utang'] as num? ?? 50000).toDouble();
+>>>>>>> 081ffdec4d81ba24e300dcf783533db0a6a3b13e
 
       // Admin's scrims
       final scrims = await _supabase
@@ -169,7 +180,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           if (!tglDay.isBefore(todayStart)) bookingHariIni++;
           if (tglDay == yesterdayStart) bookingKemarin++;
 
-          if (status == 'dikonfirmasi') {
+          if (status == 'dikonfirmasi' || status == 'menunggu') {
             if (!tglDay.isBefore(thisMonthStart)) pendapatanBulanIni += biaya;
             if (!tglDay.isBefore(lastMonthStart) && tglDay.isBefore(thisMonthStart)) {
               pendapatanBulanLalu += biaya;
@@ -195,6 +206,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         _sisaSlot = max(0, totalSlot - konfirmasiCount);
         _pendapatanBulanIni = pendapatanBulanIni;
         _pendapatanBulanLalu = pendapatanBulanLalu;
+        _totalUtang = totalUtang;
+        _limitUtang = limitUtang;
         _trendData = List.generate(7, (i) => trendMap[i] ?? 0);
         _isLoading = false;
         });
@@ -248,17 +261,20 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                         : null,
                   ),
                   const SizedBox(width: 12),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('Halo,', style: AppTextStyles.interBody.copyWith(color: AppColors.textSecondary, fontSize: 13)),
-                      Text(
-                        _adminNama.isEmpty ? 'Admin' : _adminNama,
-                        style: AppTextStyles.poppinsTitleSmall.copyWith(fontSize: 18, fontWeight: FontWeight.w700),
-                      ),
-                    ],
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Halo,', style: AppTextStyles.interBody.copyWith(color: AppColors.textSecondary, fontSize: 13)),
+                        Text(
+                          _adminNama.isEmpty ? 'Admin' : _adminNama,
+                          style: AppTextStyles.poppinsTitleSmall.copyWith(fontSize: 18, fontWeight: FontWeight.w700),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
                   ),
-                  const Spacer(),
                   GestureDetector(
                     onTap: () => Navigator.of(context).push(
                       MaterialPageRoute(builder: (_) => const AdminNotificationPage()),
@@ -319,12 +335,26 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                   ],
                 ),
                 const SizedBox(height: AppConstants.paddingS),
-                _StatCard(
-                  title: 'Sisa Slot',
-                  value: '$_sisaSlot',
-                  subtitle: 'Slot Tersisa',
-                  badge: 'Dari $_totalSlot Total Slot',
-                  badgeUp: null,
+                Row(
+                  children: [
+                    Expanded(
+                      child: _StatCard(
+                        title: 'Sisa Slot',
+                        value: '$_sisaSlot',
+                        subtitle: 'Slot Tersisa',
+                        badge: 'Dari $_totalSlot Total Slot',
+                        badgeUp: null,
+                      ),
+                    ),
+                    const SizedBox(width: AppConstants.paddingS),
+                    Expanded(
+                      child: _UtangAdminCard(
+                        totalUtang: _totalUtang,
+                        limitUtang: _limitUtang,
+                        formatRupiah: _formatRupiah,
+                      ),
+                    ),
+                  ],
                 ),
 
                 const SizedBox(height: AppConstants.paddingL),
@@ -405,6 +435,103 @@ class _RevenueCard extends StatelessWidget {
                 style: AppTextStyles.interBody.copyWith(color: AppColors.textSecondary, fontSize: 12),
               ),
             ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Utang Admin Card ──
+class _UtangAdminCard extends StatelessWidget {
+  final double totalUtang;
+  final double limitUtang;
+  final String Function(double) formatRupiah;
+
+  const _UtangAdminCard({
+    required this.totalUtang,
+    required this.limitUtang,
+    required this.formatRupiah,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final pct = limitUtang > 0 ? (totalUtang / limitUtang).clamp(0.0, 1.0) : 0.0;
+    final lunas = totalUtang <= 0;
+    final warnColor = pct >= 0.8 ? AppColors.error : AppColors.warning;
+    final statusColor = lunas ? AppColors.accent : warnColor;
+
+    return Container(
+      padding: const EdgeInsets.all(AppConstants.paddingM),
+      decoration: BoxDecoration(
+        color: AppColors.backgroundCard,
+        borderRadius: BorderRadius.circular(AppConstants.radiusL),
+        border: lunas
+            ? null
+            : Border.all(color: statusColor.withValues(alpha: 0.35), width: 1),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Utang Admin',
+            style: AppTextStyles.poppinsTitleSmall.copyWith(
+              color: AppColors.primary,
+              fontWeight: FontWeight.w700,
+              fontSize: 13,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.baseline,
+            textBaseline: TextBaseline.alphabetic,
+            children: [
+              Flexible(
+                child: Text(
+                  lunas ? 'Rp 0' : formatRupiah(totalUtang),
+                  style: AppTextStyles.poppinsHeadline.copyWith(
+                    fontSize: 26,
+                    fontWeight: FontWeight.w800,
+                    color: lunas ? AppColors.accent : statusColor,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Row(
+            children: [
+              Icon(
+                lunas ? Icons.check_circle_rounded : Icons.warning_rounded,
+                color: statusColor,
+                size: 14,
+              ),
+              const SizedBox(width: 3),
+              Flexible(
+                child: Text(
+                  lunas ? 'Tidak ada utang' : 'Limit ${formatRupiah(limitUtang)}',
+                  style: AppTextStyles.interBody.copyWith(
+                    color: AppColors.textSecondary,
+                    fontSize: 11,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(4),
+            child: LinearProgressIndicator(
+              value: pct,
+              minHeight: 5,
+              backgroundColor: AppColors.inputBorder,
+              valueColor: AlwaysStoppedAnimation<Color>(
+                lunas ? AppColors.accent : statusColor,
+              ),
+            ),
           ),
         ],
       ),

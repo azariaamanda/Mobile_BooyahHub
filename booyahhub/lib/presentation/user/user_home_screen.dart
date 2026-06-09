@@ -20,14 +20,18 @@ class UserHomeScreen extends StatefulWidget {
   State<UserHomeScreen> createState() => UserHomeScreenState();
 }
 
+<<<<<<< Updated upstream
 class UserHomeScreenState extends State<UserHomeScreen> {
   void refreshProfile() {
     setState(() {});
   }
 
+=======
+class _UserHomeScreenState extends State<UserHomeScreen> {
+  int _unreadNotifCount = 0;
+>>>>>>> Stashed changes
   int _selectedModeId = 0;
   String _selectedSort = 'semua';
-  int _unreadNotifCount = 0;
   final _supabase = Supabase.instance.client;
 
   final List<Map<String, String>> _sortOptions = [
@@ -71,8 +75,11 @@ class UserHomeScreenState extends State<UserHomeScreen> {
               !readIds.contains(item['id_notifikasi'].toString()))
           .toList();
 
-      if (mounted) setState(() => _unreadNotifCount = unread.length);
+<<<<<<< Updated upstream
 
+=======
+      if (mounted) setState(() => _unreadNotifCount = unread.length);
+>>>>>>> Stashed changes
       if (unread.isEmpty) return;
 
       await Future.delayed(const Duration(milliseconds: 400));
@@ -483,9 +490,10 @@ class UserHomeScreenState extends State<UserHomeScreen> {
                         builder: (context, snapshot) {
                           if (snapshot.connectionState ==
                               ConnectionState.waiting) {
-                            return const TeamProfileHeader(
+                            return TeamProfileHeader(
                               namaTim: 'Memuat...',
                               fotoProfilUrl: null,
+                              unreadCount: _unreadNotifCount,
                             );
                           }
                           final userData = snapshot.data;
@@ -502,61 +510,16 @@ class UserHomeScreenState extends State<UserHomeScreen> {
                           }
 
                           return TeamProfileHeader(
+<<<<<<< Updated upstream
                             namaTim: namaTim,
                             fotoProfilUrl: fotoProfil,
+=======
+                            namaTim: userData?['nama_tim'] ?? 'No Team Name',
+                            fotoProfilUrl: userData?['foto_profil'],
+                            unreadCount: _unreadNotifCount,
+>>>>>>> Stashed changes
                           );
                         },
-                      ),
-                    ),
-                    GestureDetector(
-                      onTap: () => context.pushNamed('notifikasi'),
-                      child: Stack(
-                        clipBehavior: Clip.none,
-                        children: [
-                          Container(
-                            width: 42,
-                            height: 42,
-                            decoration: BoxDecoration(
-                              color: AppColors.backgroundCard,
-                              borderRadius: BorderRadius.circular(
-                                AppConstants.radiusM,
-                              ),
-                              border: Border.all(color: AppColors.inputBorder),
-                            ),
-                            child: const Icon(
-                              Icons.notifications_outlined,
-                              color: AppColors.textPrimary,
-                              size: 22,
-                            ),
-                          ),
-                          if (_unreadNotifCount > 0)
-                            Positioned(
-                              top: -4,
-                              right: -4,
-                              child: Container(
-                                padding: const EdgeInsets.all(4),
-                                decoration: const BoxDecoration(
-                                  color: AppColors.error,
-                                  shape: BoxShape.circle,
-                                ),
-                                constraints: const BoxConstraints(
-                                  minWidth: 18,
-                                  minHeight: 18,
-                                ),
-                                child: Text(
-                                  _unreadNotifCount > 99
-                                      ? '99+'
-                                      : '$_unreadNotifCount',
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                  textAlign: TextAlign.center,
-                                ),
-                              ),
-                            ),
-                        ],
                       ),
                     ),
                   ],

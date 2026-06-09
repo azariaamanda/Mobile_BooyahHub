@@ -330,25 +330,36 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
                   : null,
             ),
             const SizedBox(width: 16),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Selamat datang,\n$_ownerName',
-                  style: AppTextStyles.poppinsTitleSmall.copyWith(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 14,
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Selamat datang,',
+                    style: AppTextStyles.interBody.copyWith(
+                      color: Colors.white70,
+                      fontSize: 12,
+                    ),
                   ),
-                ),
-                Text(
-                  'Owner',
-                  style: AppTextStyles.interBody.copyWith(
-                    color: Colors.white70,
-                    fontSize: 12,
+                  Text(
+                    _ownerName,
+                    style: AppTextStyles.poppinsTitleSmall.copyWith(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
-                ),
-              ],
+                  Text(
+                    'Owner',
+                    style: AppTextStyles.interBody.copyWith(
+                      color: Colors.white70,
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ],
         ),
