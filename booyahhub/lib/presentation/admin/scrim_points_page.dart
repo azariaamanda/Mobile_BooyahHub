@@ -14,10 +14,8 @@ class ScrimPointsPage extends StatefulWidget {
 
 class _ScrimPointsPageState extends State<ScrimPointsPage> {
   final _supabase = Supabase.instance.client;
-  int _selectedMatch = 0;
   bool _isLoading = true;
-  
-  List<Map<String, dynamic>> _sessions = [];
+
   List<Map<String, dynamic>> _teams = [];
   List<Map<String, dynamic>> _poinSystem = [];
   List<TextEditingController> _killControllers = [];
@@ -39,25 +37,39 @@ class _ScrimPointsPageState extends State<ScrimPointsPage> {
   Future<void> _fetchData() async {
     setState(() => _isLoading = true);
     try {
-      // Ambil sesi berdasarkan sesiId yang dikirim
-      final sesiData = await _supabase
-          .from('sesi_scrim')
-          .select('*')
-          .eq('id_sesi', widget.sesiId)
-          .single();
-      
-      // Ambil data tim untuk sesi ini
-      await _fetchTeamsData(widget.sesiId);
-      
-      // Ambil sistem poin
+      // 1. Ambil sistem poin DULU
       final poinData = await _supabase
           .from('sistem_poin')
-          .select('peringkat_ke, poin')
-          .order('peringkat_ke', ascending: true);
+          .select('placement, poin_placement')
+          .order('placement', ascending: true);
+
       _poinSystem = List<Map<String, dynamic>>.from(poinData);
-      
+
+      // Jika kosong, insert default
+      if (_poinSystem.isEmpty) {
+        print('Sistem poin kosong, membuat default...');
+        final List<Map<String, dynamic>> defaults = [];
+        final poinValues = [12, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0, 0];
+        for (int i = 0; i < 12; i++) {
+          defaults.add({
+            'placement': i + 1,
+            'poin_placement': poinValues[i],
+            'is_default': true,
+          });
+        }
+        await _supabase.from('sistem_poin').insert(defaults);
+
+        final newPoinData = await _supabase
+            .from('sistem_poin')
+            .select('placement, poin_placement')
+            .order('placement', ascending: true);
+        _poinSystem = List<Map<String, dynamic>>.from(newPoinData);
+      }
+
+      // 2. Baru fetch teams (butuh _poinSystem sudah terisi)
+      await _fetchTeamsData(widget.sesiId);
     } catch (e) {
-      print('Error: $e');
+      print('Error fetchData: $e');
     } finally {
       setState(() => _isLoading = false);
     }
@@ -65,60 +77,55 @@ class _ScrimPointsPageState extends State<ScrimPointsPage> {
 
   Future<void> _fetchTeamsData(int sesiId) async {
     try {
-      // Ambil pendaftaran tim (tanpa join)
       final pendaftaran = await _supabase
           .from('pendaftaran_tim')
           .select('id_pendaftaran, akun_id, nama_kapten')
           .eq('id_sesi', sesiId)
           .eq('status_pembayaran', 'dikonfirmasi');
 
-      // Ambil hasil pertandingan yang sudah ada
       final hasil = await _supabase
           .from('hasil_pertandingan')
           .select('*')
           .eq('id_sesi', sesiId)
-          .eq('match_ke', _selectedMatch + 1);
+          .eq('match_ke', 1);
 
-      // Proses data tim
       List<Map<String, dynamic>> teamList = [];
-      _killControllers.clear();
+      final newControllers = <TextEditingController>[];
 
       for (var p in pendaftaran) {
         final akunId = p['akun_id'] as int?;
         String namaTim = 'Tim ${akunId ?? '?'}';
-        
-        // Ambil nama tim dari profil_pengguna (query terpisah, aman)
+
         if (akunId != null) {
           final profilData = await _supabase
               .from('profil_pengguna')
               .select('nama_tim')
               .eq('akun_id', akunId)
               .maybeSingle();
-          
+
           if (profilData != null && profilData['nama_tim'] != null) {
             namaTim = profilData['nama_tim'];
           }
         }
-        
+
         final existingHasil = hasil.firstWhere(
           (h) => h['id_pendaftaran'] == p['id_pendaftaran'],
           orElse: () => {},
         );
-        
+
         final kill = existingHasil.isEmpty ? 0 : (existingHasil['total_kill'] ?? 0);
-        final place = existingHasil.isEmpty ? null : existingHasil['peringkat'];
-        
-        // Hitung poin dari place
+        final place = existingHasil.isEmpty ? null : existingHasil['placement'];
+
         int poinPlacement = 0;
         if (place != null) {
           final found = _poinSystem.firstWhere(
-            (ps) => ps['peringkat_ke'] == place,
-            orElse: () => {'poin': 0},
+            (ps) => ps['placement'] == place,
+            orElse: () => {'poin_placement': 0},
           );
-          poinPlacement = found['poin'] ?? 0;
+          poinPlacement = found['poin_placement'] ?? 0;
         }
-        final totalPoin = poinPlacement + kill;
-        
+        final totalPoin = poinPlacement + (kill as int);
+
         teamList.add({
           'id_pendaftaran': p['id_pendaftaran'],
           'akun_id': akunId,
@@ -128,10 +135,18 @@ class _ScrimPointsPageState extends State<ScrimPointsPage> {
           'kill': kill,
           'poin': totalPoin,
         });
-        _killControllers.add(TextEditingController(text: kill.toString()));
+        newControllers.add(TextEditingController(text: kill.toString()));
       }
-      
-      setState(() => _teams = teamList);
+
+      // Dispose controller lama sebelum diganti
+      for (var c in _killControllers) {
+        c.dispose();
+      }
+
+      setState(() {
+        _teams = teamList;
+        _killControllers = newControllers;
+      });
     } catch (e) {
       print('Error fetchTeamsData: $e');
       setState(() => _teams = []);
@@ -139,40 +154,37 @@ class _ScrimPointsPageState extends State<ScrimPointsPage> {
   }
 
   Future<void> _saveScores() async {
-    if (_sessions.isEmpty || _teams.isEmpty) return;
-    
+    if (_teams.isEmpty) return;
+
     setState(() => _isLoading = true);
     try {
-      final sesiId = _sessions[_selectedMatch]['id_sesi'];
-      final matchKe = _selectedMatch + 1;
-      
+      const matchKe = 1;
+
       for (int i = 0; i < _teams.length; i++) {
         final team = _teams[i];
         final place = team['place'];
         final kill = int.tryParse(_killControllers[i].text) ?? 0;
-        
-        // Hitung poin placement
+
         int poinPlacement = 0;
         if (place != null) {
           final found = _poinSystem.firstWhere(
-            (ps) => ps['peringkat_ke'] == place,
-            orElse: () => {'poin': 0},
+            (ps) => ps['placement'] == place,
+            orElse: () => {'poin_placement': 0},
           );
-          poinPlacement = found['poin'] ?? 0;
+          poinPlacement = found['poin_placement'] ?? 0;
         }
         final totalPoin = poinPlacement + kill;
-        
-        // Cek apakah sudah ada data
+
         final existing = await _supabase
             .from('hasil_pertandingan')
             .select()
             .eq('id_pendaftaran', team['id_pendaftaran'])
             .eq('match_ke', matchKe)
             .maybeSingle();
-        
+
         if (existing != null) {
           await _supabase.from('hasil_pertandingan').update({
-            'peringkat': place,
+            'placement': place,
             'poin_placement': poinPlacement,
             'total_kill': kill,
             'total_poin': totalPoin,
@@ -180,24 +192,31 @@ class _ScrimPointsPageState extends State<ScrimPointsPage> {
         } else {
           await _supabase.from('hasil_pertandingan').insert({
             'id_pendaftaran': team['id_pendaftaran'],
-            'id_sesi': sesiId,
+            'id_sesi': widget.sesiId,
             'match_ke': matchKe,
-            'peringkat': place,
+            'placement': place,
             'poin_placement': poinPlacement,
             'total_kill': kill,
             'total_poin': totalPoin,
           });
         }
       }
-      
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Skor berhasil disimpan'), backgroundColor: AppColors.success),
-      );
-      await _fetchTeamsData(sesiId);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Skor berhasil disimpan'),
+            backgroundColor: AppColors.success,
+          ),
+        );
+      }
+      await _fetchTeamsData(widget.sesiId);
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Gagal: $e'), backgroundColor: AppColors.error),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Gagal: $e'), backgroundColor: AppColors.error),
+        );
+      }
     } finally {
       setState(() => _isLoading = false);
     }
@@ -222,20 +241,18 @@ class _ScrimPointsPageState extends State<ScrimPointsPage> {
     int poinPlacement = 0;
     if (_teams[index]['place'] != null) {
       final found = _poinSystem.firstWhere(
-        (p) => p['peringkat_ke'] == _teams[index]['place'],
-        orElse: () => {'poin': 0},
+        (p) => p['placement'] == _teams[index]['place'],
+        orElse: () => {'poin_placement': 0},
       );
-      poinPlacement = found['poin'] ?? 0;
+      poinPlacement = found['poin_placement'] ?? 0;
     }
-    final totalPoin = poinPlacement + (_teams[index]['kill'] ?? 0);
-    _teams[index]['poin'] = totalPoin;
+    _teams[index]['poin'] = poinPlacement + (_teams[index]['kill'] ?? 0);
   }
 
   int get _totalTim => _teams.length;
   int get _sudahDiisi => _teams.where((t) => t['place'] != null).length;
   int get _belumDiisi => _totalTim - _sudahDiisi;
 
-  @override
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
@@ -277,20 +294,6 @@ class _ScrimPointsPageState extends State<ScrimPointsPage> {
                     ),
                   ),
 
-                  // Match selector
-                  if (_sessions.isNotEmpty)
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: Row(
-                        children: List.generate(4, (i) => Expanded(
-                          child: _matchButton(i + 1, _selectedMatch, (match) async {
-                            setState(() => _selectedMatch = match - 1);
-                            await _fetchTeamsData(_sessions[_selectedMatch]['id_sesi']);
-                          }),
-                        )),
-                      ),
-                    ),
-
                   const SizedBox(height: 12),
 
                   // Daftar tim
@@ -312,8 +315,10 @@ class _ScrimPointsPageState extends State<ScrimPointsPage> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(team['nama_tim'], style: AppTextStyles.poppinsTitleSmall.copyWith(fontSize: 14)),
-                            Text('& Capt: ${team['kapten']}', style: AppTextStyles.interCaption.copyWith(fontSize: 11)),
+                            Text(team['nama_tim'],
+                                style: AppTextStyles.poppinsTitleSmall.copyWith(fontSize: 14)),
+                            Text('& Capt: ${team['kapten']}',
+                                style: AppTextStyles.interCaption.copyWith(fontSize: 11)),
                             const SizedBox(height: 8),
                             Row(
                               crossAxisAlignment: CrossAxisAlignment.start,
@@ -322,9 +327,11 @@ class _ScrimPointsPageState extends State<ScrimPointsPage> {
                                   child: Column(
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
-                                      Text('Place', style: AppTextStyles.interLabel.copyWith(fontSize: 10)),
+                                      Text('Place',
+                                          style: AppTextStyles.interLabel.copyWith(fontSize: 10)),
                                       const SizedBox(height: 2),
-                                      _buildPlaceDropdown(team['place'], (place) => _updatePlace(i, place)),
+                                      _buildPlaceDropdown(
+                                          team['place'], (place) => _updatePlace(i, place)),
                                     ],
                                   ),
                                 ),
@@ -333,9 +340,11 @@ class _ScrimPointsPageState extends State<ScrimPointsPage> {
                                   child: Column(
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
-                                      Text('Kill', style: AppTextStyles.interLabel.copyWith(fontSize: 10)),
+                                      Text('Kill',
+                                          style: AppTextStyles.interLabel.copyWith(fontSize: 10)),
                                       const SizedBox(height: 2),
-                                      _buildKillField(i, team['kill'], (kill) => _updateKill(i, kill)),
+                                      _buildKillField(
+                                          i, team['kill'], (kill) => _updateKill(i, kill)),
                                     ],
                                   ),
                                 ),
@@ -344,7 +353,8 @@ class _ScrimPointsPageState extends State<ScrimPointsPage> {
                                   child: Column(
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
-                                      Text('Poin', style: AppTextStyles.interLabel.copyWith(fontSize: 10)),
+                                      Text('Poin',
+                                          style: AppTextStyles.interLabel.copyWith(fontSize: 10)),
                                       const SizedBox(height: 2),
                                       Container(
                                         height: 40,
@@ -355,7 +365,8 @@ class _ScrimPointsPageState extends State<ScrimPointsPage> {
                                         child: Center(
                                           child: Text(
                                             '${team['poin']}',
-                                            style: AppTextStyles.poppinsMoneyLarge.copyWith(fontSize: 16),
+                                            style: AppTextStyles.poppinsMoneyLarge
+                                                .copyWith(fontSize: 16),
                                           ),
                                         ),
                                       ),
@@ -369,7 +380,7 @@ class _ScrimPointsPageState extends State<ScrimPointsPage> {
                       );
                     },
                   ),
-                  
+
                   const SizedBox(height: 12),
                 ],
               ),
@@ -388,7 +399,8 @@ class _ScrimPointsPageState extends State<ScrimPointsPage> {
                   backgroundColor: AppColors.primary,
                   foregroundColor: Colors.black,
                 ),
-                child: Text('SIMPAN SEMUA POIN', style: AppTextStyles.poppinsButton.copyWith(fontSize: 13)),
+                child: Text('SIMPAN SEMUA POIN',
+                    style: AppTextStyles.poppinsButton.copyWith(fontSize: 13)),
               ),
             ),
           ),
@@ -416,32 +428,6 @@ class _ScrimPointsPageState extends State<ScrimPointsPage> {
     );
   }
 
-  Widget _matchButton(int match, int selectedMatch, Function(int) onTap) {
-    final isSelected = selectedMatch == match - 1;
-    return GestureDetector(
-      onTap: () => onTap(match),
-      child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 2),
-        padding: const EdgeInsets.symmetric(vertical: 6),
-        decoration: BoxDecoration(
-          color: isSelected ? AppColors.primary : Colors.transparent,
-          borderRadius: BorderRadius.circular(6),
-          border: Border.all(color: AppColors.primary),
-        ),
-        child: Center(
-          child: Text(
-            'Match $match',
-            style: AppTextStyles.interBodyMedium.copyWith(
-              color: isSelected ? Colors.black : AppColors.primary,
-              fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-              fontSize: 11,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
   Widget _buildPlaceDropdown(int? currentPlace, Function(int?) onChanged) {
     return Container(
       height: 40,
@@ -458,11 +444,17 @@ class _ScrimPointsPageState extends State<ScrimPointsPage> {
           style: AppTextStyles.interInput.copyWith(fontSize: 12),
           hint: Text('Pilih', style: AppTextStyles.interHint.copyWith(fontSize: 11)),
           items: [
-            const DropdownMenuItem(value: null, child: Text('Pilih Place', style: TextStyle(fontSize: 11))),
-            ..._poinSystem.map((p) => DropdownMenuItem(
-              value: p['peringkat_ke'],
-              child: Text('#${p['peringkat_ke']} - ${p['poin']} Poin', style: const TextStyle(fontSize: 11)),
-            )),
+            const DropdownMenuItem<int?>(
+              value: null,
+              child: Text('Pilih Place', style: TextStyle(fontSize: 11)),
+            ),
+            ..._poinSystem.map((p) => DropdownMenuItem<int?>(
+                  value: p['placement'] as int,
+                  child: Text(
+                    '#${p['placement']} - ${p['poin_placement']} Poin',
+                    style: const TextStyle(fontSize: 11),
+                  ),
+                )),
           ],
           onChanged: onChanged,
         ),
@@ -478,25 +470,19 @@ class _ScrimPointsPageState extends State<ScrimPointsPage> {
         color: AppColors.inputFill,
         borderRadius: BorderRadius.circular(10),
       ),
-      child: Row(
-        children: [
-          Expanded(
-            child: TextField(
-              controller: _killControllers[index],
-              textAlign: TextAlign.center,
-              style: AppTextStyles.interInput.copyWith(fontSize: 13),
-              keyboardType: TextInputType.number,
-              decoration: const InputDecoration(
-                border: InputBorder.none,
-                contentPadding: EdgeInsets.symmetric(vertical: 8),
-              ),
-              onChanged: (value) {
-                final kill = int.tryParse(value) ?? 0;
-                onChanged(kill);
-              },
-            ),
-          ),
-        ],
+      child: TextField(
+        controller: _killControllers[index],
+        textAlign: TextAlign.center,
+        style: AppTextStyles.interInput.copyWith(fontSize: 13),
+        keyboardType: TextInputType.number,
+        decoration: const InputDecoration(
+          border: InputBorder.none,
+          contentPadding: EdgeInsets.symmetric(vertical: 8),
+        ),
+        onChanged: (value) {
+          final kill = int.tryParse(value) ?? 0;
+          onChanged(kill);
+        },
       ),
     );
   }
