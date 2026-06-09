@@ -104,29 +104,15 @@ class _EditScrimPageState extends State<EditScrimPage> {
           .select('id_mode, nama_mode')
           .order('id_mode', ascending: true);
 
-      if (response.isEmpty) {
-        setState(() {
-          _modes = [
-            {'id_mode': 1, 'nama_mode': 'Clash Squad'},
-            {'id_mode': 2, 'nama_mode': 'Battle Royale'},
-            {'id_mode': 3, 'nama_mode': 'Ranked BR'},
-            {'id_mode': 4, 'nama_mode': 'Solo Vs Squad'},
-          ];
-        });
-      } else {
-        setState(() => _modes = List<Map<String, dynamic>>.from(response));
-      }
+      setState(() => _modes = List<Map<String, dynamic>>.from(response));
     } catch (e) {
-      setState(() {
-        _modes = [
-          {'id_mode': 1, 'nama_mode': 'Clash Squad'},
-          {'id_mode': 2, 'nama_mode': 'Battle Royale'},
-          {'id_mode': 3, 'nama_mode': 'Ranked BR'},
-          {'id_mode': 4, 'nama_mode': 'Solo Vs Squad'},
-        ];
-      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Gagal memuat mode: $e')),
+        );
+      }
     } finally {
-      setState(() => _isLoadingModes = false);
+      if (mounted) setState(() => _isLoadingModes = false);
     }
   }
 
