@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 import 'package:crypto/crypto.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../../config/app_session.dart';
 import '../../../config/supabase_client.dart';
 import '../akun_model.dart';
 import '../profil_model.dart';
@@ -22,7 +23,7 @@ class AuthService {
   // ============================================================
   Future<Map<String, dynamic>> login({
     required String email,
-    required String password, // password sudah dalam bentuk hash dari UI
+    required String password, // password plain text dari UI
   }) async {
     try {
       // Cari user di tabel akun berdasarkan email
@@ -37,7 +38,8 @@ class AuthService {
       }
 
       // Bandingkan hash password
-      if (userData['kata_sandi'] != password) {
+      final hashedPassword = _hashPassword(password);
+      if (userData['kata_sandi'] != hashedPassword) {
         return {'success': false, 'message': 'Password salah'};
       }
 
@@ -47,15 +49,15 @@ class AuthService {
         return {'success': false, 'message': 'Akun Anda belum aktif atau diblokir'};
       }
 
-      // Optional: Login ke Supabase Auth untuk session (pakai password asli, bukan hash)
-      // Tapi karena kita sudah verifikasi, bisa skip atau pakai hash juga
+      // Simpan session lokal (fallback jika Supabase Auth session tidak tersedia)
+      await AppSession.save(email: email);
+
+      // Login ke Supabase Auth untuk session (pakai password asli)
       try {
-        // Untuk session, kita perlu password asli. Tapi kita tidak punya.
-        // Jadi lebih baik tidak pakai Supabase Auth session.
-        // await _supabase.auth.signInWithPassword(
-        //   email: email,
-        //   password: password, // ini hash, bakal gagal
-        // );
+        await _supabase.auth.signInWithPassword(
+          email: email,
+          password: password,
+        );
       } catch (_) {}
 
       final akun = Akun.fromJson(userData);
@@ -247,6 +249,7 @@ class AuthService {
   // LOGOUT
   // ============================================================
   Future<void> logout() async {
+    await AppSession.clear();
     await _supabase.auth.signOut();
   }
 

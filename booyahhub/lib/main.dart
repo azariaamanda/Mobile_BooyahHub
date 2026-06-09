@@ -1,6 +1,7 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'config/app_session.dart';
 import 'config/app_theme.dart';
 import 'data/models/services/fcm_service.dart';
 import 'router/app_router.dart';
@@ -21,6 +22,8 @@ void main() async {
     url: 'https://cswveniezmeyvjojsfls.supabase.co',
     anonKey: 'sb_publishable_iDsJBrqpI1cvRpjPwoohMg_0PCRXjET',
   );
+
+  await AppSession.load();
 
   runApp(const MyApp());
 }

@@ -1,5 +1,6 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../config/app_session.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../config/app_color.dart';
 import '../../config/app_constants.dart';
@@ -53,7 +54,7 @@ class _OwnerNotificationPageState extends State<OwnerNotificationPage> {
 
   Future<void> _loadReadNotificationsAndFetch() async {
     // Buat key per-user berdasarkan ID akun yang sedang login
-    final userId = Supabase.instance.client.auth.currentUser?.id;
+    final userId = Supabase.instance.client.sessionUserId;
     if (userId != null) {
       _prefKey = 'read_notifications_$userId';
     }

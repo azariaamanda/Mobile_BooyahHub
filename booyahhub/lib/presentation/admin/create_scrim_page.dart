@@ -1,8 +1,9 @@
-import 'dart:typed_data';
+﻿import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../config/app_session.dart';
 import '../../config/app_color.dart';
 import '../../config/app_constants.dart';
 import '../../config/app_text_styles.dart';
@@ -358,7 +359,7 @@ class _CreateScrimPageState extends State<CreateScrimPage> {
     setState(() => _isLoading = true);
 
     try {
-      final adminEmail = _supabase.auth.currentUser?.email;
+      final adminEmail = _supabase.sessionEmail;
       if (adminEmail == null) throw Exception('User tidak ditemukan');
       
       final adminData = await _supabase

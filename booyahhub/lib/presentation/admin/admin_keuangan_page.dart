@@ -1,5 +1,6 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../config/app_session.dart';
 import '../../config/app_color.dart';
 import '../../config/app_constants.dart';
 import '../../config/app_text_styles.dart';
@@ -37,7 +38,7 @@ class _AdminKeuanganPageState extends State<AdminKeuanganPage> {
       _error = null;
     });
     try {
-      final userEmail = _supabase.auth.currentUser?.email;
+      final userEmail = _supabase.sessionEmail;
       if (userEmail == null) throw Exception('Sesi habis, silakan login ulang');
 
       // 1. Ambil id_akun admin yang sedang login

@@ -1,5 +1,6 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../config/app_session.dart';
 import '../../config/app_color.dart';
 import '../../config/app_constants.dart';
 import '../../config/app_text_styles.dart';
@@ -32,7 +33,7 @@ class _ScrimLeaderboardPageState extends State<ScrimLeaderboardPage> {
     setState(() => _isLoading = true);
     try {
       // Ambil current user
-      final userEmail = _supabase.auth.currentUser?.email;
+      final userEmail = _supabase.sessionEmail;
       if (userEmail != null) {
         final userData = await _supabase
             .from('akun')

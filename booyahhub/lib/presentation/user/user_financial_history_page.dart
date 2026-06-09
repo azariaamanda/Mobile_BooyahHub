@@ -1,6 +1,7 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../config/app_session.dart';
 import '../../config/app_color.dart';
 import '../../config/app_constants.dart';
 import '../../config/app_text_styles.dart';
@@ -51,15 +52,15 @@ class _TransactionHistoryPageState extends State<TransactionHistoryPage> {
 
   void _initializeData() async {
     try {
-      final currentUser = _supabase.auth.currentUser;
-      if (currentUser == null) {
+      final email = _supabase.sessionEmail;
+      if (email == null) {
         throw Exception('User tidak ditemukan');
       }
 
       final akunResponse = await _supabase
           .from('akun')
           .select('id_akun')
-          .eq('email', currentUser.email!)
+          .eq('email', email!)
           .maybeSingle();
 
       if (akunResponse == null) {

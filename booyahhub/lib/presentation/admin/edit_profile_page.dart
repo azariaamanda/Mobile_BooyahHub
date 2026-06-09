@@ -1,8 +1,9 @@
-import 'dart:typed_data';
+﻿import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../config/app_session.dart';
 import '../../config/app_color.dart';
 import '../../config/app_constants.dart';
 import '../../config/app_text_styles.dart';
@@ -44,7 +45,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
   Future<void> _fetchData() async {
     setState(() => _isLoading = true);
     try {
-      final userEmail = _supabase.auth.currentUser?.email;
+      final userEmail = _supabase.sessionEmail;
       if (userEmail == null) throw Exception('Sesi habis');
 
       final akunData = await _supabase

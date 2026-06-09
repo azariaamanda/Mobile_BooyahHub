@@ -1,5 +1,3 @@
-import 'dart:convert';
-import 'package:crypto/crypto.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../config/app_color.dart';
@@ -28,12 +26,6 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
-  String _hashPassword(String password) {
-    final bytes = utf8.encode(password);
-    final digest = sha256.convert(bytes);
-    return digest.toString();
-  }
-
   Future<void> _onLogin() async {
     final valid = _formKey.currentState?.validate() ?? false;
     if (!valid) return;
@@ -44,11 +36,9 @@ class _LoginScreenState extends State<LoginScreen> {
     });
 
     try {
-      final hashedPassword = _hashPassword(_passwordController.text);
-
       final result = await AuthService().login(
         email: _emailController.text.trim(),
-        password: hashedPassword,
+        password: _passwordController.text,
       );
 
       if (result['success'] != true) {

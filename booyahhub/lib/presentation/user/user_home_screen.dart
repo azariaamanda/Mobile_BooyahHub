@@ -1,8 +1,9 @@
-import 'dart:async';
+﻿import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../config/app_session.dart';
 import '../../config/app_color.dart';
 import '../../config/app_constants.dart';
 import '../../config/app_image_helper.dart';
@@ -52,7 +53,7 @@ class UserHomeScreenState extends State<UserHomeScreen> {
 
   Future<void> _showUnreadNotifications() async {
     try {
-      final userId = Supabase.instance.client.auth.currentUser?.id;
+      final userId = Supabase.instance.client.sessionUserId;
       if (userId == null) return;
 
       final prefs = await SharedPreferences.getInstance();
@@ -146,13 +147,13 @@ class UserHomeScreenState extends State<UserHomeScreen> {
   // ─── FUNGSI AMBIL DATA PROFIL DARI DATABASE ───
   Future<Map<String, dynamic>?> fetchUserData() async {
     try {
-      final currentUser = _supabase.auth.currentUser;
-      if (currentUser == null || currentUser.email == null) return null;
+      final email = _supabase.sessionEmail;
+      if (email == null) return null;
 
       final response = await _supabase
           .from('profil_pengguna')
           .select('nama_tim, foto_profil, akun!inner(email)')
-          .eq('akun.email', currentUser.email!)
+          .eq('akun.email', email!)
           .maybeSingle();
 
       return response;

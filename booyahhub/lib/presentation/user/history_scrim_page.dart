@@ -1,6 +1,7 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../config/app_session.dart';
 import 'package:intl/intl.dart'; 
 
 import '../../config/app_color.dart';
@@ -64,7 +65,7 @@ class _HistoryScrimPageState extends State<HistoryScrimPage> {
   Future<List<Map<String, dynamic>>> _fetchHistoryScrim() async {
     try {
       final supabase = Supabase.instance.client;
-      final userEmail = supabase.auth.currentUser?.email;
+      final userEmail = supabase.sessionEmail;
 
       if (userEmail == null) {
         throw 'User belum login bray, silakan login dulu.';

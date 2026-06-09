@@ -1,7 +1,8 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../config/app_color.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../config/app_session.dart';
 
 class BookingFormPage extends StatefulWidget {
   final int sesiId;
@@ -47,9 +48,9 @@ class _BookingFormPageState extends State<BookingFormPage> {
   Future<void> _loadUserData() async {
     try {
       final supabase = Supabase.instance.client;
-      final currentUser = supabase.auth.currentUser;
+      final email = supabase.sessionEmail;
 
-      if (currentUser == null) {
+      if (email == null) {
         setState(() => _namaTim = 'Belum Login');
         return;
       }
@@ -58,7 +59,7 @@ class _BookingFormPageState extends State<BookingFormPage> {
       final akunResponse = await supabase
           .from('akun')
           .select('id_akun')
-          .eq('email', currentUser.email!)
+          .eq('email', email!)
           .maybeSingle();
 
       if (akunResponse == null) {
@@ -109,15 +110,15 @@ class _BookingFormPageState extends State<BookingFormPage> {
         );
 
         final supabase = Supabase.instance.client;
-        final currentUser = supabase.auth.currentUser;
+        final email = supabase.sessionEmail;
 
-        if (currentUser == null) throw Exception('User tidak login');
+        if (email == null) throw Exception('User tidak login');
 
         // 1. Cari id_akun dari email user
         final akunResponse = await supabase
             .from('akun')
             .select('id_akun')
-            .eq('email', currentUser.email!)
+            .eq('email', email!)
             .maybeSingle();
 
         if (akunResponse == null) throw Exception('Akun tidak ditemukan');

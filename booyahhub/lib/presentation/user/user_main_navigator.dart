@@ -1,8 +1,9 @@
-import 'dart:async';
+﻿import 'dart:async';
 import 'package:booyahhub/presentation/user/user_pesanan.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../config/app_session.dart';
 import '../../config/app_color.dart';
 import '../../config/app_constants.dart';
 import '../../data/models/services/notification_service.dart';
@@ -62,7 +63,7 @@ class _UserMainNavigatorState extends State<UserMainNavigator>
   }
 
   Future<void> _initNotifications() async {
-    final email = Supabase.instance.client.auth.currentUser?.email;
+    final email = Supabase.instance.client.sessionEmail;
     if (email == null) return;
 
     final akun = await Supabase.instance.client

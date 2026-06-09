@@ -1,5 +1,6 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../config/app_session.dart';
 import '../../config/app_color.dart';
 import '../../config/app_text_styles.dart';
 import 'owner_notification_page.dart';
@@ -49,7 +50,7 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
 
   Future<void> _showUnreadNotifications() async {
     try {
-      final userId = Supabase.instance.client.auth.currentUser?.id;
+      final userId = Supabase.instance.client.sessionUserId;
       if (userId == null) return;
 
       final prefs = await SharedPreferences.getInstance();
@@ -176,13 +177,13 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
   Future<void> _fetchOwnerProfile() async {
     try {
       final supabase = Supabase.instance.client;
-      final currentUser = supabase.auth.currentUser;
-      if (currentUser?.email == null) return;
+      final email = supabase.sessionEmail;
+      if (email == null) return;
 
       final response = await supabase
           .from('profil_owner')
           .select('nama_lengkap, foto_profil, akun!inner(email)')
-          .eq('akun.email', currentUser!.email!)
+          .eq('akun.email', email)
           .maybeSingle();
 
       if (mounted && response != null) {

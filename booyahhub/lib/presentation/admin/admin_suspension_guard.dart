@@ -1,6 +1,7 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../config/app_session.dart';
 import '../../config/app_color.dart';
 import '../../../config/app_text_styles.dart';
 import '../../data/models/services/admin_utang_service.dart';
@@ -37,8 +38,8 @@ class _AdminSuspensionGuardState extends State<AdminSuspensionGuard> {
 
   Future<void> _checkStatus() async {
     try {
-      final currentUser = _supabase.auth.currentUser;
-      if (currentUser == null) {
+      final email = _supabase.sessionEmail;
+      if (email == null) {
         setState(() {
           _isLoading = false;
           _isSuspended = false;
@@ -49,7 +50,7 @@ class _AdminSuspensionGuardState extends State<AdminSuspensionGuard> {
       final akunData = await _supabase
           .from('akun')
           .select('id_akun')
-          .eq('email', currentUser.email!)
+          .eq('email', email!)
           .maybeSingle();
 
       if (akunData == null) {

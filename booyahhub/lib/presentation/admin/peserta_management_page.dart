@@ -1,4 +1,4 @@
-// lib/presentation/admin/peserta_management_page.dart
+﻿// lib/presentation/admin/peserta_management_page.dart
 //
 // Isi tab "Peserta" pada AdminMainNavigator.
 // PENTING: halaman ini TIDAK punya bottomNavigationBar sendiri —
@@ -7,6 +7,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../config/app_session.dart';
 
 import '../../config/app_color.dart';
 import '../../config/app_constants.dart';
@@ -47,13 +48,13 @@ class _PesertaManagementPageState extends State<PesertaManagementPage> {
   Future<void> _fetchData() async {
     setState(() { _isLoading = true; _errorMessage = null; });
     try {
-      final user = _supabase.auth.currentUser;
-      if (user == null) throw Exception('Belum login');
+      final email = _supabase.sessionEmail;
+      if (email == null) throw Exception('Belum login');
 
       final akunData = await _supabase
           .from('akun')
           .select('id_akun')
-          .eq('email', user.email!)
+          .eq('email', email!)
           .single();
       final int adminId = akunData['id_akun'];
 

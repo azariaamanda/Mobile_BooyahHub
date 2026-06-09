@@ -1,6 +1,7 @@
-import 'dart:math' show min, max;
+﻿import 'dart:math' show min, max;
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../config/app_session.dart';
 import '../../config/app_color.dart';
 import '../../config/app_constants.dart';
 import '../../config/app_text_styles.dart';
@@ -70,7 +71,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   Future<void> _fetchData() async {
     setState(() => _isLoading = true);
     try {
-      final email = _supabase.auth.currentUser?.email;
+      final email = _supabase.sessionEmail;
       if (email == null) return;
 
       // Admin info

@@ -1,6 +1,7 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../config/app_session.dart';
 import '../../config/app_color.dart';
 import '../../config/app_constants.dart';
 import '../../config/app_text_styles.dart';
@@ -43,8 +44,8 @@ class _UserPesananPageState extends State<UserPesananPage> {
     });
 
     try {
-      final currentUser = _supabase.auth.currentUser;
-      if (currentUser == null || currentUser.email == null) {
+      final email = _supabase.sessionEmail;
+      if (email == null) {
         setState(() {
           _errorMessage = 'Silakan login terlebih dahulu';
           _isLoading = false;
@@ -55,7 +56,7 @@ class _UserPesananPageState extends State<UserPesananPage> {
       final akunResponse = await _supabase
           .from('akun')
           .select('id_akun')
-          .eq('email', currentUser.email!)
+          .eq('email', email!)
           .maybeSingle();
 
       if (akunResponse == null) {

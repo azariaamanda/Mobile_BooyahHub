@@ -1,9 +1,10 @@
-// lib/presentation/admin/admin_bayar_tagihan_page.dart
+﻿// lib/presentation/admin/admin_bayar_tagihan_page.dart
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../config/app_session.dart';
 import 'dart:typed_data';
 import 'package:image_picker/image_picker.dart';
 import '../../config/app_color.dart';
@@ -107,8 +108,8 @@ class _AdminBayarTagihanPageState extends State<AdminBayarTagihanPage> {
     setState(() => _isLoading = true);
     
     try {
-      final currentUser = _supabase.auth.currentUser;
-      if (currentUser == null) {
+      final email = _supabase.sessionEmail;
+      if (email == null) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Silakan login terlebih dahulu')),
@@ -128,7 +129,7 @@ class _AdminBayarTagihanPageState extends State<AdminBayarTagihanPage> {
               limit_utang
             )
           ''')
-          .eq('email', currentUser.email!)
+          .eq('email', email!)
           .maybeSingle();
       
       if (data == null) {

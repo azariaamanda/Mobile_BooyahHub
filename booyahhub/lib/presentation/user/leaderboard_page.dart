@@ -1,7 +1,8 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../config/app_session.dart';
 import '../../config/app_color.dart';
 import '../../config/app_constants.dart';
 import '../../config/app_text_styles.dart';
@@ -58,7 +59,7 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
 
       // 2. Ambil Akun ID pengguna saat ini untuk highlight "Kamu"
       int? currentUserAkunId;
-      final currentUserEmail = supabase.auth.currentUser?.email;
+      final currentUserEmail = supabase.sessionEmail;
       if (currentUserEmail != null) {
         final akunRes = await supabase
             .from('akun')
