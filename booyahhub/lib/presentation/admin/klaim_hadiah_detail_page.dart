@@ -1,16 +1,66 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../config/app_color.dart';
 import '../../config/app_constants.dart';
 import '../../config/app_text_styles.dart';
 
-class KlaimHadiahDetailPage extends StatelessWidget {
+class KlaimHadiahDetailPage extends StatefulWidget {
   const KlaimHadiahDetailPage({super.key});
 
+  @override
+  State<KlaimHadiahDetailPage> createState() => _KlaimHadiahDetailPageState();
+}
+
+class _KlaimHadiahDetailPageState extends State<KlaimHadiahDetailPage> {
   static const int _totalPendapatan = 600000;
   static const int _jumlahTim = 12;
-  static const int _feePlatform = 30000; // 5%
-  static const int _feeAdmin = 60000; // 10%
-  static const int _sisaHadiah = 510000;
+
+  // Fee settings
+  int _feePlatformPersen = 25;
+  int _nominalMinimumPlatform = 5000;
+  int _feeAdminPersen = 10;
+  int _feeAdminTetap = 10000;
+  bool _isPersentaseAdmin = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchFeeSettings();
+  }
+
+  Future<void> _fetchFeeSettings() async {
+    try {
+      final feeSetting = await Supabase.instance.client
+          .from('pengaturan_fee')
+          .select()
+          .maybeSingle();
+      
+      if (feeSetting != null && mounted) {
+        setState(() {
+          _feePlatformPersen = feeSetting['fee_platform_persen'] ?? 25;
+          _nominalMinimumPlatform = feeSetting['nominal_minimum_platform'] ?? 5000;
+          _feeAdminPersen = feeSetting['fee_admin_persen'] ?? 10;
+          _feeAdminTetap = feeSetting['fee_admin_tetap'] ?? 10000;
+          _isPersentaseAdmin = feeSetting['is_persentase_admin'] ?? true;
+        });
+      }
+    } catch (e) {
+      print('Error fetch fee settings: $e');
+    }
+  }
+
+  int get _feePlatform {
+    int fee = (_totalPendapatan * _feePlatformPersen ~/ 100);
+    return fee < _nominalMinimumPlatform ? _nominalMinimumPlatform : fee;
+  }
+  
+  int get _feeAdmin {
+    return _isPersentaseAdmin 
+        ? (_totalPendapatan * _feeAdminPersen ~/ 100)
+        : _feeAdminTetap;
+  }
+  
+  int get _sisaHadiah => _totalPendapatan - _feePlatform - _feeAdmin;
 
   static const List<Map<String, dynamic>> _pemenang = [
     {
@@ -158,7 +208,9 @@ class KlaimHadiahDetailPage extends StatelessWidget {
 
           // Fee platform
           _buildFinanceRow(
-            label: 'Fee Platform (5%)',
+            label: _feePlatform == _nominalMinimumPlatform 
+                ? 'Fee Platform (Min. Rp${_nominalMinimumPlatform ~/ 1000}K)' 
+                : 'Fee Platform ($_feePlatformPersen%)',
             value: '-${_formatRupiah(_feePlatform)}',
             valueColor: AppColors.textSecondary,
           ),
@@ -166,7 +218,7 @@ class KlaimHadiahDetailPage extends StatelessWidget {
 
           // Fee admin
           _buildFinanceRow(
-            label: 'Fee Admin (10%)',
+            label: _isPersentaseAdmin ? 'Fee Admin ($_feeAdminPersen%)' : 'Fee Admin (Tetap)',
             value: '-${_formatRupiah(_feeAdmin)}',
             valueColor: AppColors.textSecondary,
           ),
