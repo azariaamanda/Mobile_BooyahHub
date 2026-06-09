@@ -1,3 +1,5 @@
+import 'dart:convert';
+import 'package:crypto/crypto.dart';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -24,6 +26,12 @@ class _RegisterAdminPageState extends State<RegisterAdminPage> {
   final _noHpController = TextEditingController();
   final _passwordController = TextEditingController();
   final _konfirmasiPasswordController = TextEditingController();
+
+  String _hashPassword(String password) {
+  final bytes = utf8.encode(password);
+  final digest = sha256.convert(bytes);
+  return digest.toString();
+}
   
   // Metode Pembayaran - BANK
   final _bankAccountController = TextEditingController();
@@ -288,10 +296,13 @@ class _RegisterAdminPageState extends State<RegisterAdminPage> {
       // ============================================================
       // STEP 6: INSERT KE TABEL AKUN
       // ============================================================
+      final hashedPassword = _hashPassword(_passwordController.text);
+
       final akunResponse = await supabase
           .from('akun')
           .insert({
             'email': email,
+            'kata_sandi': hashedPassword, // Ganti _passwordController.text dengan hashedPassword
             'role': 'admin',
             'status_akun': 'pending',
             'status_metode_pembayaran': 'pending',
