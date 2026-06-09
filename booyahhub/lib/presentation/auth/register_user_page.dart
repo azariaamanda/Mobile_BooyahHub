@@ -56,7 +56,7 @@ class _RegisterUserPageState extends State<RegisterUserPage> {
       final result = await AuthService().registerPengguna(
         namaTim: _namaTimController.text.trim(),
         email: _emailController.text.trim(),
-        password: _hashPassword(_passwordController.text),
+        password: _passwordController.text,
       );
 
       if (result['success']) {

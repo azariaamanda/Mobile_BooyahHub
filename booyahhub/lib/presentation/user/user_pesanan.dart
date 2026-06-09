@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../config/app_session.dart';
@@ -101,11 +101,7 @@ class _UserPesananPageState extends State<UserPesananPage> {
                 total_hadiah
               )
             ),
-            hasil_pertandingan (
-              peringkat,
-              total_kill,
-              total_poin
-            ),
+            hasil_pertandingan (*),
             klaim_hadiah (
               status_klaim,
               diajukan_pada,

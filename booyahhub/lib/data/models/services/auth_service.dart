@@ -110,14 +110,27 @@ class AuthService {
   Future<Map<String, dynamic>> registerPengguna({
     required String namaTim,
     required String email,
-    required String password, // password sudah dalam bentuk hash
+    required String password, // password plain text dari UI
   }) async {
     try {
+      // 1. Buat user di Supabase Auth agar RLS (Authenticated) berfungsi
+      try {
+        await _supabase.auth.signUp(
+          email: email,
+          password: password,
+        );
+      } catch (e) {
+        // Abaikan jika error (misal: user sudah ada di auth.users)
+      }
+
+      // 2. Hash password untuk tabel akun kustom
+      final hashedPassword = _hashPassword(password);
+
       final akunData = await _supabase
           .from('akun')
           .insert({
             'email': email,
-            'kata_sandi': password,
+            'kata_sandi': hashedPassword,
             'role': 'pengguna',
             'status_akun': 'aktif'
           })
@@ -203,16 +216,27 @@ class AuthService {
     required String namaLengkap,
     required String email,
     required String noHandphone,
-    required String password, // password sudah dalam bentuk hash
+    required String password, // password plain text dari UI
     String? bankOwner,
     String? nomorRekening,
   }) async {
     try {
+      // 1. Buat user di Supabase Auth
+      try {
+        await _supabase.auth.signUp(
+          email: email,
+          password: password,
+        );
+      } catch (e) {}
+
+      // 2. Hash password untuk tabel akun kustom
+      final hashedPassword = _hashPassword(password);
+
       final akunData = await _supabase
           .from('akun')
           .insert({
             'email': email,
-            'kata_sandi': password,
+            'kata_sandi': hashedPassword,
             'role': 'owner',
             'status_akun': 'aktif'
           })
@@ -258,15 +282,14 @@ class AuthService {
   // ============================================================
   User? get currentUser => _supabase.auth.currentUser;
 
-  bool get isLoggedIn => currentUser != null;
+  bool get isLoggedIn => _supabase.sessionEmail != null;
 
   // ============================================================
   // GET CURRENT AKUN & PROFIL
   // ============================================================
   Future<Map<String, dynamic>?> getCurrentAkunAndProfil() async {
-    if (!isLoggedIn) return null;
-
-    final email = currentUser!.email!;
+    final email = _supabase.sessionEmail;
+    if (email == null) return null;
 
     try {
       final akunData = await _supabase
@@ -320,7 +343,8 @@ class AuthService {
     try {
       if (!isLoggedIn) return {'success': false, 'message': 'Belum login'};
       
-      final email = currentUser!.email!;
+      final email = _supabase.sessionEmail;
+      if (email == null) return {'success': false, 'message': 'Session invalid'};
 
       if (oldPassword != null && oldPassword.isNotEmpty && newPassword != null && newPassword.isNotEmpty) {
         // Cek password lama dengan hash
@@ -347,11 +371,12 @@ class AuthService {
       // Upload foto profil jika ada
       String? publicUrl;
       if (newFotoProfil != null) {
-        final fileName = '${currentUser!.id}_${DateTime.now().millisecondsSinceEpoch}.jpg';
+        final userId = _supabase.sessionUserId ?? email.split('@')[0];
+        final fileName = '${userId}_${DateTime.now().millisecondsSinceEpoch}.jpg';
         await _supabase.storage.from('foto_profil').uploadBinary(
           fileName,
           newFotoProfil,
-          fileOptions: const FileOptions(upsert: true),
+          fileOptions: const FileOptions(upsert: false),
         );
         publicUrl = _supabase.storage.from('foto_profil').getPublicUrl(fileName);
       }

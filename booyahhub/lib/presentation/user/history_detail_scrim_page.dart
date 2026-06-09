@@ -52,11 +52,7 @@ class _HistoryDetailScrimPageState extends State<HistoryDetailScrimPage> {
                 nama_scrim
               )
             ),
-            hasil_pertandingan(
-              peringkat, 
-              total_poin,
-              total_kill
-            )
+            hasil_pertandingan(*)
           ''')
           .eq('id_pendaftaran', widget.idPendaftaran)
           .maybeSingle();
