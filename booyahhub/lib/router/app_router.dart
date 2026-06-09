@@ -33,6 +33,7 @@ import '../presentation/admin/validate_payment_page.dart';
 import '../presentation/admin/input_score_page.dart';
 import '../presentation/admin/admin_claim_list_page.dart';
 import '../presentation/admin/admin_profile_page.dart';
+import '../presentation/admin/admin_premium_page.dart';
 import '../presentation/user/user_home_screen.dart';
 import '../presentation/user/scrim_page.dart';
 import '../presentation/user/user_pesanan.dart';
@@ -277,7 +278,7 @@ class AppRouter {
         path: '/admin/premium',
         name: 'admin_premium',
         builder: (context, state) => const AdminSuspensionGuard(
-          child: UserPremiumPage(),
+          child: AdminPremiumPage(),
         ),
       ),
       GoRoute(

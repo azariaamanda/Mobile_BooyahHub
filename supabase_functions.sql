@@ -261,10 +261,6 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- =============================================================
 -- BAGIAN 4: TABEL NOTIFIKASI + RLS + REALTIME
-<<<<<<< Updated upstream
--- Jalankan bagian ini di Supabase SQL Editor
-=======
->>>>>>> Stashed changes
 -- =============================================================
 
 CREATE TABLE IF NOT EXISTS notifikasi (
@@ -272,7 +268,6 @@ CREATE TABLE IF NOT EXISTS notifikasi (
   tipe           VARCHAR(50) NOT NULL,
   judul          TEXT        NOT NULL,
   pesan          TEXT        NOT NULL,
-<<<<<<< Updated upstream
   target_role    VARCHAR(20),               -- 'pengguna' / 'admin' / NULL = spesifik user
   target_id_akun INT REFERENCES akun(id_akun) ON DELETE CASCADE,
   data           JSONB       DEFAULT '{}',
@@ -287,32 +282,12 @@ CREATE INDEX IF NOT EXISTS idx_notifikasi_target
 ALTER PUBLICATION supabase_realtime ADD TABLE notifikasi;
 
 -- RLS: semua user terautentikasi boleh baca
-=======
-  target_role    VARCHAR(20),                      -- 'pengguna' / 'admin' / NULL = spesifik user
-  target_id_akun INT REFERENCES akun(id_akun) ON DELETE CASCADE,
-  data           JSONB       DEFAULT '{}',
-  sudah_dibaca   BOOLEAN     DEFAULT FALSE,
-  dibuat_pada    TIMESTAMPTZ DEFAULT NOW()
-);
-
-CREATE INDEX IF NOT EXISTS idx_notifikasi_target
-  ON notifikasi(target_id_akun, target_role, dibuat_pada DESC);
-
--- Aktifkan Realtime agar Flutter bisa subscribe live updates
-ALTER PUBLICATION supabase_realtime ADD TABLE notifikasi;
-
--- RLS: semua user terautentikasi boleh baca (filter dilakukan di Flutter)
->>>>>>> Stashed changes
 ALTER TABLE notifikasi ENABLE ROW LEVEL SECURITY;
 
 DO $$ BEGIN
   IF NOT EXISTS (
-<<<<<<< Updated upstream
     SELECT 1 FROM pg_policies
     WHERE tablename='notifikasi' AND policyname='notifikasi_read_all'
-=======
-    SELECT 1 FROM pg_policies WHERE tablename='notifikasi' AND policyname='notifikasi_read_all'
->>>>>>> Stashed changes
   ) THEN
     CREATE POLICY notifikasi_read_all
       ON notifikasi FOR SELECT TO authenticated USING (true);
@@ -372,12 +347,8 @@ BEGIN
     VALUES (
       'pembayaran_masuk',
       'Pembayaran Baru Menunggu',
-<<<<<<< Updated upstream
       COALESCE(v_nama_tim, 'Tim baru') || ' mendaftar scrim "' ||
         COALESCE(v_nama_scrim, '') || '". Verifikasi sekarang.',
-=======
-      COALESCE(v_nama_tim, 'Tim baru') || ' mendaftar scrim "' || COALESCE(v_nama_scrim, '') || '". Verifikasi sekarang.',
->>>>>>> Stashed changes
       v_id_admin,
       jsonb_build_object(
         'id_pendaftaran', NEW.id_pendaftaran,
@@ -421,12 +392,7 @@ BEGIN
     VALUES (
       'pembayaran_dikonfirmasi',
       'Pembayaran Dikonfirmasi',
-<<<<<<< Updated upstream
-      'Pendaftaran kamu untuk scrim "' || COALESCE(v_nama_scrim, '') ||
-        '" telah dikonfirmasi!',
-=======
       'Pendaftaran kamu untuk scrim "' || COALESCE(v_nama_scrim, '') || '" telah dikonfirmasi!',
->>>>>>> Stashed changes
       NEW.akun_id,
       jsonb_build_object('id_pendaftaran', NEW.id_pendaftaran)
     );
@@ -435,12 +401,7 @@ BEGIN
     VALUES (
       'pembayaran_ditolak',
       'Pembayaran Ditolak',
-<<<<<<< Updated upstream
-      'Pendaftaran kamu untuk scrim "' || COALESCE(v_nama_scrim, '') ||
-        '" ditolak. Hubungi admin.',
-=======
       'Pendaftaran kamu untuk scrim "' || COALESCE(v_nama_scrim, '') || '" ditolak. Hubungi admin.',
->>>>>>> Stashed changes
       NEW.akun_id,
       jsonb_build_object('id_pendaftaran', NEW.id_pendaftaran)
     );
@@ -456,30 +417,55 @@ CREATE TRIGGER trg_notif_status_pembayaran
   FOR EACH ROW
   EXECUTE FUNCTION fn_notif_status_pembayaran();
 
-<<<<<<< Updated upstream
-=======
 
 -- =============================================================
--- BAGIAN 6: TABEL FCM TOKENS (push notification background)
+-- BAGIAN 6: TRANSAKSI PREMIUM ADMIN
+-- Admin mengajukan upgrade premium → owner verifikasi →
+-- trigger otomatis aktifkan is_premium di tabel akun
 -- =============================================================
 
-CREATE TABLE IF NOT EXISTS fcm_tokens (
-  id          BIGSERIAL   PRIMARY KEY,
-  akun_id     INT         NOT NULL REFERENCES akun(id_akun) ON DELETE CASCADE,
-  token       TEXT        NOT NULL,
-  platform    VARCHAR(10) DEFAULT 'android',
-  dibuat_pada TIMESTAMPTZ DEFAULT NOW(),
-  UNIQUE(akun_id, platform)
+CREATE TABLE IF NOT EXISTS transaksi_premium (
+  id                BIGSERIAL    PRIMARY KEY,
+  akun_id           INT          NOT NULL REFERENCES akun(id_akun) ON DELETE CASCADE,
+  nama_paket        TEXT         NOT NULL,
+  harga             NUMERIC      NOT NULL,
+  durasi_hari       INT          NOT NULL DEFAULT 30,
+  tier_level        VARCHAR(30),
+  status            VARCHAR(20)  NOT NULL DEFAULT 'menunggu', -- menunggu / aktif / ditolak
+  bukti_pembayaran  TEXT,
+  tanggal_mulai     TIMESTAMPTZ,
+  tanggal_berakhir  TIMESTAMPTZ,
+  dibuat_pada       TIMESTAMPTZ  NOT NULL DEFAULT NOW()
 );
 
-ALTER TABLE fcm_tokens ENABLE ROW LEVEL SECURITY;
+-- Trigger: saat status diubah menjadi 'aktif' → set is_premium=true + isi tanggal
+CREATE OR REPLACE FUNCTION fn_aktifkan_premium()
+RETURNS TRIGGER AS $$
+BEGIN
+  IF NEW.status = 'aktif' AND COALESCE(OLD.status, '') <> 'aktif' THEN
+    NEW.tanggal_mulai    := NOW();
+    NEW.tanggal_berakhir := NOW() + (NEW.durasi_hari || ' days')::INTERVAL;
+    UPDATE akun SET is_premium = true WHERE id_akun = NEW.akun_id;
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+DROP TRIGGER IF EXISTS trg_aktifkan_premium ON transaksi_premium;
+CREATE TRIGGER trg_aktifkan_premium
+  BEFORE UPDATE ON transaksi_premium
+  FOR EACH ROW
+  EXECUTE FUNCTION fn_aktifkan_premium();
+
+-- RLS: semua user terautentikasi bisa baca & tulis (akses diatur di app layer)
+ALTER TABLE transaksi_premium ENABLE ROW LEVEL SECURITY;
 
 DO $$ BEGIN
   IF NOT EXISTS (
-    SELECT 1 FROM pg_policies WHERE tablename='fcm_tokens' AND policyname='fcm_tokens_manage'
+    SELECT 1 FROM pg_policies
+    WHERE tablename='transaksi_premium' AND policyname='transaksi_premium_all'
   ) THEN
-    CREATE POLICY fcm_tokens_manage
-      ON fcm_tokens FOR ALL TO authenticated USING (true) WITH CHECK (true);
+    CREATE POLICY transaksi_premium_all ON transaksi_premium
+      FOR ALL TO authenticated USING (true) WITH CHECK (true);
   END IF;
 END $$;
->>>>>>> Stashed changes

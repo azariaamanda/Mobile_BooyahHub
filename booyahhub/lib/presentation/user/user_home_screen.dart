@@ -9,7 +9,7 @@ import '../../config/app_constants.dart';
 import '../../config/app_image_helper.dart';
 import '../../config/app_text_styles.dart';
 import '../../config/supabase_client.dart';
-import '../../data/models/services/notification_service.dart';
+import 'user_widgets/claim_prize_notification.dart';
 import 'user_widgets/team_profile_header.dart';
 import 'user_widgets/scrim_item_card.dart';
 
@@ -24,7 +24,6 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
   int _selectedModeId = 0;
   String _selectedSort = 'semua';
   int _unreadNotifCount = 0;
-  StreamSubscription<int>? _unreadSub;
   final _supabase = Supabase.instance.client;
 
   final List<Map<String, String>> _sortOptions = [
@@ -41,28 +40,21 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
   void initState() {
     super.initState();
     _fetchModes();
-<<<<<<< Updated upstream
 
-    // Tampilkan notifikasi yang belum dibaca setelah frame pertama selesai render
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) _showUnreadNotifications();
     });
   }
 
-  // ─── FETCH & TAMPILKAN NOTIFIKASI BELUM DIBACA ───
   Future<void> _showUnreadNotifications() async {
     try {
-      // Ambil user ID yang sedang login — key dibuat per-user
-      // supaya status baca/belum baca tidak tercampur antar akun
       final userId = Supabase.instance.client.auth.currentUser?.id;
-      if (userId == null) return; // belum login, skip
+      if (userId == null) return;
 
       final prefs = await SharedPreferences.getInstance();
-      // Key unik per user ─ format: 'read_notifications_<userId>'
       final prefKey = 'read_notifications_$userId';
       final readIds = prefs.getStringList(prefKey) ?? [];
 
-      // Fetch semua notifikasi dari Supabase, terbaru dulu
       final response = await Supabase.instance.client
           .from('notifikasi')
           .select('id_notifikasi, judul, pesan')
@@ -70,18 +62,15 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
 
       if (!mounted) return;
 
-      // Filter hanya yang belum dibaca oleh user ini
       final unread = (response as List)
           .where((item) =>
               !readIds.contains(item['id_notifikasi'].toString()))
           .toList();
 
+      if (mounted) setState(() => _unreadNotifCount = unread.length);
+
       if (unread.isEmpty) return;
 
-      // ─── Tampilkan SATU popup saja ───
-      // Kalau 1 notif → tampilkan judul & pesan langsung
-      // Kalau >1 notif → tampilkan ringkasan supaya tidak ada
-      //   masalah numpuk di stack navigasi
       await Future.delayed(const Duration(milliseconds: 400));
       if (!mounted) return;
 
@@ -99,17 +88,13 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
         message: popupMessage,
         icon: Icons.notifications_rounded,
         iconColor: AppColors.primary,
-        onTap: () {
-          // Navigate SEKALI — tidak ada numpuk di stack
-          context.pushNamed('notifikasi');
-        },
+        onTap: () => context.pushNamed('notifikasi'),
       );
     } catch (e) {
       debugPrint('Error fetching unread notifications: $e');
     }
   }
 
-  // Tandai semua notif yang dikirim ke popup sebagai sudah dibaca
   Future<void> _markAllUnreadAsRead(
     List<dynamic> unreadItems,
     List<String> currentReadIds,
@@ -125,7 +110,6 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
     await prefs.setStringList(prefKey, currentReadIds);
   }
 
-
   Future<void> _markNotificationRead(
     String id,
     List<String> currentReadIds,
@@ -136,22 +120,6 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
       currentReadIds.add(id);
       await prefs.setStringList(prefKey, currentReadIds);
     }
-=======
-    _listenNotifCount();
-  }
-
-  void _listenNotifCount() {
-    _unreadNotifCount = NotificationService().unreadCount;
-    _unreadSub = NotificationService().unreadCountStream.listen((count) {
-      if (mounted) setState(() => _unreadNotifCount = count);
-    });
-  }
-
-  @override
-  void dispose() {
-    _unreadSub?.cancel();
-    super.dispose();
->>>>>>> Stashed changes
   }
 
   // ─── FUNGSI AMBIL MODE ───

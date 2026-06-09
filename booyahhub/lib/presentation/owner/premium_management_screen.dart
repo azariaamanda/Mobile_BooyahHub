@@ -15,12 +15,17 @@ class PremiumManagementScreen extends StatefulWidget {
 class _PremiumManagementScreenState extends State<PremiumManagementScreen> {
   final SupabaseClient _supabase = Supabase.instance.client;
   List<PaketPremiumModel> _packages = [];
+  List<Map<String, dynamic>> _pendingPayments = [];
   bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    _fetchPackages();
+    _fetchAll();
+  }
+
+  Future<void> _fetchAll() async {
+    await Future.wait([_fetchPackages(), _fetchPendingPayments()]);
   }
 
   Future<void> _fetchPackages() async {
@@ -34,9 +39,113 @@ class _PremiumManagementScreenState extends State<PremiumManagementScreen> {
       }
     } catch (e) {
       debugPrint('Error fetching premium packages: $e');
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _fetchPendingPayments() async {
+    try {
+      // Join dengan akun untuk mendapat nama/email admin
+      final data = await _supabase
+          .from('transaksi_premium')
+          .select('*, akun(email, profil_admin(nama_lengkap))')
+          .eq('status', 'menunggu')
+          .order('dibuat_pada', ascending: true);
       if (mounted) {
-        setState(() => _isLoading = false);
+        setState(() {
+          _pendingPayments = List<Map<String, dynamic>>.from(data as List);
+        });
       }
+    } catch (e) {
+      debugPrint('Error fetching pending premium payments: $e');
+    }
+  }
+
+  Future<void> _konfirmasiPembayaran(int txId) async {
+    try {
+      await _supabase
+          .from('transaksi_premium')
+          .update({'status': 'aktif'})
+          .eq('id', txId);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Premium admin berhasil diaktifkan'),
+            backgroundColor: Color(0xFF00FF87),
+          ),
+        );
+        _fetchPendingPayments();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Gagal konfirmasi: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
+  Future<void> _tolakPembayaran(int txId) async {
+    try {
+      await _supabase
+          .from('transaksi_premium')
+          .update({'status': 'ditolak'})
+          .eq('id', txId);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Pembayaran premium ditolak')),
+        );
+        _fetchPendingPayments();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Gagal tolak: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
+  Future<void> _lihatBukti(String filePath) async {
+    try {
+      final url = await _supabase.storage
+          .from('bukti_bayar')
+          .createSignedUrl(filePath, 3600);
+      if (!mounted) return;
+      showDialog(
+        context: context,
+        builder: (_) => Dialog(
+          backgroundColor: const Color(0xFF0D1E2C),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ClipRRect(
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(16),
+                  topRight: Radius.circular(16),
+                ),
+                child: Image.network(
+                  url,
+                  fit: BoxFit.contain,
+                  errorBuilder: (_, _, _) => const Padding(
+                    padding: EdgeInsets.all(32),
+                    child: Text('Gagal memuat gambar', style: TextStyle(color: Colors.white70)),
+                  ),
+                ),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Tutup', style: TextStyle(color: Color(0xFFFFD700))),
+              ),
+            ],
+          ),
+        ),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Gagal memuat bukti: $e')),
+      );
     }
   }
 
@@ -68,6 +177,15 @@ class _PremiumManagementScreenState extends State<PremiumManagementScreen> {
                     )),
                   const SizedBox(height: 16),
                   _buildFooterCard(),
+                  if (_pendingPayments.isNotEmpty) ...[
+                    const SizedBox(height: 32),
+                    _buildPendingSectionTitle(),
+                    const SizedBox(height: 16),
+                    ..._pendingPayments.map((tx) => Padding(
+                          padding: const EdgeInsets.only(bottom: 12),
+                          child: _buildPendingCard(tx),
+                        )),
+                  ],
                 ],
               ),
       ),
@@ -351,6 +469,189 @@ class _PremiumManagementScreenState extends State<PremiumManagementScreen> {
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildPendingSectionTitle() {
+    return Row(
+      children: [
+        Container(
+          width: 4,
+          height: 18,
+          decoration: BoxDecoration(
+            color: const Color(0xFFFFD700),
+            borderRadius: BorderRadius.circular(2),
+          ),
+        ),
+        const SizedBox(width: 10),
+        Text(
+          'PEMBAYARAN PREMIUM PENDING',
+          style: AppTextStyles.interCaption.copyWith(
+            color: const Color(0xFFFFD700),
+            fontWeight: FontWeight.bold,
+            letterSpacing: 1.2,
+          ),
+        ),
+        const SizedBox(width: 8),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+          decoration: BoxDecoration(
+            color: const Color(0xFFFFD700).withValues(alpha: 0.15),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Text(
+            '${_pendingPayments.length}',
+            style: AppTextStyles.interCaption.copyWith(
+              color: const Color(0xFFFFD700),
+              fontWeight: FontWeight.w800,
+              fontSize: 11,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPendingCard(Map<String, dynamic> tx) {
+    final akun = tx['akun'] as Map<String, dynamic>?;
+    final profil = (akun?['profil_admin'] is List
+            ? (akun?['profil_admin'] as List).firstOrNull
+            : akun?['profil_admin']) as Map<String, dynamic>?;
+    final namaAdmin = profil?['nama_lengkap'] as String? ?? akun?['email'] as String? ?? '-';
+    final namaPaket = tx['nama_paket'] as String? ?? '-';
+    final harga = tx['harga'];
+    final durasiHari = tx['durasi_hari'] as int? ?? 30;
+    final buktiPath = tx['bukti_pembayaran'] as String?;
+    final txId = tx['id'] as int;
+
+    final hargaStr = harga != null
+        ? 'Rp ${(harga as num).toInt().toString().replaceAllMapped(RegExp(r'\B(?=(\d{3})+(?!\d))'), (m) => '.')}'
+        : '-';
+
+    final tglStr = tx['dibuat_pada'] != null
+        ? () {
+            final dt = DateTime.tryParse(tx['dibuat_pada'].toString());
+            if (dt == null) return '-';
+            return '${dt.day}/${dt.month}/${dt.year}';
+          }()
+        : '-';
+
+    return Container(
+      decoration: BoxDecoration(
+        color: const Color(0xFF131F2D),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: const Color(0xFFFFD700).withValues(alpha: 0.25),
+          width: 1,
+        ),
+      ),
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFFD700).withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(Icons.star_rounded, color: Color(0xFFFFD700), size: 20),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      namaAdmin,
+                      style: AppTextStyles.poppinsTitleSmall.copyWith(fontSize: 14),
+                    ),
+                    Text(
+                      '$namaPaket · $hargaStr · $durasiHari hari',
+                      style: AppTextStyles.interCaption.copyWith(color: Colors.white54),
+                    ),
+                  ],
+                ),
+              ),
+              Text(
+                tglStr,
+                style: AppTextStyles.interCaption.copyWith(color: Colors.white38, fontSize: 10),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              if (buktiPath != null && buktiPath.isNotEmpty)
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () => _lihatBukti(buktiPath),
+                    style: OutlinedButton.styleFrom(
+                      side: const BorderSide(color: Colors.white24),
+                      padding: const EdgeInsets.symmetric(vertical: 10),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                    icon: const Icon(Icons.image_outlined, size: 16, color: Colors.white54),
+                    label: Text(
+                      'Lihat Bukti',
+                      style: AppTextStyles.interCaption.copyWith(color: Colors.white54),
+                    ),
+                  ),
+                ),
+              if (buktiPath != null && buktiPath.isNotEmpty) const SizedBox(width: 8),
+              Expanded(
+                child: ElevatedButton(
+                  onPressed: () => _tolakPembayaran(txId),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.red.withValues(alpha: 0.15),
+                    foregroundColor: Colors.red,
+                    elevation: 0,
+                    padding: const EdgeInsets.symmetric(vertical: 10),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      side: BorderSide(color: Colors.red.withValues(alpha: 0.4)),
+                    ),
+                  ),
+                  child: Text(
+                    'Tolak',
+                    style: AppTextStyles.interCaption.copyWith(
+                      color: Colors.red,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: ElevatedButton(
+                  onPressed: () => _konfirmasiPembayaran(txId),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF00FF87).withValues(alpha: 0.15),
+                    foregroundColor: const Color(0xFF00FF87),
+                    elevation: 0,
+                    padding: const EdgeInsets.symmetric(vertical: 10),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      side: BorderSide(color: const Color(0xFF00FF87).withValues(alpha: 0.4)),
+                    ),
+                  ),
+                  child: Text(
+                    'Konfirmasi',
+                    style: AppTextStyles.interCaption.copyWith(
+                      color: const Color(0xFF00FF87),
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }
