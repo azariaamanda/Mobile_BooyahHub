@@ -98,7 +98,12 @@ class _UserPesananPageState extends State<UserPesananPage> {
                 nama_scrim,
                 poster,
                 biaya_pendaftaran,
-                total_hadiah
+                total_hadiah,
+                slot_tim,
+                tingkat_kesulitan,
+                tanggal_scrim,
+                metode_pembayaran_id,
+                id_admin
               )
             ),
             hasil_pertandingan (*),

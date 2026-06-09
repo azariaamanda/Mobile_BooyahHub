@@ -62,10 +62,11 @@ class ClaimPrizePage extends StatelessWidget {
                     onPressed: () {
                       Navigator.of(context).push(
                         MaterialPageRoute(
-                          builder: (context) => const RequestClaimPrizePage(
+                          builder: (context) => RequestClaimPrizePage(
                             title: 'Scrim Ganteng',
                             rank: 'Juara 1',
                             totalPrize: 'Rp 250.000',
+                            pendaftaranId: pendaftaranId,
                           ),
                         ),
                       );

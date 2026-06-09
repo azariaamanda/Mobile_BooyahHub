@@ -52,7 +52,8 @@ class _HistoryDetailScrimPageState extends State<HistoryDetailScrimPage> {
                 nama_scrim
               )
             ),
-            hasil_pertandingan(*)
+            hasil_pertandingan(*),
+            klaim_hadiah(id_klaim)
           ''')
           .eq('id_pendaftaran', widget.idPendaftaran)
           .maybeSingle();
@@ -65,6 +66,8 @@ class _HistoryDetailScrimPageState extends State<HistoryDetailScrimPage> {
       final Map<String, dynamic>? sesiScrimData = response['sesi_scrim'] as Map<String, dynamic>?;
       final Map<String, dynamic>? scrimData = sesiScrimData?['scrim'] as Map<String, dynamic>?;
       final List<dynamic> hasilList = response['hasil_pertandingan'] ?? [];
+      final List<dynamic> klaimList = response['klaim_hadiah'] ?? [];
+      final bool hasClaimed = klaimList.isNotEmpty;
       
       // Mengambil nama_tim dari relasi akun -> profil_pengguna
       String namaTim = 'No Team Name';
@@ -114,6 +117,7 @@ class _HistoryDetailScrimPageState extends State<HistoryDetailScrimPage> {
         'status': response['status_pertandingan'] ?? 'belum_mulai',
         'id_sesi': sesiScrimData?['id_sesi'] ?? 0,
         'id_pendaftaran': response['id_pendaftaran'],
+        'has_claimed': hasClaimed,
       };
     } catch (e) {
       print('Eror ambil detail bray: $e');
@@ -582,24 +586,27 @@ class _HistoryDetailScrimPageState extends State<HistoryDetailScrimPage> {
 
   // WIDGET: TOMBOL AJUKAN KLAIM
   Widget _buildClaimButton(BuildContext context, Map<String, dynamic> data) {
+    final bool hasClaimed = data['has_claimed'] ?? false;
+
     return SizedBox(
       width: double.infinity,
       height: AppConstants.buttonHeight,
       child: ElevatedButton(
-        onPressed: () {
+        onPressed: hasClaimed ? null : () {
           Navigator.of(context).push(
             MaterialPageRoute(
               builder: (context) => RequestClaimPrizePage(
                 title: data['nama_scrim'],
                 rank: data['peringkat_akhir'],
                 totalPrize: 'Rp 150.000', // Sesuai prize pool database lu nanti bray
+                pendaftaranId: widget.idPendaftaran,
               ),
             ),
           );
         },
         style: ElevatedButton.styleFrom(
-          backgroundColor: AppColors.primary,
-          foregroundColor: AppColors.buttonText,
+          backgroundColor: hasClaimed ? AppColors.surfaceVariant : AppColors.primary,
+          foregroundColor: hasClaimed ? AppColors.textHint : AppColors.buttonText,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(AppConstants.radiusL),
           ),
@@ -609,11 +616,18 @@ class _HistoryDetailScrimPageState extends State<HistoryDetailScrimPage> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Text(
-              'Ajukan Klaim',
-              style: AppTextStyles.poppinsButton.copyWith(fontSize: 16),
+              hasClaimed ? 'Klaim Telah Diajukan' : 'Ajukan Klaim',
+              style: AppTextStyles.poppinsButton.copyWith(
+                fontSize: 16,
+                color: hasClaimed ? AppColors.textHint : AppColors.buttonText,
+              ),
             ),
             const SizedBox(width: 8),
-            const Icon(Icons.arrow_forward_rounded, size: 20),
+            Icon(
+              hasClaimed ? Icons.check_circle_outline : Icons.arrow_forward_rounded, 
+              size: 20,
+              color: hasClaimed ? AppColors.textHint : AppColors.buttonText,
+            ),
           ],
         ),
       ),

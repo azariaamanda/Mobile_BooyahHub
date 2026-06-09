@@ -31,19 +31,91 @@ class _RequestClaimPrizePageState extends State<RequestClaimPrizePage> {
   
   bool _isBankSelected = true;
   bool _isLoading = false;
+  bool _isFetchingMethods = true;
+  bool _isBankAvailable = false;
+  bool _isQrisAvailable = false;
 
-  final List<String> _bankOptions = [
-    'BCA',
-    'BNI',
-    'BRI',
-    'Mandiri',
-    'BSI',
-    'DANA',
-    'OVO',
-    'GoPay',
-    'ShopeePay'
-  ];
+  List<String> _bankOptions = [];
   String? _selectedBank;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchAdminPaymentMethods();
+  }
+
+  Future<void> _fetchAdminPaymentMethods() async {
+    try {
+      if (widget.pendaftaranId == null) {
+        setState(() => _isFetchingMethods = false);
+        return;
+      }
+      
+      final supabase = Supabase.instance.client;
+      // Dapatkan akun_id dari penyelenggara
+      debugPrint("Mencari pendaftaranId: ${widget.pendaftaranId}");
+      final pendaftaranRes = await supabase
+          .from('pendaftaran_tim')
+          .select('id_sesi, sesi_scrim!inner(id_scrim, scrim!inner(id_admin))')
+          .eq('id_pendaftaran', widget.pendaftaranId!)
+          .maybeSingle();
+
+      debugPrint("pendaftaranRes: $pendaftaranRes");
+
+      if (pendaftaranRes != null) {
+        final adminAkunId = pendaftaranRes['sesi_scrim']['scrim']['id_admin'];
+        debugPrint("adminAkunId: $adminAkunId");
+        
+        // Dapatkan metode pembayaran aktif milik admin
+        final metodeRes = await supabase
+            .from('metode_pembayaran_penyelenggara')
+            .select()
+            .eq('akun_id', adminAkunId)
+            .eq('is_active', true);
+
+        debugPrint("metodeRes: $metodeRes");
+
+        final List<String> availableBanks = [];
+        bool hasQris = false;
+
+        for (var metode in metodeRes) {
+          if (metode['jenis_metode'] == 'bank_transfer' && metode['nama_bank'] != null) {
+            availableBanks.add(metode['nama_bank'].toString());
+          } else if (metode['jenis_metode'] == 'qris') {
+            hasQris = true;
+          }
+        }
+
+        setState(() {
+          _bankOptions = availableBanks.toSet().toList(); // Unique banks
+          _isBankAvailable = _bankOptions.isNotEmpty;
+          _isQrisAvailable = hasQris;
+          
+          if (_isBankAvailable) {
+            _isBankSelected = true;
+            if (_bankOptions.isNotEmpty) {
+              _selectedBank = _bankOptions.first;
+            }
+          } else if (_isQrisAvailable) {
+            _isBankSelected = false;
+          }
+          _isFetchingMethods = false;
+        });
+      } else {
+        debugPrint("pendaftaranRes is null!");
+        setState(() => _isFetchingMethods = false);
+      }
+    } catch (e, stacktrace) {
+      debugPrint("Gagal mengambil metode pembayaran: $e");
+      debugPrint(stacktrace.toString());
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('DEBUG ERROR: $e'), backgroundColor: Colors.red),
+        );
+      }
+      setState(() => _isFetchingMethods = false);
+    }
+  }
 
   @override
   void dispose() {
@@ -171,75 +243,95 @@ class _RequestClaimPrizePageState extends State<RequestClaimPrizePage> {
               const SizedBox(height: 16),
               
               // Toggle Buttons
-              Container(
-                decoration: BoxDecoration(
-                  color: AppColors.backgroundCard,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: AppColors.info, width: 2), // Blue border for active look as in design
-                ),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: GestureDetector(
-                        onTap: () => setState(() => _isBankSelected = true),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                          decoration: BoxDecoration(
-                            color: _isBankSelected ? AppColors.backgroundInput : Colors.transparent,
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(
-                                Icons.account_balance,
-                                color: _isBankSelected ? AppColors.primary : AppColors.textHint,
-                                size: 18,
+              if (_isFetchingMethods)
+                const Center(child: CircularProgressIndicator(color: AppColors.primary))
+              else if (!_isBankAvailable && !_isQrisAvailable)
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: AppColors.backgroundCard,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: AppColors.error, width: 1),
+                  ),
+                  child: const Center(
+                    child: Text(
+                      'Penyelenggara belum mengatur metode pembayaran.',
+                      style: TextStyle(color: AppColors.error),
+                    ),
+                  ),
+                )
+              else
+                Container(
+                  decoration: BoxDecoration(
+                    color: AppColors.backgroundCard,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: AppColors.info, width: 2), // Blue border for active look as in design
+                  ),
+                  child: Row(
+                    children: [
+                      if (_isBankAvailable)
+                        Expanded(
+                          child: GestureDetector(
+                            onTap: () => setState(() => _isBankSelected = true),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              decoration: BoxDecoration(
+                                color: _isBankSelected ? AppColors.backgroundInput : Colors.transparent,
+                                borderRadius: BorderRadius.circular(10),
                               ),
-                              const SizedBox(width: 8),
-                              Text(
-                                'Rekening Bank',
-                                style: AppTextStyles.interBodyMedium.copyWith(
-                                  color: _isBankSelected ? AppColors.white : AppColors.textHint,
-                                ),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(
+                                    Icons.account_balance,
+                                    color: _isBankSelected ? AppColors.primary : AppColors.textHint,
+                                    size: 18,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    'Rekening Bank',
+                                    style: AppTextStyles.interBodyMedium.copyWith(
+                                      color: _isBankSelected ? AppColors.white : AppColors.textHint,
+                                    ),
+                                  ),
+                                ],
                               ),
-                            ],
+                            ),
                           ),
                         ),
-                      ),
-                    ),
-                    Expanded(
-                      child: GestureDetector(
-                        onTap: () => setState(() => _isBankSelected = false),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                          decoration: BoxDecoration(
-                            color: !_isBankSelected ? AppColors.backgroundInput : Colors.transparent,
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(
-                                Icons.qr_code_2,
-                                color: !_isBankSelected ? AppColors.primary : AppColors.textHint,
-                                size: 18,
+                      if (_isQrisAvailable)
+                        Expanded(
+                          child: GestureDetector(
+                            onTap: () => setState(() => _isBankSelected = false),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              decoration: BoxDecoration(
+                                color: !_isBankSelected ? AppColors.backgroundInput : Colors.transparent,
+                                borderRadius: BorderRadius.circular(10),
                               ),
-                              const SizedBox(width: 8),
-                              Text(
-                                'QRIS',
-                                style: AppTextStyles.interBodyMedium.copyWith(
-                                  color: !_isBankSelected ? AppColors.white : AppColors.textHint,
-                                ),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(
+                                    Icons.qr_code_2,
+                                    color: !_isBankSelected ? AppColors.primary : AppColors.textHint,
+                                    size: 18,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    'QRIS',
+                                    style: AppTextStyles.interBodyMedium.copyWith(
+                                      color: !_isBankSelected ? AppColors.white : AppColors.textHint,
+                                    ),
+                                  ),
+                                ],
                               ),
-                            ],
+                            ),
                           ),
                         ),
-                      ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
               
               const SizedBox(height: 24),
               
