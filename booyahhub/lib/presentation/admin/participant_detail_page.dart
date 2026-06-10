@@ -51,15 +51,41 @@ class _ParticipantDetailPageState extends State<ParticipantDetailPage> {
     setState(() => _processing = true);
     try {
       final statusStr = status == StatusPeserta.dikonfirmasi ? 'dikonfirmasi' : 'ditolak';
-      await _supabase
+
+      // .select() memastikan kita membaca kembali data yang tersimpan di DB.
+      // Jika trigger gagal → PostgreSQL rollback → Supabase lempar exception di sini.
+      final rows = await _supabase
           .from('pendaftaran_tim')
           .update({
             'status_pembayaran': statusStr,
             'diverifikasi_pada': DateTime.now().toIso8601String(),
           })
-          .eq('id_pendaftaran', _peserta.idPendaftaran);
+          .eq('id_pendaftaran', _peserta.idPendaftaran)
+          .select('id_pendaftaran, status_pembayaran');
 
       if (!mounted) return;
+
+      // Verifikasi: status yang tersimpan di DB harus sama dengan yang diminta
+      final savedStatus = (rows as List).isNotEmpty
+          ? rows.first['status_pembayaran'] as String? ?? ''
+          : '';
+
+      if (savedStatus != statusStr) {
+        // DB tidak menyimpan status yang diminta (kemungkinan trigger gagal)
+        setState(() => _processing = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            backgroundColor: AppColors.error,
+            content: Text(
+              'Gagal menyimpan: status DB = "$savedStatus". '
+              'Pastikan tabel keuangan_scrim & transaksi_fee_admin sudah dibuat di Supabase.',
+            ),
+            duration: const Duration(seconds: 6),
+          ),
+        );
+        return;
+      }
+
       setState(() {
         _peserta = _peserta.copyWith(status: status);
         _processing = false;
@@ -83,6 +109,7 @@ class _ParticipantDetailPageState extends State<ParticipantDetailPage> {
         SnackBar(
           backgroundColor: AppColors.error,
           content: Text('Gagal: $e'),
+          duration: const Duration(seconds: 6),
         ),
       );
     }

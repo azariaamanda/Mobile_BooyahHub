@@ -33,10 +33,19 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   double _limitUtang = 100000;
   List<double> _trendData = List.filled(7, 0);
 
+  bool _isVisible = false;
+
   @override
   void initState() {
     super.initState();
-    _fetchData();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final visible = TickerMode.valuesOf(context).enabled;
+    if (visible && !_isVisible) _fetchData();
+    _isVisible = visible;
   }
 
   String _initials(String name) {
@@ -117,11 +126,6 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       final biayaMap = <int, double>{
         for (var s in scrims) s['id_scrim'] as int: (s['biaya_pendaftaran'] as num? ?? 0).toDouble()
       };
-      // Scrim aktif = belum selesai, pendaftarannya masih jadi utang fee ke owner
-      final activeScrimIds = (scrims as List)
-          .where((s) => (s['status_scrim'] as String? ?? '') == 'aktif')
-          .map((s) => s['id_scrim'] as int)
-          .toSet();
       final totalSlot = scrims.fold<int>(0, (sum, s) => sum + (s['maks_peserta'] as int? ?? 0));
 
       // Sessions
@@ -150,7 +154,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       // All bookings
       final bookings = await _supabase
           .from('pendaftaran_tim')
-          .select('id_sesi, status_pembayaran, dibuat_pada')
+          .select('id_sesi, status_pembayaran, dibuat_pada, diverifikasi_pada')
           .inFilter('id_sesi', sesiIds);
 
       final now = DateTime.now();
@@ -172,30 +176,43 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
 
       for (final b in bookings as List) {
         final status = b['status_pembayaran'] as String? ?? '';
-        final tglStr = b['dibuat_pada'] as String?;
-        DateTime? tgl;
+        final tglDaftarStr = b['dibuat_pada'] as String?;
+        final tglKonfirmasiStr = b['diverifikasi_pada'] as String?;
+        DateTime? tglDaftar;
+        DateTime? tglKonfirmasi;
         try {
-          tgl = tglStr != null ? DateTime.parse(tglStr).toLocal() : null;
+          tglDaftar = tglDaftarStr != null ? DateTime.parse(tglDaftarStr).toLocal() : null;
+          tglKonfirmasi = tglKonfirmasiStr != null ? DateTime.parse(tglKonfirmasiStr).toLocal() : null;
         } catch (_) {}
-        final sesiId = b['id_sesi'] as int;
+        final sesiId = b['id_sesi'] as int? ?? 0;
+        if (sesiId == 0) continue;
         final scrimId = sesiToScrim[sesiId] ?? 0;
         final biaya = biayaMap[scrimId] ?? 0;
 
         if (status == 'menunggu') verifikasiCount++;
         if (status == 'dikonfirmasi') {
           konfirmasiCount++;
-          if (activeScrimIds.contains(scrimId)) {
+          if (scrimId != 0) {
             confirmedPerActiveScrim[scrimId] = (confirmedPerActiveScrim[scrimId] ?? 0) + 1;
           }
         }
 
-        if (tgl != null) {
-          final tglDay = DateTime(tgl.year, tgl.month, tgl.day);
-
+        // Booking counts & trend pakai tanggal daftar
+        if (tglDaftar != null) {
+          final tglDay = DateTime(tglDaftar.year, tglDaftar.month, tglDaftar.day);
           if (!tglDay.isBefore(todayStart)) bookingHariIni++;
           if (tglDay == yesterdayStart) bookingKemarin++;
+          final diff = todayStart.difference(tglDay).inDays;
+          if (diff >= 0 && diff < 7) {
+            trendMap[6 - diff] = (trendMap[6 - diff] ?? 0) + 1;
+          }
+        }
 
-          if (status == 'dikonfirmasi') {
+        // Pendapatan pakai diverifikasi_pada, fallback ke dibuat_pada
+        if (status == 'dikonfirmasi') {
+          final tglIncome = tglKonfirmasi ?? tglDaftar;
+          if (tglIncome != null) {
+            final tglDay = DateTime(tglIncome.year, tglIncome.month, tglIncome.day);
             final feeAdmin = isPersentaseAdmin
                 ? biaya * feeAdminPersen / 100
                 : feeAdminTetap;
@@ -203,11 +220,6 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             if (!tglDay.isBefore(lastMonthStart) && tglDay.isBefore(thisMonthStart)) {
               pendapatanBulanLalu += feeAdmin;
             }
-          }
-
-          final diff = todayStart.difference(tglDay).inDays;
-          if (diff >= 0 && diff < 7) {
-            trendMap[6 - diff] = (trendMap[6 - diff] ?? 0) + 1;
           }
         }
       }

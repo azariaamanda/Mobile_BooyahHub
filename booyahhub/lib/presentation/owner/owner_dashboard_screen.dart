@@ -119,13 +119,12 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
     try {
       final supabase = Supabase.instance.client;
 
-      // Ambil fee_platform_persen & nominal_minimum_platform
+      // Ambil fee_platform_persen
       final feeSettings = await supabase
           .from('pengaturan_fee')
-          .select('fee_platform_persen, nominal_minimum_platform')
+          .select('fee_platform_persen')
           .maybeSingle();
       final int feePersen = (feeSettings?['fee_platform_persen'] as num? ?? 25).toInt();
-      final double minFee = (feeSettings?['nominal_minimum_platform'] as num? ?? 5000).toDouble();
 
       // Ambil semua scrim + biaya_pendaftaran
       final scrims = await supabase.from('scrim').select('id_scrim, biaya_pendaftaran');
@@ -149,7 +148,7 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
       // Ambil semua pendaftaran dikonfirmasi
       final regs = await supabase
           .from('pendaftaran_tim')
-          .select('id_sesi, dibuat_pada')
+          .select('id_sesi, diverifikasi_pada')
           .inFilter('id_sesi', sesiIds)
           .eq('status_pembayaran', 'dikonfirmasi');
 
@@ -158,10 +157,12 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
       final Map<int, List<DateTime>> datesByScrim = {};
 
       for (final r in regs as List) {
-        final scrimId = sesiToScrim[r['id_sesi'] as int] ?? 0;
+        final sesiId = r['id_sesi'] as int?;
+        if (sesiId == null) continue;
+        final scrimId = sesiToScrim[sesiId] ?? 0;
         if (scrimId == 0) continue;
         countPerScrim[scrimId] = (countPerScrim[scrimId] ?? 0) + 1;
-        final tglStr = r['dibuat_pada'] as String?;
+        final tglStr = r['diverifikasi_pada'] as String?;
         if (tglStr != null) {
           try {
             datesByScrim.putIfAbsent(scrimId, () => []).add(DateTime.parse(tglStr).toLocal());
@@ -176,11 +177,10 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
       for (final entry in countPerScrim.entries) {
         final biaya = scrimBiayaMap[entry.key] ?? 0;
         final rawFee = biaya * entry.value * feePersen / 100;
-        final scrimFee = rawFee < minFee ? minFee : rawFee;
-        total += scrimFee;
+        total += rawFee;
 
         // Distribusikan fee ke bulan sesuai tanggal konfirmasi
-        final feePerReg = scrimFee / entry.value;
+        final feePerReg = rawFee / entry.value;
         for (final tgl in datesByScrim[entry.key] ?? <DateTime>[]) {
           final int monthDiff = (now.year - tgl.year) * 12 + now.month - tgl.month;
           if (monthDiff >= 0 && monthDiff < 6) {

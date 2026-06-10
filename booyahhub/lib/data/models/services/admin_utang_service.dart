@@ -91,10 +91,9 @@ class AdminUtangService {
       // Ambil pengaturan fee platform
       final feeSettings = await _supabase
           .from('pengaturan_fee')
-          .select('fee_platform_persen, nominal_minimum_platform')
+          .select('fee_platform_persen')
           .maybeSingle();
       final int feePersen = (feeSettings?['fee_platform_persen'] as num? ?? 25).toInt();
-      final double minFee = (feeSettings?['nominal_minimum_platform'] as num? ?? 5000).toDouble();
 
       // Ambil scrim aktif milik admin beserta biaya_pendaftaran
       final scrims = await _supabase
@@ -142,8 +141,7 @@ class AdminUtangService {
       for (final entry in countPerScrim.entries) {
         final biaya = scrimBiayaMap[entry.key] ?? 0;
         final rawFee = biaya * entry.value * feePersen / 100;
-        // Minimum fee berlaku saat ada peserta yang mendaftar
-        totalUtang += rawFee < minFee ? minFee : rawFee;
+        totalUtang += rawFee;
       }
 
       return totalUtang;

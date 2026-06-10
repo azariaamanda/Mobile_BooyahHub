@@ -64,7 +64,7 @@ class _OwnerProfileScreenState extends State<OwnerProfileScreen> {
       // 4. All confirmed registrations
       final regs = await _supabase
           .from('pendaftaran_tim')
-          .select('id_sesi, dibuat_pada')
+          .select('id_sesi, diverifikasi_pada')
           .eq('status_pembayaran', 'dikonfirmasi');
 
       // 5. Group confirmed count + dates per scrim
@@ -76,7 +76,7 @@ class _OwnerProfileScreenState extends State<OwnerProfileScreen> {
         final scrimId = sesiToScrim[sesiId];
         if (scrimId == null) continue;
         countPerScrim[scrimId] = (countPerScrim[scrimId] ?? 0) + 1;
-        final rawDate = r['dibuat_pada']?.toString();
+        final rawDate = r['diverifikasi_pada']?.toString();
         if (rawDate != null) {
           final tgl = DateTime.tryParse(rawDate)?.toLocal();
           if (tgl != null) datesByScrim.putIfAbsent(scrimId, () => []).add(tgl);

@@ -26,10 +26,19 @@ class _AdminKeuanganPageState extends State<AdminKeuanganPage> {
   List<Map<String, dynamic>> _urgentGroups = [];
   List<Map<String, dynamic>> _completedGroups = [];
 
+  bool _isVisible = false;
+
   @override
   void initState() {
     super.initState();
-    _fetchData();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final visible = TickerMode.valuesOf(context).enabled;
+    if (visible && !_isVisible) _fetchData();
+    _isVisible = visible;
   }
 
   Future<void> _fetchData() async {
@@ -49,7 +58,16 @@ class _AdminKeuanganPageState extends State<AdminKeuanganPage> {
           .single();
       final int idAkun = akunData['id_akun'] as int;
 
-      // 2. Ambil semua scrim milik admin ini (termasuk biaya_pendaftaran)
+      // 2. Ambil fee settings
+      final feeSettings = await _supabase
+          .from('pengaturan_fee')
+          .select('fee_admin_persen, is_persentase_admin, fee_admin_tetap')
+          .maybeSingle();
+      final int feeAdminPersen = (feeSettings?['fee_admin_persen'] as num? ?? 10).toInt();
+      final bool isPersentaseAdmin = feeSettings?['is_persentase_admin'] as bool? ?? true;
+      final double feeAdminTetap = (feeSettings?['fee_admin_tetap'] as num? ?? 0).toDouble();
+
+      // 3. Ambil semua scrim milik admin ini (termasuk biaya_pendaftaran)
       final scrimsRaw = await _supabase
           .from('scrim')
           .select('id_scrim, nama_scrim, maks_peserta, biaya_pendaftaran')
@@ -67,7 +85,7 @@ class _AdminKeuanganPageState extends State<AdminKeuanganPage> {
           s['id_scrim'] as int: (s['biaya_pendaftaran'] as num? ?? 0).toDouble()
       };
 
-      // 3. Ambil id_sesi + id_scrim
+      // 4. Ambil id_sesi + id_scrim
       final scrimMap = <int, Map<String, dynamic>>{
         for (var s in scrims) s['id_scrim'] as int: Map<String, dynamic>.from(s)
       };
@@ -85,7 +103,7 @@ class _AdminKeuanganPageState extends State<AdminKeuanganPage> {
         return;
       }
 
-      // 4. Ambil pendaftaran + status_pembayaran untuk hitung pendapatan
+      // 5. Ambil pendaftaran + status_pembayaran untuk hitung pendapatan
       final pendaftaranRaw = await _supabase
           .from('pendaftaran_tim')
           .select('id_pendaftaran, id_sesi, status_pembayaran')
@@ -93,17 +111,18 @@ class _AdminKeuanganPageState extends State<AdminKeuanganPage> {
       final pendaftaranToScrim = <int, int>{};
       double totalPendapatan = 0;
       for (final p in pendaftaranRaw as List) {
-        final scrimId = sesiToScrim[p['id_sesi'] as int];
+        final sesiId = p['id_sesi'] as int? ?? 0;
+        if (sesiId == 0) continue;
+        final scrimId = sesiToScrim[sesiId];
         if (scrimId == null) continue;
         pendaftaranToScrim[p['id_pendaftaran'] as int] = scrimId;
         if ((p['status_pembayaran'] as String? ?? '') == 'dikonfirmasi') {
-          totalPendapatan += biayaPerScrim[scrimId] ?? 0;
+          final biaya = biayaPerScrim[scrimId] ?? 0;
+          final feeAdmin = isPersentaseAdmin ? biaya * feeAdminPersen / 100 : feeAdminTetap;
+          totalPendapatan += feeAdmin;
         }
       }
-      // Dana keluar = sisa setelah fee platform 5% dan admin 10%
-      const double feeTotal = 0.15;
       _totalPendapatan = totalPendapatan;
-      _totalDanaKeluar = totalPendapatan * (1 - feeTotal);
 
       final pendaftaranIds = pendaftaranToScrim.keys.toList();
 
@@ -159,11 +178,13 @@ class _AdminKeuanganPageState extends State<AdminKeuanganPage> {
       });
 
       _completedGroups = [];
+      double totalDibayar = 0;
       completedByScrim.forEach((scrimId, items) {
         if (pendingByScrim.containsKey(scrimId)) return;
         final scrim = scrimMap[scrimId];
         if (scrim == null) return;
         final total = items.fold<double>(0, (s, k) => s + ((k['jumlah_klaim'] as num?)?.toDouble() ?? 0));
+        totalDibayar += total;
         final tgl = items.first['dibayar_pada'] as String? ?? items.first['diajukan_pada'] as String?;
         _completedGroups.add({
           'nama_event': scrim['nama_scrim'] ?? '-',
@@ -171,6 +192,7 @@ class _AdminKeuanganPageState extends State<AdminKeuanganPage> {
           'nominal': total,
         });
       });
+      _totalDanaKeluar = totalDibayar;
 
       _klaimPendingCount = _urgentGroups.fold(0, (s, g) => s + (g['jumlah_pending'] as int));
     } catch (e) {
