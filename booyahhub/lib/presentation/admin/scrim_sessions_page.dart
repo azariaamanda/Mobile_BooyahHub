@@ -1,13 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+
 import '../../config/app_color.dart';
 import '../../config/app_constants.dart';
 import '../../config/app_text_styles.dart';
 
 class ScrimSessionsPage extends StatefulWidget {
   final int scrimId;
-  const ScrimSessionsPage({super.key, required this.scrimId});
+
+  const ScrimSessionsPage({
+    super.key,
+    required this.scrimId,
+  });
 
   @override
   State<ScrimSessionsPage> createState() => _ScrimSessionsPageState();
@@ -15,14 +20,21 @@ class ScrimSessionsPage extends StatefulWidget {
 
 class _ScrimSessionsPageState extends State<ScrimSessionsPage> {
   final _supabase = Supabase.instance.client;
+
   bool _isLoading = true;
+
   List<Map<String, dynamic>> _allSessions = [];
   List<Map<String, dynamic>> _filteredSessions = [];
+
   Map<String, dynamic>? _scrim;
-  
-  DateTime _selectedDate = DateTime.now();
+
+  DateTime _selectedDate = _dateOnly(DateTime.now());
   List<DateTime> _availableDates = [];
   Set<DateTime> _existingDates = {};
+
+  static DateTime _dateOnly(DateTime date) {
+    return DateTime(date.year, date.month, date.day);
+  }
 
   @override
   void initState() {
@@ -31,13 +43,17 @@ class _ScrimSessionsPageState extends State<ScrimSessionsPage> {
   }
 
   Future<void> _fetchData() async {
-    setState(() => _isLoading = true);
+    if (mounted) {
+      setState(() => _isLoading = true);
+    }
+
     try {
       final scrimData = await _supabase
           .from('scrim')
           .select('nama_scrim')
           .eq('id_scrim', widget.scrimId)
           .single();
+
       _scrim = scrimData;
 
       final sesiData = await _supabase
@@ -45,77 +61,217 @@ class _ScrimSessionsPageState extends State<ScrimSessionsPage> {
           .select('*')
           .eq('id_scrim', widget.scrimId)
           .order('waktu_mulai', ascending: true);
+
       _allSessions = List<Map<String, dynamic>>.from(sesiData);
-      
+
+      for (final sesi in _allSessions) {
+        final statusValue = _getStatusPertandinganValue(
+          sesi['waktu_mulai'],
+          sesi['waktu_selesai'],
+        );
+
+        await _syncStatusPertandinganBySession(
+          sesi['id_sesi'],
+          statusValue,
+        );
+      }
+
       _existingDates = _allSessions
-          .map((s) => DateTime.parse(s['waktu_mulai']).toLocal())
-          .map((d) => DateTime(d.year, d.month, d.day))
+          .map((s) => DateTime.parse(s['waktu_mulai'].toString()).toLocal())
+          .map((d) => _dateOnly(d))
           .toSet();
-      
-      _availableDates = _existingDates.toList()..sort();
-      
+
+      _availableDates = _existingDates.toList()
+        ..sort((a, b) => a.compareTo(b));
+
       if (_availableDates.isNotEmpty) {
-        _selectedDate = _availableDates.first;
-        _filterSessions();
+        final selectedDateOnly = _dateOnly(_selectedDate);
+
+        final isSelectedDateExist = _availableDates.any(
+          (date) => date.isAtSameMomentAs(selectedDateOnly),
+        );
+
+        if (isSelectedDateExist) {
+          _selectedDate = selectedDateOnly;
+        } else {
+          _selectedDate = _availableDates.first;
+        }
+
+        _filterSessions(callSetState: false);
+      } else {
+        _filteredSessions = [];
       }
     } catch (e) {
-      print('Error: $e');
+      debugPrint('Error fetch sesi: $e');
     } finally {
-      setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
-  void _filterSessions() {
+  void _filterSessions({bool callSetState = true}) {
+    final selectedDateOnly = _dateOnly(_selectedDate);
+
     _filteredSessions = _allSessions.where((s) {
-      final date = DateTime.parse(s['waktu_mulai']).toLocal();
-      return date.year == _selectedDate.year &&
-          date.month == _selectedDate.month &&
-          date.day == _selectedDate.day;
+      final date = DateTime.parse(s['waktu_mulai'].toString()).toLocal();
+      final sessionDateOnly = _dateOnly(date);
+
+      return sessionDateOnly.isAtSameMomentAs(selectedDateOnly);
     }).toList();
-    setState(() {});
+
+    if (mounted && callSetState) {
+      setState(() {});
+    }
   }
 
-  // ==================== POPUP ATUR JADWAL (Tanpa Jam & Kapasitas) ====================
+  String _getStatusPertandinganValue(
+    dynamic waktuMulai,
+    dynamic waktuSelesai,
+  ) {
+    if (waktuMulai == null || waktuSelesai == null) {
+      return 'belum_mulai';
+    }
+
+    final now = DateTime.now();
+    final mulai = DateTime.parse(waktuMulai.toString()).toLocal();
+    final selesai = DateTime.parse(waktuSelesai.toString()).toLocal();
+
+    if (now.isBefore(mulai)) {
+      return 'belum_mulai';
+    } else if (now.isAfter(selesai)) {
+      return 'selesai';
+    } else {
+      return 'sedang_berlangsung';
+    }
+  }
+
+  String _getStatusPertandinganLabel(String status) {
+    switch (status) {
+      case 'sedang_berlangsung':
+        return 'Sedang Berlangsung';
+      case 'selesai':
+        return 'Selesai';
+      case 'belum_mulai':
+      default:
+        return 'Belum Mulai';
+    }
+  }
+
+  Color _getStatusPertandinganColor(String status) {
+    switch (status) {
+      case 'sedang_berlangsung':
+        return Colors.orange;
+      case 'selesai':
+        return Colors.green;
+      case 'belum_mulai':
+      default:
+        return AppColors.primary;
+    }
+  }
+
+  Widget _buildStatusPertandinganBadge(String statusValue) {
+    final color = _getStatusPertandinganColor(statusValue);
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.15),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Text(
+        _getStatusPertandinganLabel(statusValue),
+        style: AppTextStyles.interCaption.copyWith(
+          color: color,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+    );
+  }
+
+  Future<void> _syncStatusPertandinganBySession(
+    int sesiId,
+    String statusValue,
+  ) async {
+    try {
+      await _supabase
+          .from('pendaftaran_tim')
+          .update({'status_pertandingan': statusValue})
+          .eq('id_sesi', sesiId);
+    } catch (e) {
+      debugPrint('Gagal sync status pertandingan: $e');
+    }
+  }
+
   Future<void> _showAddSchedulePopup() async {
-    DateTime _currentMonth = DateTime.now();
-    Set<DateTime> _selectedDates = {};
-    int _jumlahSesiPerTanggal = 1;
-    
+    final currentMonth = DateTime.now();
+    Set<DateTime> selectedDates = {};
+    int jumlahSesiPerTanggal = 1;
+
     await showDialog(
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDialogState) {
           return Dialog(
             backgroundColor: AppColors.backgroundCard,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
             child: Container(
               width: MediaQuery.of(context).size.width - 40,
               padding: const EdgeInsets.all(16),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text('Atur Jadwal', style: AppTextStyles.poppinsHeadline.copyWith(fontSize: 20)),
+                  Text(
+                    'Atur Jadwal',
+                    style: AppTextStyles.poppinsHeadline.copyWith(
+                      fontSize: 20,
+                    ),
+                  ),
                   const SizedBox(height: 4),
-                  Text('HARI BARU UNTUK SCRIM', style: AppTextStyles.interLabel.copyWith(color: AppColors.primary, fontSize: 10)),
+                  Text(
+                    'HARI BARU UNTUK SCRIM',
+                    style: AppTextStyles.interLabel.copyWith(
+                      color: AppColors.primary,
+                      fontSize: 10,
+                    ),
+                  ),
                   const SizedBox(height: 8),
-                  Text('Pilih tanggal pelaksanaan untuk sesi baru.', style: AppTextStyles.interCaption),
+                  Text(
+                    'Pilih tanggal pelaksanaan untuk sesi baru.',
+                    style: AppTextStyles.interCaption,
+                  ),
                   const SizedBox(height: 4),
-                  Text('Pastikan tidak bentrok dengan jadwal yang sudah ada.', style: AppTextStyles.interCaption.copyWith(fontSize: 11)),
+                  Text(
+                    'Pastikan tidak bentrok dengan jadwal yang sudah ada.',
+                    style: AppTextStyles.interCaption.copyWith(
+                      fontSize: 11,
+                    ),
+                  ),
                   const SizedBox(height: 16),
-                  
-                  // Jumlah sesi per tanggal
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('JUMLAH SESI PER TANGGAL', style: AppTextStyles.interLabel.copyWith(color: AppColors.textSecondary)),
+                      Text(
+                        'JUMLAH SESI PER TANGGAL',
+                        style: AppTextStyles.interLabel.copyWith(
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
                       const SizedBox(height: 6),
                       Row(
                         children: [
                           IconButton(
-                            icon: const Icon(Icons.remove, color: AppColors.primary),
+                            icon: const Icon(
+                              Icons.remove,
+                              color: AppColors.primary,
+                            ),
                             onPressed: () {
-                              if (_jumlahSesiPerTanggal > 1) {
-                                setDialogState(() => _jumlahSesiPerTanggal--);
+                              if (jumlahSesiPerTanggal > 1) {
+                                setDialogState(() {
+                                  jumlahSesiPerTanggal--;
+                                });
                               }
                             },
                           ),
@@ -128,17 +284,22 @@ class _ScrimSessionsPageState extends State<ScrimSessionsPage> {
                               ),
                               child: Center(
                                 child: Text(
-                                  '$_jumlahSesiPerTanggal Sesi',
+                                  '$jumlahSesiPerTanggal Sesi',
                                   style: AppTextStyles.poppinsTitleSmall,
                                 ),
                               ),
                             ),
                           ),
                           IconButton(
-                            icon: const Icon(Icons.add, color: AppColors.primary),
+                            icon: const Icon(
+                              Icons.add,
+                              color: AppColors.primary,
+                            ),
                             onPressed: () {
-                              if (_jumlahSesiPerTanggal < 10) {
-                                setDialogState(() => _jumlahSesiPerTanggal++);
+                              if (jumlahSesiPerTanggal < 10) {
+                                setDialogState(() {
+                                  jumlahSesiPerTanggal++;
+                                });
                               }
                             },
                           ),
@@ -146,27 +307,30 @@ class _ScrimSessionsPageState extends State<ScrimSessionsPage> {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        'Setiap tanggal yang dipilih akan memiliki $_jumlahSesiPerTanggal sesi (Sesi 1, Sesi 2, ...)',
-                        style: AppTextStyles.interCaption.copyWith(color: AppColors.textHint),
+                        'Setiap tanggal yang dipilih akan memiliki $jumlahSesiPerTanggal sesi.',
+                        style: AppTextStyles.interCaption.copyWith(
+                          color: AppColors.textHint,
+                        ),
                       ),
                     ],
                   ),
                   const SizedBox(height: 16),
-                  
-                  // Calendar dengan existing dates berwarna kuning
-                  _buildCalendarGrid(_currentMonth, _selectedDates, _existingDates, (date) {
-                    setDialogState(() {
-                      if (_selectedDates.contains(date)) {
-                        _selectedDates.remove(date);
-                      } else {
-                        _selectedDates.add(date);
-                      }
-                    });
-                  }),
-                  
+                  _buildCalendarGrid(
+                    currentMonth,
+                    selectedDates,
+                    _existingDates,
+                    (date) {
+                      setDialogState(() {
+                        if (selectedDates.contains(date)) {
+                          selectedDates.remove(date);
+                        } else {
+                          selectedDates.add(date);
+                        }
+                      });
+                    },
+                  ),
                   const SizedBox(height: 16),
-                  
-                  if (_selectedDates.isNotEmpty)
+                  if (selectedDates.isNotEmpty)
                     Container(
                       padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
@@ -176,20 +340,31 @@ class _ScrimSessionsPageState extends State<ScrimSessionsPage> {
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Text(
-                            '${_selectedDates.length} tanggal dipilih, $_jumlahSesiPerTanggal sesi per tanggal',
-                            style: AppTextStyles.interLabel.copyWith(color: AppColors.primary),
+                          Expanded(
+                            child: Text(
+                              '${selectedDates.length} tanggal dipilih, $jumlahSesiPerTanggal sesi per tanggal',
+                              style: AppTextStyles.interLabel.copyWith(
+                                color: AppColors.primary,
+                              ),
+                            ),
                           ),
                           TextButton(
-                            onPressed: () => setDialogState(() => _selectedDates.clear()),
-                            child: Text('Hapus Semua', style: AppTextStyles.interLink.copyWith(fontSize: 11)),
+                            onPressed: () {
+                              setDialogState(() {
+                                selectedDates.clear();
+                              });
+                            },
+                            child: Text(
+                              'Hapus Semua',
+                              style: AppTextStyles.interLink.copyWith(
+                                fontSize: 11,
+                              ),
+                            ),
                           ),
                         ],
                       ),
                     ),
-                  
                   const SizedBox(height: 16),
-                  
                   Row(
                     children: [
                       Expanded(
@@ -199,40 +374,67 @@ class _ScrimSessionsPageState extends State<ScrimSessionsPage> {
                             side: BorderSide(color: AppColors.divider),
                             padding: const EdgeInsets.symmetric(vertical: 12),
                           ),
-                          child: Text('BATAL', style: AppTextStyles.poppinsButton.copyWith(color: AppColors.textSecondary)),
+                          child: Text(
+                            'BATAL',
+                            style: AppTextStyles.poppinsButton.copyWith(
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
                         ),
                       ),
                       const SizedBox(width: 12),
                       Expanded(
                         child: ElevatedButton(
-                          onPressed: () async {
-                            for (var date in _selectedDates) {
-                              for (int i = 0; i < _jumlahSesiPerTanggal; i++) {
-                                // Set default jam 00:00 dan kapasitas 0
-                                final startDateTime = DateTime(
-                                  date.year, date.month, date.day, 0, 0, 0,
-                                );
-                                final endDateTime = DateTime(
-                                  date.year, date.month, date.day, 0, 0, 0,
-                                );
-                                
-                                await _supabase.from('sesi_scrim').insert({
-                                  'id_scrim': widget.scrimId,
-                                  'nama_sesi': 'Sesi ${i + 1}',
-                                  'waktu_mulai': startDateTime.toIso8601String(),
-                                  'waktu_selesai': endDateTime.toIso8601String(),
-                                  'slot_maksimal': 0,
-                                });
-                              }
-                            }
-                            Navigator.pop(ctx);
-                            _fetchData();
-                          },
+                          onPressed: selectedDates.isEmpty
+                              ? null
+                              : () async {
+                                  for (final date in selectedDates) {
+                                    for (int i = 0;
+                                        i < jumlahSesiPerTanggal;
+                                        i++) {
+                                      final startDateTime = DateTime(
+                                        date.year,
+                                        date.month,
+                                        date.day,
+                                        0,
+                                        0,
+                                      );
+
+                                      final endDateTime = DateTime(
+                                        date.year,
+                                        date.month,
+                                        date.day,
+                                        0,
+                                        0,
+                                      );
+
+                                      await _supabase
+                                          .from('sesi_scrim')
+                                          .insert({
+                                        'id_scrim': widget.scrimId,
+                                        'nama_sesi': 'Sesi ${i + 1}',
+                                        'waktu_mulai':
+                                            startDateTime.toIso8601String(),
+                                        'waktu_selesai':
+                                            endDateTime.toIso8601String(),
+                                      });
+                                    }
+                                  }
+
+                                  if (context.mounted) {
+                                    Navigator.pop(ctx);
+                                  }
+
+                                  await _fetchData();
+                                },
                           style: ElevatedButton.styleFrom(
                             backgroundColor: AppColors.primary,
                             padding: const EdgeInsets.symmetric(vertical: 12),
                           ),
-                          child: Text('SIMPAN', style: AppTextStyles.poppinsButton),
+                          child: Text(
+                            'SIMPAN',
+                            style: AppTextStyles.poppinsButton,
+                          ),
                         ),
                       ),
                     ],
@@ -246,11 +448,16 @@ class _ScrimSessionsPageState extends State<ScrimSessionsPage> {
     );
   }
 
-  Widget _buildCalendarGrid(DateTime month, Set<DateTime> selectedDates, Set<DateTime> existingDates, Function(DateTime) onDateTap) {
+  Widget _buildCalendarGrid(
+    DateTime month,
+    Set<DateTime> selectedDates,
+    Set<DateTime> existingDates,
+    Function(DateTime) onDateTap,
+  ) {
     final daysInMonth = DateTime(month.year, month.month + 1, 0).day;
     final firstDayOfWeek = DateTime(month.year, month.month, 1).weekday % 7;
     final today = DateTime.now();
-    
+
     return GridView.builder(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
@@ -263,34 +470,48 @@ class _ScrimSessionsPageState extends State<ScrimSessionsPage> {
       itemCount: 42,
       itemBuilder: (context, index) {
         final day = index - firstDayOfWeek + 1;
+
         if (day < 1 || day > daysInMonth) {
           return const SizedBox();
         }
-        final date = DateTime(month.year, month.month, day);
+
+        final date = _dateOnly(DateTime(month.year, month.month, day));
         final isSelected = selectedDates.contains(date);
         final hasExisting = existingDates.contains(date);
-        final isToday = date.year == today.year && date.month == today.month && date.day == today.day;
-        
+        final isToday = date.year == today.year &&
+            date.month == today.month &&
+            date.day == today.day;
+
         Color? bgColor;
+
         if (isSelected) {
           bgColor = AppColors.primary;
         } else if (hasExisting) {
           bgColor = AppColors.primary.withOpacity(0.3);
         }
-        
+
         return GestureDetector(
           onTap: () => onDateTap(date),
           child: Container(
             decoration: BoxDecoration(
               color: bgColor ?? Colors.transparent,
               shape: BoxShape.circle,
-              border: isToday ? Border.all(color: AppColors.primary, width: 1.5) : null,
+              border: isToday
+                  ? Border.all(
+                      color: AppColors.primary,
+                      width: 1.5,
+                    )
+                  : null,
             ),
             alignment: Alignment.center,
             child: Text(
               day.toString(),
               style: AppTextStyles.interBody.copyWith(
-                color: isSelected ? Colors.black : (hasExisting ? AppColors.primary : AppColors.textPrimary),
+                color: isSelected
+                    ? Colors.black
+                    : hasExisting
+                        ? AppColors.primary
+                        : AppColors.textPrimary,
                 fontWeight: isSelected ? FontWeight.w700 : FontWeight.w400,
               ),
             ),
@@ -300,11 +521,20 @@ class _ScrimSessionsPageState extends State<ScrimSessionsPage> {
     );
   }
 
-  Widget _buildTimePicker(String label, TimeOfDay time, Function(TimeOfDay) onChanged) {
+  Widget _buildTimePicker(
+    String label,
+    TimeOfDay time,
+    Function(TimeOfDay) onChanged,
+  ) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: AppTextStyles.interLabel.copyWith(color: AppColors.primary)),
+        Text(
+          label,
+          style: AppTextStyles.interLabel.copyWith(
+            color: AppColors.primary,
+          ),
+        ),
         const SizedBox(height: 8),
         GestureDetector(
           onTap: () async {
@@ -324,19 +554,31 @@ class _ScrimSessionsPageState extends State<ScrimSessionsPage> {
                 );
               },
             );
-            if (picked != null) onChanged(picked);
+
+            if (picked != null) {
+              onChanged(picked);
+            }
           },
           child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            padding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 12,
+            ),
             decoration: BoxDecoration(
               color: AppColors.inputFill,
               borderRadius: BorderRadius.circular(12),
             ),
             child: Row(
               children: [
-                const Icon(Icons.access_time, color: AppColors.primary),
+                const Icon(
+                  Icons.access_time,
+                  color: AppColors.primary,
+                ),
                 const SizedBox(width: 12),
-                Text(time.format(context), style: AppTextStyles.interInput),
+                Text(
+                  time.format(context),
+                  style: AppTextStyles.interInput,
+                ),
               ],
             ),
           ),
@@ -345,11 +587,19 @@ class _ScrimSessionsPageState extends State<ScrimSessionsPage> {
     );
   }
 
-  Widget _buildSlotPicker(int slot, Function(int) onChanged) {
+  Widget _buildSlotPicker(
+    int slot,
+    Function(int) onChanged,
+  ) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('KAPASITAS', style: AppTextStyles.interLabel.copyWith(color: AppColors.primary)),
+        Text(
+          'KAPASITAS',
+          style: AppTextStyles.interLabel.copyWith(
+            color: AppColors.primary,
+          ),
+        ),
         const SizedBox(height: 8),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 8),
@@ -360,7 +610,10 @@ class _ScrimSessionsPageState extends State<ScrimSessionsPage> {
           child: Row(
             children: [
               IconButton(
-                icon: const Icon(Icons.remove, color: AppColors.primary),
+                icon: const Icon(
+                  Icons.remove,
+                  color: AppColors.primary,
+                ),
                 onPressed: () => onChanged(slot > 1 ? slot - 1 : 1),
               ),
               Expanded(
@@ -371,7 +624,10 @@ class _ScrimSessionsPageState extends State<ScrimSessionsPage> {
                 ),
               ),
               IconButton(
-                icon: const Icon(Icons.add, color: AppColors.primary),
+                icon: const Icon(
+                  Icons.add,
+                  color: AppColors.primary,
+                ),
                 onPressed: () => onChanged(slot < 50 ? slot + 1 : 50),
               ),
             ],
@@ -381,57 +637,104 @@ class _ScrimSessionsPageState extends State<ScrimSessionsPage> {
     );
   }
 
-  // ==================== POPUP EDIT SESI ====================
-  Future<void> _showEditSessionPopup(Map<String, dynamic> session) async {
-    final currentDate = DateTime.parse(session['waktu_mulai']).toLocal();
-    TimeOfDay startTime = TimeOfDay(hour: currentDate.hour, minute: currentDate.minute);
-    final endDateTime = DateTime.parse(session['waktu_selesai']).toLocal();
-    TimeOfDay endTime = TimeOfDay(hour: endDateTime.hour, minute: endDateTime.minute);
+  Future<void> _showEditSessionPopup(
+    Map<String, dynamic> session,
+  ) async {
+    final currentDate = DateTime.parse(
+      session['waktu_mulai'].toString(),
+    ).toLocal();
+
+    TimeOfDay startTime = TimeOfDay(
+      hour: currentDate.hour,
+      minute: currentDate.minute,
+    );
+
+    final endDateTime = DateTime.parse(
+      session['waktu_selesai'].toString(),
+    ).toLocal();
+
+    TimeOfDay endTime = TimeOfDay(
+      hour: endDateTime.hour,
+      minute: endDateTime.minute,
+    );
+
     int slot = session['slot_maksimal'] ?? 12;
-    
+
     final pesertaData = await _supabase
         .from('pendaftaran_tim')
         .select('id_pendaftaran')
         .eq('id_sesi', session['id_sesi'])
         .eq('status_pembayaran', 'dikonfirmasi');
+
     final currentParticipants = pesertaData.length;
-    
+
     await showDialog(
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDialogState) {
           return Dialog(
             backgroundColor: AppColors.backgroundCard,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
             child: Container(
               width: MediaQuery.of(context).size.width - 40,
               padding: const EdgeInsets.all(16),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text('Edit Sesi', style: AppTextStyles.poppinsHeadline.copyWith(fontSize: 20)),
+                  Text(
+                    'Edit Sesi',
+                    style: AppTextStyles.poppinsHeadline.copyWith(
+                      fontSize: 20,
+                    ),
+                  ),
                   const SizedBox(height: 4),
-                  Text('EDIT SESI UNTUK SCRIM', style: AppTextStyles.interLabel.copyWith(color: AppColors.primary, fontSize: 10)),
+                  Text(
+                    'EDIT SESI UNTUK SCRIM',
+                    style: AppTextStyles.interLabel.copyWith(
+                      color: AppColors.primary,
+                      fontSize: 10,
+                    ),
+                  ),
                   const SizedBox(height: 16),
-                  
                   Row(
                     children: [
-                      Expanded(child: _buildTimePicker('MULAI', startTime, (time) {
-                        setDialogState(() => startTime = time);
-                      })),
+                      Expanded(
+                        child: _buildTimePicker(
+                          'MULAI',
+                          startTime,
+                          (time) {
+                            setDialogState(() {
+                              startTime = time;
+                            });
+                          },
+                        ),
+                      ),
                       const SizedBox(width: 16),
-                      Expanded(child: _buildTimePicker('SELESAI', endTime, (time) {
-                        setDialogState(() => endTime = time);
-                      })),
+                      Expanded(
+                        child: _buildTimePicker(
+                          'SELESAI',
+                          endTime,
+                          (time) {
+                            setDialogState(() {
+                              endTime = time;
+                            });
+                          },
+                        ),
+                      ),
                     ],
                   ),
                   const SizedBox(height: 16),
-                  
-                  _buildSlotPicker(slot, (value) {
-                    setDialogState(() => slot = value);
-                  }),
+                  _buildSlotPicker(
+                    slot,
+                    (value) {
+                      setDialogState(() {
+                        slot = value;
+                      });
+                    },
+                  ),
                   const SizedBox(height: 16),
-                  
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
@@ -441,18 +744,25 @@ class _ScrimSessionsPageState extends State<ScrimSessionsPage> {
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text('KAPASITAS SAAT INI', style: AppTextStyles.interLabel),
-                        Text('$currentParticipants/$slot Tim', style: AppTextStyles.poppinsMoneySmall),
+                        Text(
+                          'KAPASITAS SAAT INI',
+                          style: AppTextStyles.interLabel,
+                        ),
+                        Text(
+                          '$currentParticipants/$slot Tim',
+                          style: AppTextStyles.poppinsMoneySmall,
+                        ),
                       ],
                     ),
                   ),
                   const SizedBox(height: 8),
                   Text(
                     'Mengubah waktu akan memberitahu peserta yang sudah terdaftar.',
-                    style: AppTextStyles.interCaption.copyWith(color: AppColors.textHint),
+                    style: AppTextStyles.interCaption.copyWith(
+                      color: AppColors.textHint,
+                    ),
                   ),
                   const SizedBox(height: 24),
-                  
                   Row(
                     children: [
                       Expanded(
@@ -462,7 +772,12 @@ class _ScrimSessionsPageState extends State<ScrimSessionsPage> {
                             side: BorderSide(color: AppColors.divider),
                             padding: const EdgeInsets.symmetric(vertical: 12),
                           ),
-                          child: Text('BATAL', style: AppTextStyles.poppinsButton.copyWith(color: AppColors.textSecondary)),
+                          child: Text(
+                            'BATAL',
+                            style: AppTextStyles.poppinsButton.copyWith(
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
                         ),
                       ),
                       const SizedBox(width: 12),
@@ -470,26 +785,56 @@ class _ScrimSessionsPageState extends State<ScrimSessionsPage> {
                         child: ElevatedButton(
                           onPressed: () async {
                             final startDateTime = DateTime(
-                              currentDate.year, currentDate.month, currentDate.day,
-                              startTime.hour, startTime.minute,
+                              currentDate.year,
+                              currentDate.month,
+                              currentDate.day,
+                              startTime.hour,
+                              startTime.minute,
                             );
-                            final endDateTime = DateTime(
-                              currentDate.year, currentDate.month, currentDate.day,
-                              endTime.hour, endTime.minute,
+
+                            final fixedEndDate = DateTime(
+                              currentDate.year,
+                              currentDate.month,
+                              currentDate.day,
+                              endTime.hour,
+                              endTime.minute,
                             );
+
+                            final endFinal =
+                                fixedEndDate.isBefore(startDateTime)
+                                    ? fixedEndDate.add(const Duration(days: 1))
+                                    : fixedEndDate;
+
                             await _supabase.from('sesi_scrim').update({
                               'waktu_mulai': startDateTime.toIso8601String(),
-                              'waktu_selesai': endDateTime.toIso8601String(),
+                              'waktu_selesai': endFinal.toIso8601String(),
                               'slot_maksimal': slot,
                             }).eq('id_sesi', session['id_sesi']);
-                            Navigator.pop(ctx);
-                            _fetchData();
+
+                            final newStatus = _getStatusPertandinganValue(
+                              startDateTime.toIso8601String(),
+                              endFinal.toIso8601String(),
+                            );
+
+                            await _syncStatusPertandinganBySession(
+                              session['id_sesi'],
+                              newStatus,
+                            );
+
+                            if (context.mounted) {
+                              Navigator.pop(ctx);
+                            }
+
+                            await _fetchData();
                           },
                           style: ElevatedButton.styleFrom(
                             backgroundColor: AppColors.primary,
                             padding: const EdgeInsets.symmetric(vertical: 12),
                           ),
-                          child: Text('SIMPAN', style: AppTextStyles.poppinsButton),
+                          child: Text(
+                            'SIMPAN',
+                            style: AppTextStyles.poppinsButton,
+                          ),
                         ),
                       ),
                     ],
@@ -508,26 +853,71 @@ class _ScrimSessionsPageState extends State<ScrimSessionsPage> {
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: AppColors.backgroundCard,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text('Hapus Sesi', style: AppTextStyles.poppinsTitle),
-        content: Text('Yakin ingin menghapus sesi ini?', style: AppTextStyles.interBody),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+        title: Text(
+          'Hapus Sesi',
+          style: AppTextStyles.poppinsTitle,
+        ),
+        content: Text(
+          'Yakin ingin menghapus sesi ini?',
+          style: AppTextStyles.interBody,
+        ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text('Batal', style: AppTextStyles.interLink)),
-          ElevatedButton(style: ElevatedButton.styleFrom(backgroundColor: AppColors.error), onPressed: () => Navigator.pop(ctx, true), child: Text('Hapus', style: AppTextStyles.poppinsButton)),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(
+              'Batal',
+              style: AppTextStyles.interLink,
+            ),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.error,
+            ),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(
+              'Hapus',
+              style: AppTextStyles.poppinsButton,
+            ),
+          ),
         ],
       ),
     );
+
     if (confirm == true) {
       await _supabase.from('sesi_scrim').delete().eq('id_sesi', sesiId);
-      _fetchData();
+      await _fetchData();
     }
   }
 
-  String _formatDate(DateTime d) => '${d.day} ${_getMonth(d.month)} ${d.year}';
-  String _getMonth(int m) => ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'][m - 1];
+  String _formatDate(DateTime d) {
+    return '${d.day} ${_getMonth(d.month)} ${d.year}';
+  }
+
+  String _getMonth(int m) {
+    return [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'Mei',
+      'Jun',
+      'Jul',
+      'Agu',
+      'Sep',
+      'Okt',
+      'Nov',
+      'Des',
+    ][m - 1];
+  }
+
   String _formatTime(String? s) {
     if (s == null) return '-';
-    final d = DateTime.parse(s);
+
+    final d = DateTime.parse(s).toLocal();
+
     return '${d.hour.toString().padLeft(2, '0')}.${d.minute.toString().padLeft(2, '0')}';
   }
 
@@ -538,22 +928,32 @@ class _ScrimSessionsPageState extends State<ScrimSessionsPage> {
           .select('id_pendaftaran')
           .eq('id_sesi', sesiId)
           .eq('status_pembayaran', 'dikonfirmasi');
+
       return pesertaData.length;
     } catch (e) {
       return 0;
     }
   }
 
-  Widget _actionButton(IconData icon, Color color, VoidCallback onTap) {
+  Widget _actionButton(
+    IconData icon,
+    Color color,
+    VoidCallback onTap,
+  ) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.all(8),
+        width: 46,
+        height: 46,
         decoration: BoxDecoration(
           color: color.withOpacity(0.12),
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(12),
         ),
-        child: Icon(icon, size: 18, color: color),
+        child: Icon(
+          icon,
+          size: 22,
+          color: color,
+        ),
       ),
     );
   }
@@ -563,7 +963,11 @@ class _ScrimSessionsPageState extends State<ScrimSessionsPage> {
     if (_isLoading) {
       return Scaffold(
         backgroundColor: AppColors.background,
-        body: const Center(child: CircularProgressIndicator(color: AppColors.primary)),
+        body: const Center(
+          child: CircularProgressIndicator(
+            color: AppColors.primary,
+          ),
+        ),
       );
     }
 
@@ -575,35 +979,55 @@ class _ScrimSessionsPageState extends State<ScrimSessionsPage> {
           if (_availableDates.isNotEmpty)
             Container(
               margin: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+              padding: const EdgeInsets.symmetric(
+                horizontal: 12,
+                vertical: 4,
+              ),
               decoration: BoxDecoration(
                 color: AppColors.backgroundCard,
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: AppColors.surfaceVariant),
+                border: Border.all(
+                  color: AppColors.surfaceVariant,
+                ),
               ),
               child: DropdownButtonHideUnderline(
                 child: DropdownButton<DateTime>(
-                  value: _selectedDate,
+                  value: _availableDates.any(
+                    (date) => date.isAtSameMomentAs(
+                      _dateOnly(_selectedDate),
+                    ),
+                  )
+                      ? _dateOnly(_selectedDate)
+                      : (_availableDates.isNotEmpty
+                          ? _availableDates.first
+                          : null),
                   isExpanded: true,
                   dropdownColor: AppColors.backgroundCard,
                   style: AppTextStyles.interInput,
-                  icon: const Icon(Icons.arrow_drop_down, color: AppColors.primary),
+                  icon: const Icon(
+                    Icons.arrow_drop_down,
+                    color: AppColors.primary,
+                  ),
                   items: _availableDates.map((date) {
-                    return DropdownMenuItem(
-                      value: date,
-                      child: Text(_formatDate(date), style: AppTextStyles.interInput),
+                    final dateOnly = _dateOnly(date);
+
+                    return DropdownMenuItem<DateTime>(
+                      value: dateOnly,
+                      child: Text(
+                        _formatDate(dateOnly),
+                        style: AppTextStyles.interInput,
+                      ),
                     );
                   }).toList(),
                   onChanged: (date) {
-                    setState(() {
-                      _selectedDate = date!;
-                      _filterSessions();
-                    });
+                    if (date == null) return;
+
+                    _selectedDate = _dateOnly(date);
+                    _filterSessions();
                   },
                 ),
               ),
             ),
-
           Container(
             margin: const EdgeInsets.fromLTRB(16, 8, 16, 16),
             child: SizedBox(
@@ -614,46 +1038,74 @@ class _ScrimSessionsPageState extends State<ScrimSessionsPage> {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primary,
                 ),
-                child: Text('ATUR JADWAL', style: AppTextStyles.poppinsButton),
+                child: Text(
+                  'ATUR JADWAL',
+                  style: AppTextStyles.poppinsButton,
+                ),
               ),
             ),
           ),
-
           Expanded(
             child: _filteredSessions.isEmpty
                 ? Center(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        const Icon(Icons.schedule_outlined, size: 48, color: AppColors.textSecondary),
+                        const Icon(
+                          Icons.schedule_outlined,
+                          size: 48,
+                          color: AppColors.textSecondary,
+                        ),
                         const SizedBox(height: 16),
-                        Text('Belum ada sesi untuk tanggal ini', style: AppTextStyles.interBody),
+                        Text(
+                          'Belum ada sesi untuk tanggal ini',
+                          style: AppTextStyles.interBody,
+                        ),
                       ],
                     ),
                   )
                 : FutureBuilder<List<Map<String, dynamic>>>(
-                    future: Future.wait(_filteredSessions.map((s) async {
-                      final slotTerisi = await _getSlotTerisi(s['id_sesi']);
-                      return {...s, 'slot_terisi': slotTerisi};
-                    }).toList()),
+                    future: Future.wait(
+                      _filteredSessions.map((s) async {
+                        final slotTerisi = await _getSlotTerisi(s['id_sesi']);
+
+                        return {
+                          ...s,
+                          'slot_terisi': slotTerisi,
+                        };
+                      }).toList(),
+                    ),
                     builder: (context, snapshot) {
                       if (!snapshot.hasData) {
-                        return const Center(child: CircularProgressIndicator(color: AppColors.primary));
+                        return const Center(
+                          child: CircularProgressIndicator(
+                            color: AppColors.primary,
+                          ),
+                        );
                       }
+
                       final sessions = snapshot.data!;
-                      
+
                       return ListView.builder(
                         padding: const EdgeInsets.all(16),
                         itemCount: sessions.length,
                         itemBuilder: (context, i) {
                           final sesi = sessions[i];
-                          final slotMaks = sesi['slot_maksimal'] ?? 12;
-                          final slotTerisi = sesi['slot_terisi'] ?? 0;
-                          final sisaSlot = slotMaks - slotTerisi;
-                          
+
+                          final int slotMaks = sesi['slot_maksimal'] ?? 12;
+                          final int slotTerisi = sesi['slot_terisi'] ?? 0;
+
+                          final String statusValue =
+                              _getStatusPertandinganValue(
+                            sesi['waktu_mulai'],
+                            sesi['waktu_selesai'],
+                          );
+
                           return GestureDetector(
                             onTap: () {
-                              context.push('/admin/sesi/detail/${sesi['id_sesi']}');
+                              context.push(
+                                '/admin/sesi/detail/${sesi['id_sesi']}',
+                              );
                             },
                             child: Container(
                               margin: const EdgeInsets.only(bottom: 12),
@@ -661,78 +1113,116 @@ class _ScrimSessionsPageState extends State<ScrimSessionsPage> {
                               decoration: BoxDecoration(
                                 color: AppColors.backgroundCard,
                                 borderRadius: BorderRadius.circular(12),
-                                border: Border.all(color: AppColors.surfaceVariant),
+                                border: Border.all(
+                                  color: AppColors.surfaceVariant,
+                                ),
                               ),
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Row(
                                     children: [
-                                      Icon(Icons.calendar_today, size: 14, color: AppColors.primary),
+                                      const Icon(
+                                        Icons.calendar_today,
+                                        size: 14,
+                                        color: AppColors.primary,
+                                      ),
                                       const SizedBox(width: 6),
-                                      Text(
-                                        sesi['nama_sesi'] ?? 'Sesi ${i + 1}',
-                                        style: AppTextStyles.poppinsTitleSmall.copyWith(
-                                          color: AppColors.primary,
-                                          fontSize: 14,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 8),
-                                  
-                                  Row(
-                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                    children: [
-                                      Row(
-                                        children: [
-                                          Icon(Icons.access_time, size: 16, color: AppColors.primary),
-                                          const SizedBox(width: 8),
-                                          Text(
-                                            '${_formatTime(sesi['waktu_mulai'])} - ${_formatTime(sesi['waktu_selesai'])}',
-                                            style: AppTextStyles.poppinsTitleSmall.copyWith(fontSize: 14),
+                                      Expanded(
+                                        child: Text(
+                                          sesi['nama_sesi'] ?? 'Sesi ${i + 1}',
+                                          style: AppTextStyles
+                                              .poppinsTitleSmall
+                                              .copyWith(
+                                            color: AppColors.primary,
+                                            fontSize: 14,
                                           ),
-                                        ],
-                                      ),
-                                      Row(
-                                        children: [
-                                          _actionButton(Icons.edit, AppColors.primary, () => _showEditSessionPopup(sesi)),
-                                          const SizedBox(width: 8),
-                                          _actionButton(Icons.delete, AppColors.error, () => _deleteSession(sesi['id_sesi'])),
-                                        ],
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
                                       ),
                                     ],
                                   ),
                                   const SizedBox(height: 12),
-                                  
                                   Row(
-                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Row(
+                                              children: [
+                                                const Icon(
+                                                  Icons.access_time,
+                                                  size: 18,
+                                                  color: AppColors.primary,
+                                                ),
+                                                const SizedBox(width: 8),
+                                                Expanded(
+                                                  child: Text(
+                                                    '${_formatTime(sesi['waktu_mulai'])} - ${_formatTime(sesi['waktu_selesai'])}',
+                                                    style: AppTextStyles
+                                                        .poppinsTitleSmall
+                                                        .copyWith(
+                                                      fontSize: 15,
+                                                    ),
+                                                    overflow:
+                                                        TextOverflow.ellipsis,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                            const SizedBox(height: 20),
+                                            Text(
+                                              'SLOT TERISI',
+                                              style: AppTextStyles.interLabel
+                                                  .copyWith(
+                                                fontSize: 10,
+                                              ),
+                                            ),
+                                            Text(
+                                              '$slotTerisi/$slotMaks Tim',
+                                              style: AppTextStyles
+                                                  .poppinsMoneySmall
+                                                  .copyWith(
+                                                fontSize: 20,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      const SizedBox(width: 12),
                                       Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.end,
                                         children: [
-                                          Text('SLOT TERISI', style: AppTextStyles.interLabel.copyWith(fontSize: 10)),
-                                          Text(
-                                            '$slotTerisi/$slotMaks Tim',
-                                            style: AppTextStyles.poppinsMoneySmall.copyWith(fontSize: 18),
+                                          _buildStatusPertandinganBadge(
+                                            statusValue,
+                                          ),
+                                          const SizedBox(height: 10),
+                                          Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              _actionButton(
+                                                Icons.edit,
+                                                AppColors.primary,
+                                                () => _showEditSessionPopup(
+                                                  sesi,
+                                                ),
+                                              ),
+                                              const SizedBox(width: 8),
+                                              _actionButton(
+                                                Icons.delete,
+                                                AppColors.error,
+                                                () => _deleteSession(
+                                                  sesi['id_sesi'],
+                                                ),
+                                              ),
+                                            ],
                                           ),
                                         ],
-                                      ),
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                                        decoration: BoxDecoration(
-                                          color: sisaSlot > 0 
-                                              ? AppColors.primary.withOpacity(0.15) 
-                                              : AppColors.error.withOpacity(0.15),
-                                          borderRadius: BorderRadius.circular(20),
-                                        ),
-                                        child: Text(
-                                          sisaSlot > 0 ? '$sisaSlot Slot Tersisa' : 'Penuh',
-                                          style: AppTextStyles.interCaption.copyWith(
-                                            color: sisaSlot > 0 ? AppColors.primary : AppColors.error,
-                                            fontWeight: FontWeight.w700,
-                                          ),
-                                        ),
                                       ),
                                     ],
                                   ),
