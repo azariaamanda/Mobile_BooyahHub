@@ -71,15 +71,17 @@ class _HistoryScrimPageState extends State<HistoryScrimPage> {
         throw 'User belum login bray, silakan login dulu.';
       }
 
+      // FIX 1: Gunakan nama FK eksplisit agar join tidak ambigu di Supabase
+      // FIX 2: Nested join sesi_scrim -> scrim juga pakai FK eksplisit
       final response = await supabase
           .from('pendaftaran_tim')
           .select('''
             id_pendaftaran,
-            dibuat_pada, 
+            dibuat_pada,
             status_pertandingan,
-            akun!inner(email),
-            sesi_scrim(
-              scrim(
+            akun!pendaftaran_tim_akun_id_fkey(email),
+            sesi_scrim!pendaftaran_tim_id_sesi_fkey(
+              scrim!sesi_scrim_id_scrim_fkey(
                 nama_scrim,
                 poster
               )
@@ -108,12 +110,13 @@ class _HistoryScrimPageState extends State<HistoryScrimPage> {
         if (statusPertandingan == 'selesai') {
           if (hasilList.isNotEmpty) {
             hasRank = true;
-            final int peringkat = hasilList[0]['peringkat'] ?? 0;
-            peringkatInfo = 'Peringkat $peringkat';
-            if (peringkat == 1) badgeText = 'JUARA 1';
-            else if (peringkat == 2) badgeText = 'JUARA 2';
-            else if (peringkat == 3) badgeText = 'JUARA 3';
-            else badgeText = 'RANK $peringkat';
+            // FIX 3: Kolom yang benar di hasil_pertandingan adalah 'placement', bukan 'peringkat'
+            final int placement = hasilList[0]['placement'] ?? 0;
+            peringkatInfo = 'Peringkat $placement';
+            if (placement == 1) badgeText = 'JUARA 1';
+            else if (placement == 2) badgeText = 'JUARA 2';
+            else if (placement == 3) badgeText = 'JUARA 3';
+            else badgeText = 'RANK $placement';
           } else {
             badgeText = 'SELESAI';
           }
@@ -134,7 +137,7 @@ class _HistoryScrimPageState extends State<HistoryScrimPage> {
         String monthLabel = DateFormat('MMMM yyyy').format(dateParsed);
 
         loadedHistory.add({
-          'id_scrim': item['id_pendaftaran'],
+          'id_scrim': item['id_pendaftaran'], // id_pendaftaran dikirim ke halaman detail
           'nama_scrim': namaScrimAsli,
           'poster_scrim': posterUrl, 
           'tanggal': formattedDate,
