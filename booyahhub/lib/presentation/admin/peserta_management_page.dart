@@ -1,4 +1,4 @@
-﻿// lib/presentation/admin/peserta_management_page.dart
+// lib/presentation/admin/peserta_management_page.dart
 //
 // Isi tab "Peserta" pada AdminMainNavigator.
 // PENTING: halaman ini TIDAK punya bottomNavigationBar sendiri —
@@ -26,7 +26,7 @@ class _PesertaManagementPageState extends State<PesertaManagementPage> {
   final _supabase = Supabase.instance.client;
 
   int _selectedTab = 0;
-  static const _tabs = ['Semua', 'Menunggu', 'Konfirmasi', 'Ditolak'];
+  static const _tabs = ['Semua', 'Belum Bayar', 'Menunggu', 'Konfirmasi', 'Ditolak'];
 
   bool _isLoading = true;
   String? _errorMessage;
@@ -482,6 +482,9 @@ class StatusBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     late final Color color;
     switch (status) {
+      case StatusPeserta.belumBayar:
+        color = Colors.grey;
+        break;
       case StatusPeserta.dikonfirmasi:
         color = AppColors.success;
         break;

@@ -26,6 +26,7 @@ class _UserPesananPageState extends State<UserPesananPage> {
 
   final List<Map<String, String>> _filterOptions = [
     {'value': 'semua', 'label': 'Semua'},
+    {'value': 'belum_bayar', 'label': 'Belum Bayar'},
     {'value': 'menunggu', 'label': 'Menunggu'},
     {'value': 'dikonfirmasi', 'label': 'Dikonfirmasi'},
     {'value': 'ditolak', 'label': 'Dibatalkan'},
@@ -489,6 +490,7 @@ class _UserPesananPageState extends State<UserPesananPage> {
       case 'dikonfirmasi': return 'Dikonfirmasi';
       case 'menunggu': return 'Menunggu Verifikasi';
       case 'ditolak': return 'Dibatalkan';
+      case 'belum_bayar': return 'Belum Bayar';
       default: return status;
     }
   }
@@ -498,6 +500,7 @@ class _UserPesananPageState extends State<UserPesananPage> {
       case 'dikonfirmasi': return Colors.green;
       case 'menunggu': return Colors.orange;
       case 'ditolak': return Colors.red;
+      case 'belum_bayar': return Colors.amber.shade700;
       default: return Colors.grey;
     }
   }
@@ -611,6 +614,12 @@ class _UserPesananPageState extends State<UserPesananPage> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Row(children: [Icon(Icons.info_outline, size: 16, color: AppColors.primary), const SizedBox(width: 4), Text('Ketuk untuk detail', style: AppTextStyles.interCaption.copyWith(color: AppColors.primary))]),
+                  if (status == 'belum_bayar')
+                    ElevatedButton(
+                      onPressed: () => context.push('/user/payment/${pesanan['id_pendaftaran']}', extra: pesanan['id_pendaftaran']),
+                      style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary, foregroundColor: Colors.black, padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4), minimumSize: Size.zero, tapTargetSize: MaterialTapTargetSize.shrinkWrap),
+                      child: const Text('Bayar Sekarang', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                    ),
                   if (isConfirmed && hasRoomId) Row(children: [Icon(Icons.meeting_room, size: 14, color: AppColors.primary), const SizedBox(width: 4), Text('Room tersedia', style: AppTextStyles.interCaption.copyWith(color: AppColors.primary))]),
                   if (hasil != null && hasil['peringkat'] != null && hasil['peringkat'] <= 3) Row(children: [Icon(Icons.emoji_events, size: 14, color: Colors.amber), const SizedBox(width: 4), Text('Juara ${hasil['peringkat']}', style: AppTextStyles.interCaption.copyWith(color: Colors.amber))]),
                 ],

@@ -412,6 +412,9 @@ class StatusBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     late final Color color;
     switch (status) {
+      case StatusPeserta.belumBayar:
+        color = Colors.grey;
+        break;
       case StatusPeserta.dikonfirmasi:
         color = AppColors.success;
         break;
