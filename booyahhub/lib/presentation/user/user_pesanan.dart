@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../config/app_session.dart';
@@ -21,7 +21,6 @@ class _UserPesananPageState extends State<UserPesananPage> {
   bool _isLoading = true;
   String? _errorMessage;
   
-  // Filter status (mirip dengan home page)
   String _selectedStatusFilter = 'semua';
 
   final List<Map<String, String>> _filterOptions = [
@@ -70,43 +69,49 @@ class _UserPesananPageState extends State<UserPesananPage> {
 
       final int akunId = akunResponse['id_akun'];
 
+      // ✅ QUERY YANG BENAR - hasil_pertandingan menyertakan room_id dan password
       final response = await _supabase
-          .from('pendaftaran_tim')
-          .select('''
-            id_pendaftaran,
+        .from('pendaftaran_tim')
+        .select('''
+          id_pendaftaran,
+          id_sesi,
+          status_pembayaran,
+          dibuat_pada,
+          diverifikasi_pada,
+          akun_id,
+          bukti_pembayaran,
+          nama_kapten,
+          whatsapp_kapten,
+          id_player_1,
+          id_player_2,
+          id_player_3,
+          id_player_4,
+          metode_pembayaran_daftar,
+          sesi_scrim (
             id_sesi,
-            status_pembayaran,
-            dibuat_pada,
-            diverifikasi_pada,
-            akun_id,
-            bukti_pembayaran,
-            nama_kapten,
-            whatsapp_kapten,
-            id_player_1,
-            id_player_2,
-            id_player_3,
-            id_player_4,
-            metode_pembayaran_daftar,
-            sesi_scrim (
-              id_sesi,
-              nama_sesi,
-              waktu_mulai,
-              waktu_selesai,
-              room_id,
-              password,
-              scrim (
-                id_scrim,
-                nama_scrim,
-                poster,
-                biaya_pendaftaran,
-                total_hadiah
-              )
-            ),
-            hasil_pertandingan (*),
-            klaim_hadiah (*)
-          ''')
-          .eq('akun_id', akunId)
-          .order('dibuat_pada', ascending: false);
+            nama_sesi,
+            waktu_mulai,
+            waktu_selesai,
+            scrim (
+              id_scrim,
+              nama_scrim,
+              poster,
+              biaya_pendaftaran,
+              total_hadiah
+            )
+          ),
+          hasil_pertandingan (
+            room_id,
+            password,
+            placement,
+            poin_placement,
+            total_kill,
+            total_poin
+          ),
+          klaim_hadiah (*)
+        ''')
+        .eq('akun_id', akunId)
+        .order('dibuat_pada', ascending: false);
 
       if (response == null || response.isEmpty) {
         setState(() {
@@ -157,7 +162,6 @@ class _UserPesananPageState extends State<UserPesananPage> {
     }
   }
 
-  // ─── BUILD FILTER CHIP (SAMA SEPERTI HOME PAGE) ───
   Widget _buildFilterChip() {
     return SizedBox(
       height: 38,
@@ -215,7 +219,6 @@ class _UserPesananPageState extends State<UserPesananPage> {
     }
   }
 
-  // ─── POP UP DETAIL PESANAN ───
   void _showDetailPopup(Map<String, dynamic> pesanan) {
     final sesi = pesanan['sesi_scrim'] as Map<String, dynamic>?;
     if (sesi == null) {
@@ -239,6 +242,10 @@ class _UserPesananPageState extends State<UserPesananPage> {
     
     final hasilList = pesanan['hasil_pertandingan'] as List?;
     final hasil = (hasilList != null && hasilList.isNotEmpty) ? hasilList[0] : null;
+    
+    // ✅ AMBIL ROOM_ID DAN PASSWORD DARI HASIL PERTANDINGAN
+    final roomId = hasil?['room_id'];
+    final password = hasil?['password'];
     
     final klaimList = pesanan['klaim_hadiah'] as List?;
     final klaim = (klaimList != null && klaimList.isNotEmpty) ? klaimList[0] : null;
@@ -355,33 +362,39 @@ class _UserPesananPageState extends State<UserPesananPage> {
               ],
               const SizedBox(height: AppConstants.paddingM),
 
-              if (status == 'dikonfirmasi' && sesi['room_id'] != null && sesi['room_id'].toString().isNotEmpty) ...[
+              // ✅ TAMPILKAN ROOM ID DAN PASSWORD DARI HASIL PERTANDINGAN
+              if (status == 'dikonfirmasi' && roomId != null && roomId.toString().isNotEmpty) ...[
                 const Divider(color: AppColors.inputBorder),
                 const SizedBox(height: AppConstants.paddingS),
                 Text('Informasi Room', style: AppTextStyles.poppinsTitleSmall.copyWith(color: AppColors.primary)),
                 const SizedBox(height: 8),
                 Container(
                   padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(color: AppColors.primary.withOpacity(0.1), borderRadius: BorderRadius.circular(AppConstants.radiusM)),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(AppConstants.radiusM),
+                  ),
                   child: Column(
                     children: [
-                      _buildInfoRow(Icons.meeting_room, 'Room ID: ${sesi['room_id']}'),
-                      if (sesi['password'] != null && sesi['password'].toString().isNotEmpty) const SizedBox(height: 8),
-                      if (sesi['password'] != null && sesi['password'].toString().isNotEmpty) _buildInfoRow(Icons.lock, 'Password: ${sesi['password']}'),
+                      _buildInfoRow(Icons.meeting_room, 'Room ID: $roomId'),
+                      if (password != null && password.toString().isNotEmpty) ...[
+                        const SizedBox(height: 8),
+                        _buildInfoRow(Icons.lock, 'Password: $password'),
+                      ],
                     ],
                   ),
                 ),
                 const SizedBox(height: AppConstants.paddingM),
               ],
 
-              if (hasil != null && hasil['peringkat'] != null) ...[
+              if (hasil != null && hasil['placement'] != null) ...[
                 const Divider(color: AppColors.inputBorder),
                 const SizedBox(height: AppConstants.paddingS),
                 Text('Hasil Pertandingan', style: AppTextStyles.poppinsTitleSmall),
                 const SizedBox(height: 8),
                 Row(
                   children: [
-                    Expanded(child: _buildResultItemPopup(icon: Icons.emoji_events, label: 'peringkat', value: '#${hasil['peringkat']}', color: Colors.amber)),
+                    Expanded(child: _buildResultItemPopup(icon: Icons.emoji_events, label: 'Peringkat', value: '#${hasil['placement']}', color: Colors.amber)),
                     Expanded(child: _buildResultItemPopup(icon: Icons.sports_esports, label: 'Total Kill', value: '${hasil['total_kill'] ?? 0}', color: Colors.redAccent)),
                     Expanded(child: _buildResultItemPopup(icon: Icons.star, label: 'Total Poin', value: '${hasil['total_poin'] ?? 0}', color: AppColors.primary)),
                   ],
@@ -389,7 +402,7 @@ class _UserPesananPageState extends State<UserPesananPage> {
                 const SizedBox(height: AppConstants.paddingM),
               ],
 
-              if (hasil != null && hasil['peringkat'] != null && hasil['peringkat'] <= 3) ...[
+              if (hasil != null && hasil['placement'] != null && hasil['placement'] <= 3) ...[
                 const Divider(color: AppColors.inputBorder),
                 const SizedBox(height: AppConstants.paddingS),
                 Text('Status Klaim Hadiah', style: AppTextStyles.poppinsTitleSmall),
@@ -556,9 +569,11 @@ class _UserPesananPageState extends State<UserPesananPage> {
     final waktuMulai = sesi != null ? (DateTime.tryParse(sesi['waktu_mulai'] ?? '') ?? DateTime.now()) : DateTime.now();
     final status = pesanan['status_pembayaran'] ?? 'menunggu';
     final isConfirmed = status == 'dikonfirmasi';
-    final hasRoomId = sesi?['room_id'] != null && sesi!['room_id'].toString().isNotEmpty;
+    
+    // ✅ AMBIL ROOM_ID DARI HASIL PERTANDINGAN
     final hasilList = pesanan['hasil_pertandingan'] as List?;
     final hasil = (hasilList != null && hasilList.isNotEmpty) ? hasilList[0] : null;
+    final hasRoomId = hasil?['room_id'] != null && hasil!['room_id'].toString().isNotEmpty;
 
     return GestureDetector(
       onTap: () => _showDetailPopup(pesanan),
