@@ -288,40 +288,46 @@ class _PesertaManagementPageState extends State<PesertaManagementPage> {
 
   // ===================== TAB BAR =====================
   Widget _buildTabBar() {
-    return Container(
-      height: 60,
-      margin: const EdgeInsets.symmetric(horizontal: AppConstants.paddingM),
-      child: Row(
-        children: List.generate(_tabs.length, (i) {
-          final selected = _selectedTab == i;
-          return Expanded(
-            child: GestureDetector(
+    return SizedBox(
+      height: 48,
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: AppConstants.paddingM),
+        child: Row(
+          children: List.generate(_tabs.length, (i) {
+            final selected = _selectedTab == i;
+            return GestureDetector(
               onTap: () => setState(() => _selectedTab = i),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    _tabs[i],
-                    style: AppTextStyles.interBodyMedium.copyWith(
-                      color: selected ? AppColors.primary : AppColors.textHint,
-                      fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
+              child: Container(
+                margin: const EdgeInsets.only(right: 4),
+                padding: const EdgeInsets.symmetric(horizontal: 14),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      _tabs[i],
+                      style: AppTextStyles.interBodyMedium.copyWith(
+                        color: selected ? AppColors.primary : AppColors.textHint,
+                        fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
+                        fontSize: 13,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 6),
-                  AnimatedContainer(
-                    duration: AppConstants.animationDuration,
-                    height: 3,
-                    width: selected ? 22 : 0,
-                    decoration: BoxDecoration(
-                      color: AppColors.primary,
-                      borderRadius: BorderRadius.circular(2),
+                    const SizedBox(height: 4),
+                    AnimatedContainer(
+                      duration: AppConstants.animationDuration,
+                      height: 3,
+                      width: selected ? 22 : 0,
+                      decoration: BoxDecoration(
+                        color: AppColors.primary,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
-          );
-        }),
+            );
+          }),
+        ),
       ),
     );
   }

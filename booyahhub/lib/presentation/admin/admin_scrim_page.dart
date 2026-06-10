@@ -189,6 +189,7 @@ class _AdminScrimPageState extends State<AdminScrimPage>
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _buildHeader(),
+            if (!_isPremium) _buildLimitBanner(),
             _buildTabBar(),
             Expanded(
               child: TabBarView(
@@ -201,6 +202,40 @@ class _AdminScrimPageState extends State<AdminScrimPage>
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildLimitBanner() {
+    final used = _allScrims.length;
+    final remaining = 2 - used;
+    return Container(
+      margin: const EdgeInsets.fromLTRB(
+        AppConstants.paddingM, 0, AppConstants.paddingM, AppConstants.paddingS,
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: AppColors.primary.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(AppConstants.radiusM),
+        border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.info_outline_rounded, size: 16, color: AppColors.primary),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              remaining > 0
+                  ? 'Admin reguler: $used/2 scrim digunakan, sisa $remaining slot.'
+                  : 'Batas scrim admin reguler tercapai (2/2). Upgrade ke Premium untuk tanpa batas.',
+              style: AppTextStyles.interCaption.copyWith(
+                color: AppColors.primary,
+                fontSize: 11,
+                height: 1.4,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -233,7 +268,7 @@ class _AdminScrimPageState extends State<AdminScrimPage>
           ),
           GestureDetector(
             onTap: () async {
-              final isLocked = !_isPremium && _allScrims.isNotEmpty;
+              final isLocked = !_isPremium && _allScrims.length >= 2;
               if (isLocked) {
                 Navigator.push(context, MaterialPageRoute(builder: (_) => const ScrimLimitPage()));
                 return;
@@ -254,7 +289,7 @@ class _AdminScrimPageState extends State<AdminScrimPage>
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Icon(
-                    (!_isPremium && _allScrims.isNotEmpty) ? Icons.lock_outline_rounded : Icons.add,
+                    (!_isPremium && _allScrims.length >= 2) ? Icons.lock_outline_rounded : Icons.add,
                     color: Colors.black,
                     size: 18,
                   ),

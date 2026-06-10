@@ -39,7 +39,7 @@ class AdminModel {
       role: json['role'] ?? 'admin',
       statusAkun: json['status_akun'] ?? 'aktif',
       totalUtang: (profil?['total_utang'] ?? 0).toDouble(),
-      limitUtang: (profil?['limit_utang'] ?? 50000).toDouble(),
+      limitUtang: (profil?['limit_utang'] ?? 100000).toDouble(),
       idProfilAdmin: profil?['id_profil_admin'],
       namaLengkap: profil?['nama_lengkap'],
       noHandphone: profil?['no_handphone'],

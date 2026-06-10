@@ -41,7 +41,7 @@ class AdminUtangService {
 
       final profil = adminData['profil_admin'] as Map<String, dynamic>;
       final double totalUtangSekarang = (profil['total_utang'] ?? 0).toDouble();
-      final double limitUtang = (profil['limit_utang'] ?? 50000).toDouble();
+      final double limitUtang = (profil['limit_utang'] ?? 100000).toDouble();
       final double totalUtangBaru = totalUtangSekarang + fee;
       
       final bool melebihiLimit = totalUtangBaru >= limitUtang;
@@ -81,6 +81,79 @@ class AdminUtangService {
   }
 
   // ============================================================
+  // HITUNG UTANG DINAMIS
+  // Utang = fee platform dari pendaftaran dikonfirmasi di scrim aktif
+  // Rumus per scrim: biaya_pendaftaran × jumlah_dikonfirmasi × fee_platform_persen/100
+  //                  (minimum nominal_minimum_platform jika ada pendaftaran)
+  // ============================================================
+  Future<double> hitungUtangDinamis(int adminId) async {
+    try {
+      // Ambil pengaturan fee platform
+      final feeSettings = await _supabase
+          .from('pengaturan_fee')
+          .select('fee_platform_persen, nominal_minimum_platform')
+          .maybeSingle();
+      final int feePersen = (feeSettings?['fee_platform_persen'] as num? ?? 25).toInt();
+      final double minFee = (feeSettings?['nominal_minimum_platform'] as num? ?? 5000).toDouble();
+
+      // Ambil scrim aktif milik admin beserta biaya_pendaftaran
+      final scrims = await _supabase
+          .from('scrim')
+          .select('id_scrim, biaya_pendaftaran')
+          .eq('id_admin', adminId)
+          .eq('status_scrim', 'aktif');
+
+      if ((scrims as List).isEmpty) return 0;
+
+      final scrimBiayaMap = <int, double>{
+        for (var s in scrims)
+          s['id_scrim'] as int: (s['biaya_pendaftaran'] as num? ?? 0).toDouble(),
+      };
+      final scrimIds = scrimBiayaMap.keys.toList();
+
+      // Ambil sesi dari scrim aktif
+      final sesis = await _supabase
+          .from('sesi_scrim')
+          .select('id_sesi, id_scrim')
+          .inFilter('id_scrim', scrimIds);
+
+      if ((sesis as List).isEmpty) return 0;
+
+      final sesiToScrim = <int, int>{
+        for (var s in sesis) s['id_sesi'] as int: s['id_scrim'] as int,
+      };
+      final sesiIds = sesiToScrim.keys.toList();
+
+      // Hitung pendaftaran dikonfirmasi per scrim
+      final pendaftaran = await _supabase
+          .from('pendaftaran_tim')
+          .select('id_sesi')
+          .inFilter('id_sesi', sesiIds)
+          .eq('status_pembayaran', 'dikonfirmasi');
+
+      final Map<int, int> countPerScrim = {};
+      for (final p in pendaftaran as List) {
+        final scrimId = sesiToScrim[p['id_sesi'] as int] ?? 0;
+        if (scrimId != 0) countPerScrim[scrimId] = (countPerScrim[scrimId] ?? 0) + 1;
+      }
+
+      // Hitung total utang fee platform per scrim
+      double totalUtang = 0;
+      for (final entry in countPerScrim.entries) {
+        final biaya = scrimBiayaMap[entry.key] ?? 0;
+        final rawFee = biaya * entry.value * feePersen / 100;
+        // Minimum fee berlaku saat ada peserta yang mendaftar
+        totalUtang += rawFee < minFee ? minFee : rawFee;
+      }
+
+      return totalUtang;
+    } catch (e) {
+      debugPrint('Error hitungUtangDinamis: $e');
+      return 0;
+    }
+  }
+
+  // ============================================================
   // CEK STATUS ADMIN
   // ============================================================
   Future<Map<String, dynamic>> cekStatusAdmin(int adminId) async {
@@ -91,7 +164,6 @@ class AdminUtangService {
             id_akun,
             status_akun,
             profil_admin!inner (
-              total_utang,
               limit_utang
             )
           ''')
@@ -99,13 +171,15 @@ class AdminUtangService {
           .single();
 
       final profil = data['profil_admin'] as Map<String, dynamic>;
-      final double totalUtang = (profil['total_utang'] ?? 0).toDouble();
-      final double limitUtang = (profil['limit_utang'] ?? 50000).toDouble();
+      final double limitUtang = (profil['limit_utang'] ?? 100000).toDouble();
       final String statusAkun = data['status_akun'];
+
+      // Hitung utang dari scrim yang masih aktif (belum selesai)
+      final double totalUtang = await hitungUtangDinamis(adminId);
 
       final bool melebihiLimit = totalUtang >= limitUtang;
       final bool bisaBuatScrim = statusAkun == 'aktif' && !melebihiLimit;
-      
+
       if (melebihiLimit && statusAkun != 'suspended') {
         await _supabase
             .from('akun')
@@ -120,7 +194,7 @@ class AdminUtangService {
         'limit_utang': limitUtang,
         'bisa_buat_scrim': bisaBuatScrim,
         'sisa_limit': limitUtang - totalUtang,
-        'message': bisaBuatScrim 
+        'message': bisaBuatScrim
             ? 'Aman. Sisa limit: ${formatRupiah(limitUtang - totalUtang)}'
             : 'Akun ditangguhkan. Silakan lunasi tagihan.',
       };

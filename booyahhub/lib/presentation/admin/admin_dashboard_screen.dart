@@ -30,7 +30,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   double _pendapatanBulanIni = 0;
   double _pendapatanBulanLalu = 0;
   double _totalUtang = 0;
-  double _limitUtang = 50000;
+  double _limitUtang = 100000;
   List<double> _trendData = List.filled(7, 0);
 
   @override
@@ -84,18 +84,25 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
 
       final profil = await _supabase
           .from('profil_admin')
-          .select('nama_lengkap, foto_profil, total_utang, limit_utang')
+          .select('nama_lengkap, foto_profil, limit_utang')
           .eq('akun_id', adminId)
           .maybeSingle();
       final nama = profil?['nama_lengkap'] as String? ?? 'Admin';
       final fotoPath = profil?['foto_profil'] as String?;
-      final totalUtang = (profil?['total_utang'] as num? ?? 0).toDouble();
-      final limitUtang = (profil?['limit_utang'] as num? ?? 50000).toDouble();
+      final limitUtang = (profil?['limit_utang'] as num? ?? 100000).toDouble();
 
-      // Admin's scrims
+      // Ambil pengaturan fee platform untuk hitung utang
+      final feeSettings = await _supabase
+          .from('pengaturan_fee')
+          .select('fee_platform_persen, nominal_minimum_platform')
+          .maybeSingle();
+      final int feePlatformPersen = (feeSettings?['fee_platform_persen'] as num? ?? 25).toInt();
+      final double nominalMinimumPlatform = (feeSettings?['nominal_minimum_platform'] as num? ?? 5000).toDouble();
+
+      // Admin's scrims (termasuk status_scrim untuk hitung utang dinamis)
       final scrims = await _supabase
           .from('scrim')
-          .select('id_scrim, biaya_pendaftaran, maks_peserta')
+          .select('id_scrim, biaya_pendaftaran, maks_peserta, status_scrim')
           .eq('id_admin', adminId);
       if ((scrims as List).isEmpty) {
         if (mounted) {
@@ -107,6 +114,11 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       final biayaMap = <int, double>{
         for (var s in scrims) s['id_scrim'] as int: (s['biaya_pendaftaran'] as num? ?? 0).toDouble()
       };
+      // Scrim aktif = belum selesai, pendaftarannya masih jadi utang fee ke owner
+      final activeScrimIds = (scrims as List)
+          .where((s) => (s['status_scrim'] as String? ?? '') == 'aktif')
+          .map((s) => s['id_scrim'] as int)
+          .toSet();
       final totalSlot = scrims.fold<int>(0, (sum, s) => sum + (s['maks_peserta'] as int? ?? 0));
 
       // Sessions
@@ -150,6 +162,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       int bookingKemarin = 0;
       int verifikasiCount = 0;
       int konfirmasiCount = 0;
+      final Map<int, int> confirmedPerActiveScrim = {};
       double pendapatanBulanIni = 0;
       double pendapatanBulanLalu = 0;
       final trendMap = <int, double>{};
@@ -166,7 +179,12 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         final biaya = biayaMap[scrimId] ?? 0;
 
         if (status == 'menunggu') verifikasiCount++;
-        if (status == 'dikonfirmasi') konfirmasiCount++;
+        if (status == 'dikonfirmasi') {
+          konfirmasiCount++;
+          if (activeScrimIds.contains(scrimId)) {
+            confirmedPerActiveScrim[scrimId] = (confirmedPerActiveScrim[scrimId] ?? 0) + 1;
+          }
+        }
 
         if (tgl != null) {
           final tglDay = DateTime(tgl.year, tgl.month, tgl.day);
@@ -200,7 +218,11 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         _sisaSlot = max(0, totalSlot - konfirmasiCount);
         _pendapatanBulanIni = pendapatanBulanIni;
         _pendapatanBulanLalu = pendapatanBulanLalu;
-        _totalUtang = totalUtang;
+        _totalUtang = confirmedPerActiveScrim.entries.fold(0.0, (sum, entry) {
+          final biaya = biayaMap[entry.key] ?? 0;
+          final rawFee = biaya * entry.value * feePlatformPersen / 100;
+          return sum + (rawFee < nominalMinimumPlatform ? nominalMinimumPlatform : rawFee);
+        });
         _limitUtang = limitUtang;
         _trendData = List.generate(7, (i) => trendMap[i] ?? 0);
         _isLoading = false;

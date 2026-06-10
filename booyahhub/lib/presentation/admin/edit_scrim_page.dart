@@ -149,13 +149,18 @@ class _EditScrimPageState extends State<EditScrimPage> {
       _showSnackBar('Pilih mode pertandingan', isError: true);
       return;
     }
+    final cekPeserta = int.tryParse(_maksPesertaController.text) ?? 0;
+    if (cekPeserta < 2 || cekPeserta > 12) {
+      _showSnackBar('Maks peserta harus antara 2–12 tim', isError: true);
+      return;
+    }
 
     setState(() => _isLoading = true);
 
     try {
       final posterUrl = await _uploadPoster();
       final biaya = int.tryParse(_biayaController.text) ?? 0;
-      final maksPeserta = int.tryParse(_maksPesertaController.text) ?? 16;
+      final maksPeserta = int.tryParse(_maksPesertaController.text) ?? 12;
       final totalPendaftaran = biaya * maksPeserta;
 
       int feePlatform = totalPendaftaran * _feePlatformPersen ~/ 100;
@@ -283,7 +288,7 @@ class _EditScrimPageState extends State<EditScrimPage> {
                       _buildTextField(
                         'MAKS PESERTA',
                         _maksPesertaController,
-                        hint: '16',
+                        hint: '12',
                         keyboardType: TextInputType.number,
                         onChanged: (_) => setState(() {}),
                       ),
