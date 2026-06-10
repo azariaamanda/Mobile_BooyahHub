@@ -45,9 +45,10 @@ class _HistoryDetailScrimPageState extends State<HistoryDetailScrimPage> {
               )
             ),
             sesi_scrim!pendaftaran_tim_id_sesi_fkey(
-              id_sesi,
-              scrim!sesi_scrim_id_scrim_fkey(
-                nama_scrim
+            id_sesi,
+            scrim!sesi_scrim_id_scrim_fkey(
+              nama_scrim,
+              total_hadiah
               )
             ),
             klaim_hadiah(id_klaim),
@@ -101,37 +102,61 @@ class _HistoryDetailScrimPageState extends State<HistoryDetailScrimPage> {
       String peringkatAkhir = 'BELUM MULAI';
       int totalPoin = 0;
       int totalKills = 0;
+      int placement = 0;  
 
       if (hasilList.isNotEmpty) {
-        final int rank = hasilList[0]['placement'] ?? 0;
-        peringkatAkhir = rank == 1
+        placement = hasilList[0]['placement'] ?? 0;
+
+        peringkatAkhir = placement == 1
             ? 'JUARA 1'
-            : rank == 2
-            ? 'JUARA 2'
-            : rank == 3
-            ? 'JUARA 3'
-            : 'RANK $rank';
+            : placement == 2
+                ? 'JUARA 2'
+                : placement == 3
+                    ? 'JUARA 3'
+                    : 'RANK $placement';
+
         totalPoin = hasilList[0]['total_poin'] ?? 0;
         totalKills = hasilList[0]['total_kill'] ?? 0;
       }
 
+      final num totalHadiahScrim = scrimData?['total_hadiah'] ?? 0;
+
+      num nominalHadiah = 0;
+
+      if (placement == 1) {
+        nominalHadiah = totalHadiahScrim * 0.5;
+      } else if (placement == 2) {
+        nominalHadiah = totalHadiahScrim * 0.3;
+      } else if (placement == 3) {
+        nominalHadiah = totalHadiahScrim * 0.2;
+      }
+
+      final String nominalHadiahFormat = NumberFormat.currency(
+        locale: 'id_ID',
+        symbol: 'Rp ',
+        decimalDigits: 0,
+      ).format(nominalHadiah);
+
       return {
-        'nama_scrim':
-            scrimData?['nama_scrim'] ??
-            'Scrim Match #${response['id_pendaftaran']}',
-        'bulan': bulan,
-        'tanggal_angka': tanggalAngka,
-        'jam': jam,
-        'zona_waktu': zonaWaktu,
-        'nama_tim': namaTim,
-        'peringkat_akhir': peringkatAkhir,
-        'total_poin': totalPoin,
-        'total_kills': totalKills,
-        'status': response['status_pertandingan'] ?? 'belum_mulai',
-        'id_sesi': sesiScrimData?['id_sesi'] ?? 0,
-        'id_pendaftaran': response['id_pendaftaran'],
-        'has_claimed': hasClaimed,
-      };
+      'nama_scrim': scrimData?['nama_scrim'] ??
+          'Scrim Match #${response['id_pendaftaran']}',
+      'bulan': bulan,
+      'tanggal_angka': tanggalAngka,
+      'jam': jam,
+      'zona_waktu': zonaWaktu,
+      'nama_tim': namaTim,
+      'peringkat_akhir': peringkatAkhir,
+      'placement': placement,
+      'total_poin': totalPoin,
+      'total_kills': totalKills,
+      'total_hadiah_scrim': totalHadiahScrim,
+      'nominal_hadiah': nominalHadiah,
+      'nominal_hadiah_format': nominalHadiahFormat,
+      'status': response['status_pertandingan'] ?? 'belum_mulai',
+      'id_sesi': sesiScrimData?['id_sesi'] ?? 0,
+      'id_pendaftaran': response['id_pendaftaran'],
+      'has_claimed': hasClaimed,
+    };
     } catch (e) {
       print('Eror ambil detail bray: $e');
       rethrow;
@@ -648,11 +673,11 @@ class _HistoryDetailScrimPageState extends State<HistoryDetailScrimPage> {
               final result = await Navigator.of(context).push<bool>(
                 MaterialPageRoute(
                   builder: (context) => RequestClaimPrizePage(
-                    title: data['nama_scrim'],
-                    rank: data['peringkat_akhir'],
-                    totalPrize: 'Rp 150.000',
-                    pendaftaranId: widget.idPendaftaran,
-                  ),
+                  title: data['nama_scrim'],
+                  rank: data['peringkat_akhir'],
+                  totalPrize: data['nominal_hadiah_format'],
+                  pendaftaranId: widget.idPendaftaran,
+                ),
                 ),
               );
 

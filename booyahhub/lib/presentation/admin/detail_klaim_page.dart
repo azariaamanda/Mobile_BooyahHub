@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import '../../config/app_color.dart';
 import '../../config/app_constants.dart';
 import '../../config/app_text_styles.dart';
-import 'klaim_hadiah_detail_page.dart';
+import 'daftar_klaim_aktif_page.dart';
 
 class DetailKlaimPage extends StatefulWidget {
   const DetailKlaimPage({super.key});
@@ -673,40 +673,44 @@ class _DetailKlaimPageState extends State<DetailKlaimPage> {
   }
 
   Widget _buildBottomButton(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-      decoration: const BoxDecoration(
-        color: AppColors.backgroundCard,
-        border: Border(top: BorderSide(color: Colors.white10)),
+  return Container(
+    padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+    decoration: const BoxDecoration(
+      color: AppColors.backgroundCard,
+      border: Border(
+        top: BorderSide(color: Colors.white10),
       ),
-      child: SizedBox(
-        width: double.infinity,
-        height: 48,
-        child: ElevatedButton(
-          style: ElevatedButton.styleFrom(
-            backgroundColor: AppColors.primary,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(AppConstants.radiusM),
-            ),
-            elevation: 0,
+    ),
+    child: SizedBox(
+      width: double.infinity,
+      height: 48,
+      child: ElevatedButton(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: AppColors.primary,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppConstants.radiusM),
           ),
-          onPressed: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const KlaimHadiahDetailPage()),
-            );
-          },
-          child: const Text(
-            'TERUSKAN KE OWNER',
-            style: TextStyle(
-              color: Colors.black,
-              fontWeight: FontWeight.w800,
-              fontSize: 14,
-              letterSpacing: 0.5,
+          elevation: 0,
+        ),
+        onPressed: () {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (_) => const DaftarKlaimAktifPage(),
             ),
+          );
+        },
+        child: const Text(
+          'LIHAT DAFTAR KLAIM',
+          style: TextStyle(
+            color: Colors.black,
+            fontWeight: FontWeight.w800,
+            fontSize: 14,
+            letterSpacing: 0.5,
           ),
         ),
       ),
-    );
+    ),
+  );
   }
 }

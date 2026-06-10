@@ -1,113 +1,849 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+
 import '../../config/app_color.dart';
 import '../../config/app_constants.dart';
 import '../../config/app_text_styles.dart';
 
 class KlaimHadiahDetailPage extends StatefulWidget {
-  const KlaimHadiahDetailPage({super.key});
+  final int idKlaim;
+
+  const KlaimHadiahDetailPage({
+    super.key,
+    required this.idKlaim,
+  });
 
   @override
   State<KlaimHadiahDetailPage> createState() => _KlaimHadiahDetailPageState();
 }
 
 class _KlaimHadiahDetailPageState extends State<KlaimHadiahDetailPage> {
-  static const int _totalPendapatan = 600000;
-  static const int _jumlahTim = 12;
+  final _supabase = Supabase.instance.client;
+  final ImagePicker _imagePicker = ImagePicker();
 
-  // Fee settings
-  int _feePlatformPersen = 25;
-  int _nominalMinimumPlatform = 5000;
-  int _feeAdminPersen = 10;
-  int _feeAdminTetap = 10000;
-  bool _isPersentaseAdmin = true;
+  bool _isLoading = true;
+  bool _isSubmitting = false;
+  String? _error;
+
+  Map<String, dynamic>? _klaim;
+
+  XFile? _selectedBuktiBayar;
+  Uint8List? _selectedBuktiBayarBytes;
+
+  static const String _bucketQris = 'qr_qris';
+  static const String _bucketBuktiBayar = 'bukti_bayar';
 
   @override
   void initState() {
     super.initState();
-    _fetchFeeSettings();
+    _fetchDetail();
   }
 
-  Future<void> _fetchFeeSettings() async {
+  Future<void> _fetchDetail() async {
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
+
     try {
-      final feeSetting = await Supabase.instance.client
-          .from('pengaturan_fee')
-          .select()
+      final data = await _supabase
+          .from('klaim_hadiah')
+          .select('''
+            id_klaim,
+            id_pendaftaran,
+            status_klaim,
+            jumlah_klaim,
+            metode_klaim,
+            nama_bank,
+            nomor_rekening,
+            nama_pemilik_rekening,
+            nama_pemilik_qris,
+            qris_image,
+            id_transaksi_qris,
+            bukti_bayar_hadiah,
+            diajukan_pada,
+            disetujui_admin_pada,
+            dibayar_pada,
+            pendaftaran_tim!inner(
+              id_pendaftaran,
+              nama_kapten,
+              whatsapp_kapten,
+              id_sesi,
+              sesi_scrim!inner(
+                nama_sesi,
+                waktu_mulai,
+                waktu_selesai,
+                scrim!inner(
+                  nama_scrim
+                )
+              )
+            )
+          ''')
+          .eq('id_klaim', widget.idKlaim)
           .maybeSingle();
-      
-      if (feeSetting != null && mounted) {
-        setState(() {
-          _feePlatformPersen = feeSetting['fee_platform_persen'] ?? 25;
-          _nominalMinimumPlatform = feeSetting['nominal_minimum_platform'] ?? 5000;
-          _feeAdminPersen = feeSetting['fee_admin_persen'] ?? 10;
-          _feeAdminTetap = feeSetting['fee_admin_tetap'] ?? 10000;
-          _isPersentaseAdmin = feeSetting['is_persentase_admin'] ?? true;
-        });
+
+      if (data == null) {
+        throw Exception('Data klaim tidak ditemukan.');
       }
+
+      if (!mounted) return;
+
+      setState(() {
+        _klaim = Map<String, dynamic>.from(data);
+        _isLoading = false;
+      });
     } catch (e) {
-      print('Error fetch fee settings: $e');
+      if (!mounted) return;
+
+      setState(() {
+        _error = 'Gagal memuat detail klaim: $e';
+        _isLoading = false;
+      });
     }
   }
 
-  int get _feePlatform {
-    int fee = (_totalPendapatan * _feePlatformPersen ~/ 100);
-    return fee < _nominalMinimumPlatform ? _nominalMinimumPlatform : fee;
-  }
-  
-  int get _feeAdmin {
-    return _isPersentaseAdmin 
-        ? (_totalPendapatan * _feeAdminPersen ~/ 100)
-        : _feeAdminTetap;
-  }
-  
-  int get _sisaHadiah => _totalPendapatan - _feePlatform - _feeAdmin;
+  Future<void> _pickBuktiBayar() async {
+    try {
+      final image = await _imagePicker.pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 85,
+      );
 
-  static const List<Map<String, dynamic>> _pemenang = [
-    {
-      'rank': 1,
-      'nama_tim': 'Evos Glory',
-      'hadiah': 255000,
-      'status': 'dicairkan',
-      'rank_game': 1,
-      'kill': '1903',
-      'points': '32',
-      'apk': 'ANIKEL PRADO',
-      'timeline_step': 3,
-    },
-    {
-      'rank': 2,
-      'nama_tim': 'RRQ Hoshi',
-      'hadiah': 153000,
-      'status': 'diproses',
-      'rank_game': 2,
-      'kill': '1803',
-      'points': '123',
-      'apk': 'ANIKEL PRADO',
-      'timeline_step': 2,
-    },
-    {
-      'rank': 3,
-      'nama_tim': 'Bigetron Alpha',
-      'hadiah': 102000,
-      'status': 'pending',
-      'rank_game': 3,
-      'kill': '1642',
-      'points': '87',
-      'apk': 'REKY PACO',
-      'timeline_step': 1,
-    },
-  ];
+      if (image == null) return;
 
-  String _formatRupiah(int value) {
-    final str = value.toString();
+      final Uint8List bytes = await image.readAsBytes();
+
+      if (!mounted) return;
+
+      setState(() {
+        _selectedBuktiBayar = image;
+        _selectedBuktiBayarBytes = bytes;
+      });
+    } catch (e) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Gagal memilih foto bukti transfer: $e'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+    }
+  }
+
+  String _getImageExtension(String fileName) {
+    final lower = fileName.toLowerCase();
+
+    if (lower.endsWith('.png')) return 'png';
+    if (lower.endsWith('.webp')) return 'webp';
+    if (lower.endsWith('.jpg')) return 'jpg';
+    if (lower.endsWith('.jpeg')) return 'jpg';
+
+    return 'jpg';
+  }
+
+  String _getImageContentType(String extension) {
+    switch (extension) {
+      case 'png':
+        return 'image/png';
+      case 'webp':
+        return 'image/webp';
+      case 'jpg':
+      default:
+        return 'image/jpeg';
+    }
+  }
+
+  String _extractStoragePath(String value, String bucketName) {
+    if (value.isEmpty) return value;
+
+    if (!value.startsWith('http')) {
+      return value;
+    }
+
+    final publicMarker = '/storage/v1/object/public/$bucketName/';
+    final signMarker = '/storage/v1/object/sign/$bucketName/';
+
+    if (value.contains(publicMarker)) {
+      final path = value.split(publicMarker).last.split('?').first;
+      return Uri.decodeComponent(path);
+    }
+
+    if (value.contains(signMarker)) {
+      final path = value.split(signMarker).last.split('?').first;
+      return Uri.decodeComponent(path);
+    }
+
+    return value;
+  }
+
+  Future<String> _createSignedImageUrl({
+    required String? value,
+    required String bucketName,
+  }) async {
+    if (value == null || value.trim().isEmpty) {
+      throw Exception('Path gambar kosong.');
+    }
+
+    final raw = value.trim();
+    final path = _extractStoragePath(raw, bucketName);
+
+    if (path.startsWith('http') && !path.contains('/storage/v1/object/')) {
+      return path;
+    }
+
+    final signedUrl = await _supabase.storage.from(bucketName).createSignedUrl(
+          path,
+          60 * 60,
+        );
+
+    return signedUrl;
+  }
+
+  Future<String> _uploadBuktiBayarHadiah() async {
+    if (_selectedBuktiBayar == null || _selectedBuktiBayarBytes == null) {
+      throw 'Foto bukti transfer wajib diupload.';
+    }
+
+    final user = _supabase.auth.currentUser;
+
+    if (user == null) {
+      throw 'Sesi login habis. Silakan login ulang.';
+    }
+
+    final extension = _getImageExtension(_selectedBuktiBayar!.name);
+    final contentType = _getImageContentType(extension);
+    final timestamp = DateTime.now().millisecondsSinceEpoch;
+
+    final filePath =
+        'admin_claim/${user.id}_${widget.idKlaim}_$timestamp.$extension';
+
+    await _supabase.storage.from(_bucketBuktiBayar).uploadBinary(
+          filePath,
+          _selectedBuktiBayarBytes!,
+          fileOptions: FileOptions(
+            contentType: contentType,
+            upsert: true,
+          ),
+        );
+
+    return filePath;
+  }
+
+  Future<void> _tandaiDibayar() async {
+    if (_klaim == null) return;
+
+    if (_selectedBuktiBayar == null || _selectedBuktiBayarBytes == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Foto bukti transfer wajib diupload.'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+      return;
+    }
+
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) {
+        return AlertDialog(
+          backgroundColor: AppColors.backgroundCard,
+          title: Text(
+            'Tandai Sudah Dibayar?',
+            style: AppTextStyles.poppinsTitleSmall,
+          ),
+          content: Text(
+            'Pastikan hadiah sudah benar-benar ditransfer ke user.',
+            style: AppTextStyles.interBody,
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Batal'),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.black,
+              ),
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text(
+                'Ya, Dibayar',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirm != true) return;
+
+    setState(() => _isSubmitting = true);
+
+    try {
+      final buktiBayarPath = await _uploadBuktiBayarHadiah();
+
+      await _supabase.from('klaim_hadiah').update({
+        'status_klaim': 'dibayar',
+        'bukti_bayar_hadiah': buktiBayarPath,
+        'dibayar_pada': DateTime.now().toIso8601String(),
+        'id_transaksi_qris': null,
+      }).eq('id_klaim', widget.idKlaim);
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Klaim berhasil ditandai sudah dibayar.'),
+          backgroundColor: Colors.green,
+        ),
+      );
+
+      Navigator.pop(context, true);
+    } catch (e) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Gagal update klaim: $e'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _isSubmitting = false);
+      }
+    }
+  }
+
+  String _formatRupiah(dynamic value) {
+    final number = (value as num?)?.toDouble() ?? 0;
+    final str = number.toStringAsFixed(0);
+
     final buffer = StringBuffer();
     int counter = 0;
+
     for (int i = str.length - 1; i >= 0; i--) {
-      if (counter > 0 && counter % 3 == 0) buffer.write('.');
+      if (counter > 0 && counter % 3 == 0) {
+        buffer.write('.');
+      }
+
       buffer.write(str[i]);
       counter++;
     }
+
     return 'Rp ${buffer.toString().split('').reversed.join()}';
+  }
+
+  String _formatDate(String? raw) {
+    if (raw == null) return '-';
+
+    try {
+      final dt = DateTime.parse(raw).toLocal();
+
+      const months = [
+        'Jan',
+        'Feb',
+        'Mar',
+        'Apr',
+        'Mei',
+        'Jun',
+        'Jul',
+        'Agu',
+        'Sep',
+        'Okt',
+        'Nov',
+        'Des',
+      ];
+
+      return '${dt.day} ${months[dt.month - 1]} ${dt.year} ${dt.hour.toString().padLeft(2, '0')}.${dt.minute.toString().padLeft(2, '0')}';
+    } catch (_) {
+      return '-';
+    }
+  }
+
+  String _statusLabel(String status) {
+    switch (status) {
+      case 'belum_diajukan':
+        return 'Belum Diajukan';
+      case 'diajukan':
+        return 'Diajukan';
+      case 'disetujui_admin':
+        return 'Disetujui Admin';
+      case 'dibayar':
+        return 'Dibayar';
+      default:
+        return status.isEmpty ? '-' : status;
+    }
+  }
+
+  Color _statusColor(String status) {
+    switch (status) {
+      case 'dibayar':
+        return Colors.green;
+      case 'disetujui_admin':
+        return Colors.orange;
+      case 'diajukan':
+        return AppColors.primary;
+      case 'belum_diajukan':
+      default:
+        return AppColors.textHint;
+    }
+  }
+
+  Map<String, dynamic> get _nested {
+    final pendaftaran = _klaim?['pendaftaran_tim'] as Map<String, dynamic>?;
+    final sesi = pendaftaran?['sesi_scrim'] as Map<String, dynamic>?;
+    final scrim = sesi?['scrim'] as Map<String, dynamic>?;
+
+    return {
+      'pendaftaran': pendaftaran,
+      'sesi': sesi,
+      'scrim': scrim,
+    };
+  }
+
+  Widget _buildInfoRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 14),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 130,
+            child: Text(
+              label,
+              style: AppTextStyles.interCaption.copyWith(
+                color: AppColors.textSecondary,
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              value,
+              style: AppTextStyles.interBodyMedium.copyWith(
+                color: AppColors.textPrimary,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCard({
+    required String title,
+    required List<Widget> children,
+  }) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      margin: const EdgeInsets.only(bottom: 16),
+      decoration: BoxDecoration(
+        color: AppColors.backgroundCard,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: Colors.white10),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: AppTextStyles.poppinsTitleSmall.copyWith(
+              color: AppColors.primary,
+              fontSize: 16,
+            ),
+          ),
+          const SizedBox(height: 16),
+          ...children,
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPrivateImagePreview({
+    required String? value,
+    required String bucketName,
+  }) {
+    if (value == null || value.trim().isEmpty) {
+      return Text(
+        'Belum ada gambar.',
+        style: AppTextStyles.interCaption.copyWith(
+          color: AppColors.textHint,
+        ),
+      );
+    }
+
+    return FutureBuilder<String>(
+      future: _createSignedImageUrl(
+        value: value,
+        bucketName: bucketName,
+      ),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return Container(
+            width: double.infinity,
+            height: 220,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: AppColors.background,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.white10),
+            ),
+            child: const CircularProgressIndicator(
+              color: AppColors.primary,
+            ),
+          );
+        }
+
+        if (snapshot.hasError || !snapshot.hasData) {
+          return Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: AppColors.background,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: AppColors.error),
+            ),
+            child: Text(
+              'Gagal membuat akses gambar: ${snapshot.error ?? '-'}',
+              style: const TextStyle(color: AppColors.error),
+            ),
+          );
+        }
+
+        return ClipRRect(
+          borderRadius: BorderRadius.circular(12),
+          child: Image.network(
+            snapshot.data!,
+            width: double.infinity,
+            fit: BoxFit.cover,
+            loadingBuilder: (context, child, loadingProgress) {
+              if (loadingProgress == null) return child;
+
+              return Container(
+                width: double.infinity,
+                height: 220,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: AppColors.background,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.white10),
+                ),
+                child: const CircularProgressIndicator(
+                  color: AppColors.primary,
+                ),
+              );
+            },
+            errorBuilder: (_, __, ___) {
+              return Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: AppColors.background,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: AppColors.error),
+                ),
+                child: const Text(
+                  'Gagal memuat gambar. Pastikan policy SELECT bucket sudah benar.',
+                  style: TextStyle(color: AppColors.error),
+                ),
+              );
+            },
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildUploadBuktiBox({required bool disabled}) {
+    final hasSelected = _selectedBuktiBayar != null;
+
+    return GestureDetector(
+      onTap: disabled ? null : _pickBuktiBayar,
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: AppColors.backgroundInput,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: hasSelected ? AppColors.primary : AppColors.divider,
+            width: 1.2,
+          ),
+        ),
+        child: Row(
+          children: [
+            Icon(
+              hasSelected ? Icons.check_circle : Icons.upload_file,
+              color: hasSelected ? AppColors.primary : AppColors.textHint,
+              size: 24,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                hasSelected
+                    ? _selectedBuktiBayar!.name
+                    : 'Upload foto bukti transfer hadiah',
+                style: AppTextStyles.interBodyMedium.copyWith(
+                  color:
+                      hasSelected ? AppColors.textPrimary : AppColors.textHint,
+                ),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Text(
+              hasSelected ? 'Ganti' : 'Upload',
+              style: AppTextStyles.interCaption.copyWith(
+                color: disabled ? AppColors.textHint : AppColors.primary,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBody() {
+    final klaim = _klaim!;
+    final nested = _nested;
+
+    final pendaftaran = nested['pendaftaran'] as Map<String, dynamic>?;
+    final sesi = nested['sesi'] as Map<String, dynamic>?;
+    final scrim = nested['scrim'] as Map<String, dynamic>?;
+
+    final status = klaim['status_klaim']?.toString() ?? '';
+    final metode = klaim['metode_klaim']?.toString() ?? '-';
+    final isDibayar = status == 'dibayar';
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(AppConstants.paddingM),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(18),
+            margin: const EdgeInsets.only(bottom: 16),
+            decoration: BoxDecoration(
+              color: AppColors.backgroundCard,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: _statusColor(status).withOpacity(0.35),
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  _formatRupiah(klaim['jumlah_klaim']),
+                  style: AppTextStyles.poppinsMoneyLarge.copyWith(
+                    fontSize: 30,
+                    color: AppColors.primary,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 5,
+                  ),
+                  decoration: BoxDecoration(
+                    color: _statusColor(status).withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    _statusLabel(status),
+                    style: TextStyle(
+                      color: _statusColor(status),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          _buildCard(
+            title: 'Data Scrim',
+            children: [
+              _buildInfoRow(
+                'Nama Scrim',
+                scrim?['nama_scrim']?.toString() ?? '-',
+              ),
+              _buildInfoRow(
+                'Sesi',
+                sesi?['nama_sesi']?.toString() ?? '-',
+              ),
+              _buildInfoRow(
+                'Kapten',
+                pendaftaran?['nama_kapten']?.toString() ?? '-',
+              ),
+              _buildInfoRow(
+                'WhatsApp',
+                pendaftaran?['whatsapp_kapten']?.toString() ?? '-',
+              ),
+              _buildInfoRow(
+                'Diajukan',
+                _formatDate(klaim['diajukan_pada']?.toString()),
+              ),
+              if (klaim['dibayar_pada'] != null)
+                _buildInfoRow(
+                  'Dibayar Pada',
+                  _formatDate(klaim['dibayar_pada']?.toString()),
+                ),
+            ],
+          ),
+          _buildCard(
+            title: 'Data Pencairan User',
+            children: [
+              _buildInfoRow('Metode', metode.toUpperCase()),
+              if (metode == 'bank_transfer') ...[
+                _buildInfoRow(
+                  'Bank',
+                  klaim['nama_bank']?.toString() ?? '-',
+                ),
+                _buildInfoRow(
+                  'Nomor Rekening',
+                  klaim['nomor_rekening']?.toString() ?? '-',
+                ),
+                _buildInfoRow(
+                  'Nama Pemilik',
+                  klaim['nama_pemilik_rekening']?.toString() ?? '-',
+                ),
+              ] else ...[
+                _buildInfoRow(
+                  'Nama QRIS',
+                  klaim['nama_pemilik_qris']?.toString() ?? '-',
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'QRIS User',
+                  style: AppTextStyles.interLabel.copyWith(
+                    color: AppColors.primary,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                _buildPrivateImagePreview(
+                  value: klaim['qris_image']?.toString(),
+                  bucketName: _bucketQris,
+                ),
+              ],
+            ],
+          ),
+          _buildCard(
+            title: 'Bukti Pembayaran Hadiah',
+            children: [
+              if (isDibayar) ...[
+                Text(
+                  'Bukti Transfer Admin',
+                  style: AppTextStyles.interLabel.copyWith(
+                    color: AppColors.primary,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                _buildPrivateImagePreview(
+                  value: klaim['bukti_bayar_hadiah']?.toString(),
+                  bucketName: _bucketBuktiBayar,
+                ),
+              ] else ...[
+                Text(
+                  'Upload Bukti Transfer',
+                  style: AppTextStyles.interLabel.copyWith(
+                    color: AppColors.primary,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                _buildUploadBuktiBox(disabled: isDibayar),
+                const SizedBox(height: 10),
+                Text(
+                  'Upload bukti transfer setelah hadiah dibayarkan ke user.',
+                  style: AppTextStyles.interCaption.copyWith(
+                    color: AppColors.textHint,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                SizedBox(
+                  width: double.infinity,
+                  height: 50,
+                  child: ElevatedButton(
+                    onPressed:
+                        isDibayar || _isSubmitting ? null : _tandaiDibayar,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      disabledBackgroundColor: AppColors.surfaceVariant,
+                      foregroundColor: Colors.black,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    child: _isSubmitting
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.black,
+                            ),
+                          )
+                        : const Text(
+                            'Tandai Sudah Dibayar',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildError() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(AppConstants.paddingL),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(
+              Icons.cloud_off,
+              size: 48,
+              color: AppColors.textSecondary,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              _error ?? 'Terjadi kesalahan',
+              style: AppTextStyles.interBody,
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 16),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.black,
+              ),
+              onPressed: _fetchDetail,
+              child: const Text(
+                'Coba Lagi',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   @override
@@ -115,493 +851,32 @@ class _KlaimHadiahDetailPageState extends State<KlaimHadiahDetailPage> {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
         title: Text(
-          'Klaim Hadiah',
+          'Detail Klaim',
           style: AppTextStyles.poppinsTitle.copyWith(
             color: AppColors.primary,
             fontSize: 20,
           ),
         ),
-        backgroundColor: Colors.transparent,
-        elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: AppColors.primary),
-          onPressed: () => Navigator.pop(context),
-        ),
-      ),
-      body: Column(
-        children: [
-          Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(AppConstants.paddingM),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _buildRincianKeuangan(),
-                  const SizedBox(height: 24),
-                  Text(
-                    'STATUS KLAIM PEMENANG',
-                    style: AppTextStyles.interLabel.copyWith(
-                      color: AppColors.primary,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 1.2,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  ..._pemenang.map((p) => Padding(
-                        padding: const EdgeInsets.only(bottom: 12),
-                        child: _buildPemenangCard(p),
-                      )),
-                ],
-              ),
-            ),
-          ),
-          _buildBottomSection(),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildRincianKeuangan() {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.backgroundCard,
-        borderRadius: BorderRadius.circular(AppConstants.radiusL),
-        border: Border.all(color: Colors.white10),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Header
-          Row(
-            children: [
-              const Icon(
-                Icons.bar_chart_rounded,
-                color: AppColors.primary,
-                size: 18,
-              ),
-              const SizedBox(width: 8),
-              Text(
-                'RINCIAN KEUANGAN SESI',
-                style: AppTextStyles.interLabel.copyWith(
-                  color: AppColors.primary,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 1.0,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 14),
-
-          // Total pendapatan
-          _buildFinanceRow(
-            label: 'Total Pendapatan ($_jumlahTim tim)',
-            value: _formatRupiah(_totalPendapatan),
-            valueColor: AppColors.primary,
-            bold: true,
-          ),
-          const Divider(color: Colors.white10, height: 20),
-
-          // Fee platform
-          _buildFinanceRow(
-            label: _feePlatform == _nominalMinimumPlatform 
-                ? 'Fee Platform (Min. Rp${_nominalMinimumPlatform ~/ 1000}K)' 
-                : 'Fee Platform ($_feePlatformPersen%)',
-            value: '-${_formatRupiah(_feePlatform)}',
-            valueColor: AppColors.textSecondary,
-          ),
-          const SizedBox(height: 8),
-
-          // Fee admin
-          _buildFinanceRow(
-            label: _isPersentaseAdmin ? 'Fee Admin ($_feeAdminPersen%)' : 'Fee Admin (Tetap)',
-            value: '-${_formatRupiah(_feeAdmin)}',
-            valueColor: AppColors.textSecondary,
-          ),
-          const SizedBox(height: 12),
-
-          // Sisa untuk hadiah
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-            decoration: BoxDecoration(
-              color: AppColors.primary.withValues(alpha: 0.08),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'Sisa untuk Hadiah',
-                  style: AppTextStyles.interBodyMedium.copyWith(
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                Text(
-                  _formatRupiah(_sisaHadiah),
-                  style: AppTextStyles.poppinsMoneySmall.copyWith(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 16),
-
-          // Alokasi hadiah header
-          Text(
-            'ALOKASI HADIAH (Sisa)',
-            style: AppTextStyles.interLabel.copyWith(
-              color: AppColors.textSecondary,
-              fontSize: 10,
-              fontWeight: FontWeight.w600,
-              letterSpacing: 0.8,
-            ),
-          ),
-          const SizedBox(height: 10),
-
-          _buildAlokasiRow('Juara 1 (50%)', _sisaHadiah * 50 ~/ 100),
-          const SizedBox(height: 6),
-          _buildAlokasiRow('Juara 2 (30%)', _sisaHadiah * 30 ~/ 100),
-          const SizedBox(height: 6),
-          _buildAlokasiRow('Juara 3 (20%)', _sisaHadiah * 20 ~/ 100),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildFinanceRow({
-    required String label,
-    required String value,
-    required Color valueColor,
-    bool bold = false,
-  }) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Text(
-          label,
-          style: AppTextStyles.interBody.copyWith(
-            fontSize: 13,
-            fontWeight: bold ? FontWeight.w600 : FontWeight.normal,
-          ),
-        ),
-        Text(
-          value,
-          style: AppTextStyles.poppinsMoneySmall.copyWith(
-            color: valueColor,
-            fontSize: 13,
-            fontWeight: bold ? FontWeight.w700 : FontWeight.w500,
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildAlokasiRow(String label, int nominal) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Text(
-          label,
-          style: AppTextStyles.interBody.copyWith(fontSize: 13),
-        ),
-        Text(
-          _formatRupiah(nominal),
-          style: AppTextStyles.poppinsMoneySmall.copyWith(
+          icon: const Icon(
+            Icons.arrow_back,
             color: AppColors.primary,
-            fontSize: 13,
-            fontWeight: FontWeight.w700,
           ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildPemenangCard(Map<String, dynamic> p) {
-    final int rank = p['rank'] as int;
-    final String status = p['status'] as String;
-    final int timelineStep = p['timeline_step'] as int;
-
-    final Color rankColor = rank == 1
-        ? AppColors.primary
-        : rank == 2
-            ? const Color(0xFFB0BEC5)
-            : const Color(0xFFCD7F32);
-
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: AppColors.backgroundCard,
-        borderRadius: BorderRadius.circular(AppConstants.radiusL),
-        border: Border.all(color: Colors.white10),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Rank badge
-          Container(
-            width: 36,
-            height: 36,
-            decoration: BoxDecoration(
-              color: rankColor.withValues(alpha: 0.15),
-              shape: BoxShape.circle,
-              border: Border.all(color: rankColor, width: 1.5),
-            ),
-            alignment: Alignment.center,
-            child: Text(
-              '$rank',
-              style: TextStyle(
-                color: rankColor,
-                fontWeight: FontWeight.w800,
-                fontSize: 16,
-              ),
-            ),
-          ),
-          const SizedBox(width: 12),
-
-          // Content
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Nama tim + hadiah
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Expanded(
-                      child: Text(
-                        p['nama_tim'] as String,
-                        style: AppTextStyles.poppinsTitleSmall.copyWith(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w700,
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    Text(
-                      _formatRupiah(p['hadiah'] as int),
-                      style: AppTextStyles.poppinsMoneySmall.copyWith(
-                        color: AppColors.primary,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 6),
-
-                // Status badge
-                _buildStatusBadge(status),
-                const SizedBox(height: 10),
-
-                // Stats
-                Text(
-                  'RANK: ${p['rank_game']}  •  KILL: ${p['kill']}  •  POINTS: ${p['points']}',
-                  style: AppTextStyles.interCaption.copyWith(
-                    color: AppColors.textSecondary,
-                    fontSize: 11,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'APK: ${p['apk']}',
-                  style: AppTextStyles.interCaption.copyWith(
-                    color: AppColors.textSecondary,
-                    fontSize: 11,
-                  ),
-                ),
-                const SizedBox(height: 12),
-
-                // Riwayat status
-                Text(
-                  'RIWAYAT STATUS',
-                  style: AppTextStyles.interLabel.copyWith(
-                    color: AppColors.textSecondary,
-                    fontSize: 10,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 0.8,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                _buildTimeline(timelineStep),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildStatusBadge(String status) {
-    late String label;
-    late Color bg;
-    late Color fg;
-
-    switch (status) {
-      case 'dicairkan':
-        label = 'SUDAH DICAIRKAN';
-        bg = AppColors.success.withValues(alpha: 0.15);
-        fg = AppColors.success;
-        break;
-      case 'diproses':
-        label = 'SEDANG DIPROSES';
-        bg = AppColors.primary.withValues(alpha: 0.15);
-        fg = AppColors.primary;
-        break;
-      default:
-        label = 'MENUNGGU KLAIM';
-        bg = Colors.white10;
-        fg = AppColors.textSecondary;
-    }
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-      decoration: BoxDecoration(
-        color: bg,
-        borderRadius: BorderRadius.circular(4),
-      ),
-      child: Text(
-        label,
-        style: TextStyle(
-          color: fg,
-          fontSize: 10,
-          fontWeight: FontWeight.w700,
-          letterSpacing: 0.4,
+          onPressed: () => Navigator.pop(context, false),
         ),
       ),
-    );
-  }
-
-  Widget _buildTimeline(int doneStep) {
-    final steps = [
-      'Klaim Diajukan',
-      'Diteruskan ke Admin',
-      'Diteruskan ke Owner',
-    ];
-
-    return Column(
-      children: List.generate(steps.length, (i) {
-        final bool done = i < doneStep;
-        final bool current = i == doneStep - 1;
-        final bool isLast = i == steps.length - 1;
-        final Color dotColor = done
-            ? (current && doneStep < steps.length
-                ? AppColors.primary
-                : AppColors.success)
-            : Colors.white24;
-
-        return IntrinsicHeight(
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // Dot + line column
-              SizedBox(
-                width: 20,
-                child: Column(
-                  children: [
-                    Container(
-                      width: 10,
-                      height: 10,
-                      decoration: BoxDecoration(
-                        color: dotColor,
-                        shape: BoxShape.circle,
-                      ),
-                    ),
-                    if (!isLast)
-                      Expanded(
-                        child: Center(
-                          child: Container(
-                            width: 1.5,
-                            color: done ? AppColors.success.withValues(alpha: 0.4) : Colors.white10,
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
+      body: _isLoading
+          ? const Center(
+              child: CircularProgressIndicator(
+                color: AppColors.primary,
               ),
-              const SizedBox(width: 8),
-              // Label + date
-              Padding(
-                padding: EdgeInsets.only(bottom: isLast ? 0 : 10),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      steps[i],
-                      style: AppTextStyles.interBody.copyWith(
-                        fontSize: 12,
-                        color: done ? AppColors.textPrimary : AppColors.textSecondary,
-                        fontWeight: done ? FontWeight.w600 : FontWeight.normal,
-                      ),
-                    ),
-                    if (done)
-                      Text(
-                        '12 Okt 2023',
-                        style: AppTextStyles.interCaption.copyWith(
-                          fontSize: 10,
-                          color: AppColors.textSecondary,
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        );
-      }),
-    );
-  }
-
-  Widget _buildBottomSection() {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-      decoration: const BoxDecoration(
-        color: AppColors.backgroundCard,
-        border: Border(top: BorderSide(color: Colors.white10)),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          SizedBox(
-            width: double.infinity,
-            height: 48,
-            child: ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.success,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(AppConstants.radiusM),
-                ),
-                elevation: 0,
-              ),
-              onPressed: null,
-              child: const Text(
-                'SUDAH DITERUSKAN KE OWNER',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w700,
-                  fontSize: 13,
-                  letterSpacing: 0.5,
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'MENUNGGU KONFIRMASI PEMBAYARAN DARI OWNER',
-            style: AppTextStyles.interCaption.copyWith(
-              color: AppColors.textSecondary,
-              fontSize: 10,
-              letterSpacing: 0.5,
-            ),
-            textAlign: TextAlign.center,
-          ),
-        ],
-      ),
+            )
+          : _error != null
+              ? _buildError()
+              : _buildBody(),
     );
   }
 }

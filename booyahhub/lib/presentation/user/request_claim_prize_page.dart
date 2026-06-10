@@ -1,4 +1,6 @@
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../config/app_color.dart';
@@ -27,17 +29,22 @@ class _RequestClaimPrizePageState extends State<RequestClaimPrizePage> {
 
   final _rekeningController = TextEditingController();
   final _namaPemilikController = TextEditingController();
-  final _noHpController = TextEditingController();
+  final _namaPemilikQrisController = TextEditingController();
+
+  final ImagePicker _imagePicker = ImagePicker();
 
   bool _isBankSelected = true;
   bool _isLoading = false;
   bool _isFetchingMethods = true;
 
   bool _isBankAvailable = true;
-  bool _isQrisAvailable = false;
+  bool _isQrisAvailable = true;
 
   List<String> _bankOptions = [];
   String? _selectedBank;
+
+  XFile? _selectedQrisImage;
+  Uint8List? _selectedQrisImageBytes;
 
   @override
   void initState() {
@@ -49,64 +56,22 @@ class _RequestClaimPrizePageState extends State<RequestClaimPrizePage> {
     setState(() => _isFetchingMethods = true);
 
     try {
-      final supabase = Supabase.instance.client;
-
-      /*
-        Untuk klaim hadiah:
-        - Pilihan bank user diambil dari enum Supabase nama_bank_enum.
-        - Bukan dari metode_pembayaran_penyelenggara milik admin.
-        - Kalau enum gagal dibaca lewat RPC/SQL schema, fallback tetap dipakai.
-      */
       final enumBanks = await _fetchNamaBankEnumValues();
-
-      bool hasQris = false;
-
-      if (widget.pendaftaranId != null) {
-        try {
-          final pendaftaranRes = await supabase
-              .from('pendaftaran_tim')
-              .select('''
-                id_sesi,
-                sesi_scrim!inner(
-                  id_scrim,
-                  scrim!inner(id_admin)
-                )
-              ''')
-              .eq('id_pendaftaran', widget.pendaftaranId!)
-              .maybeSingle();
-
-          if (pendaftaranRes != null) {
-            final adminAkunId =
-                pendaftaranRes['sesi_scrim']['scrim']['id_admin'];
-
-            final metodeRes = await supabase
-                .from('metode_pembayaran_penyelenggara')
-                .select('jenis_metode')
-                .eq('akun_id', adminAkunId)
-                .eq('is_active', true);
-
-            for (final metode in metodeRes as List) {
-              if (metode['jenis_metode'] == 'qris') {
-                hasQris = true;
-              }
-            }
-          }
-        } catch (e) {
-          debugPrint('Gagal cek QRIS admin: $e');
-        }
-      }
 
       if (!mounted) return;
 
       setState(() {
         _bankOptions = enumBanks;
         _isBankAvailable = _bankOptions.isNotEmpty;
-        _isQrisAvailable = hasQris;
+
+        // Untuk klaim hadiah, QRIS adalah data rekening tujuan user,
+        // jadi tidak perlu bergantung pada metode pembayaran admin.
+        _isQrisAvailable = true;
 
         if (_isBankAvailable) {
           _isBankSelected = true;
           _selectedBank = _bankOptions.first;
-        } else if (_isQrisAvailable) {
+        } else {
           _isBankSelected = false;
         }
 
@@ -120,7 +85,7 @@ class _RequestClaimPrizePageState extends State<RequestClaimPrizePage> {
       setState(() {
         _bankOptions = _fallbackBankOptions;
         _isBankAvailable = true;
-        _isQrisAvailable = false;
+        _isQrisAvailable = true;
         _isBankSelected = true;
         _selectedBank = _bankOptions.first;
         _isFetchingMethods = false;
@@ -137,12 +102,15 @@ class _RequestClaimPrizePageState extends State<RequestClaimPrizePage> {
       final values = (response as List)
           .map((item) {
             if (item is String) return item;
+
             if (item is Map && item['value'] != null) {
               return item['value'].toString();
             }
+
             if (item is Map && item['enum_value'] != null) {
               return item['enum_value'].toString();
             }
+
             return item.toString();
           })
           .where((value) => value.trim().isNotEmpty)
@@ -174,8 +142,93 @@ class _RequestClaimPrizePageState extends State<RequestClaimPrizePage> {
   void dispose() {
     _rekeningController.dispose();
     _namaPemilikController.dispose();
-    _noHpController.dispose();
+    _namaPemilikQrisController.dispose();
     super.dispose();
+  }
+
+  Future<void> _pickQrisImage() async {
+    try {
+      final image = await _imagePicker.pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 85,
+      );
+
+      if (image == null) return;
+
+      final bytes = await image.readAsBytes();
+
+      if (!mounted) return;
+
+      setState(() {
+        _selectedQrisImage = image;
+        _selectedQrisImageBytes = bytes;
+      });
+    } catch (e) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Gagal memilih gambar QRIS: $e'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+    }
+  }
+
+  String _getImageExtension(String fileName) {
+    final lower = fileName.toLowerCase();
+
+    if (lower.endsWith('.png')) return 'png';
+    if (lower.endsWith('.webp')) return 'webp';
+    if (lower.endsWith('.jpg')) return 'jpg';
+    if (lower.endsWith('.jpeg')) return 'jpg';
+
+    return 'jpg';
+  }
+
+  String _getImageContentType(String extension) {
+    switch (extension) {
+      case 'png':
+        return 'image/png';
+      case 'webp':
+        return 'image/webp';
+      case 'jpg':
+      default:
+        return 'image/jpeg';
+    }
+  }
+
+  Future<String> _uploadQrisImage() async {
+    if (_selectedQrisImage == null || _selectedQrisImageBytes == null) {
+      throw 'Foto QRIS wajib diupload.';
+    }
+
+    final supabase = Supabase.instance.client;
+    final user = supabase.auth.currentUser;
+
+    if (user == null) {
+      throw 'Sesi login habis. Silakan login ulang.';
+    }
+
+    final extension = _getImageExtension(_selectedQrisImage!.name);
+    final contentType = _getImageContentType(extension);
+    final timestamp = DateTime.now().millisecondsSinceEpoch;
+
+    final filePath =
+        'user_claim/${user.id}_${widget.pendaftaranId}_$timestamp.$extension';
+
+    await supabase.storage.from('qr_qris').uploadBinary(
+          filePath,
+          _selectedQrisImageBytes!,
+          fileOptions: FileOptions(
+            contentType: contentType,
+            upsert: true,
+          ),
+        );
+
+    final publicUrl = supabase.storage.from('qr_qris').getPublicUrl(filePath);
+
+    return publicUrl;
   }
 
   Future<void> _submitClaim() async {
@@ -185,6 +238,16 @@ class _RequestClaimPrizePageState extends State<RequestClaimPrizePage> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Error: ID Pendaftaran tidak ditemukan'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+      return;
+    }
+
+    if (!_isBankSelected && _selectedQrisImage == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Foto QRIS wajib diupload.'),
           backgroundColor: AppColors.error,
         ),
       );
@@ -221,16 +284,26 @@ class _RequestClaimPrizePageState extends State<RequestClaimPrizePage> {
           ) ??
           0;
 
+      String? qrisImageUrl;
+
+      if (!_isBankSelected) {
+        qrisImageUrl = await _uploadQrisImage();
+      }
+
       await supabase.from('klaim_hadiah').insert({
         'id_pendaftaran': widget.pendaftaranId,
         'jumlah_klaim': totalPrizeValue,
         'status_klaim': 'diajukan',
         'metode_klaim': _isBankSelected ? 'bank_transfer' : 'qris',
         'nama_bank': _isBankSelected ? _selectedBank : null,
-        'nomor_rekening': _isBankSelected
-            ? _rekeningController.text.trim()
-            : _noHpController.text.trim(),
-        'nama_pemilik_rekening': _namaPemilikController.text.trim(),
+        'nomor_rekening':
+            _isBankSelected ? _rekeningController.text.trim() : null,
+        'nama_pemilik_rekening':
+            _isBankSelected ? _namaPemilikController.text.trim() : null,
+        'nama_pemilik_qris':
+            _isBankSelected ? null : _namaPemilikQrisController.text.trim(),
+        'qris_image': _isBankSelected ? null : qrisImageUrl,
+
         'diajukan_pada': DateTime.now().toIso8601String(),
       });
 
@@ -508,21 +581,87 @@ class _RequestClaimPrizePageState extends State<RequestClaimPrizePage> {
     );
   }
 
+  Widget _buildQrisUploadBox() {
+    final hasImage = _selectedQrisImage != null;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Upload Foto QRIS',
+          style: AppTextStyles.interLabel.copyWith(
+            color: AppColors.primary,
+          ),
+        ),
+        const SizedBox(height: 8),
+        GestureDetector(
+          onTap: _pickQrisImage,
+          child: Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: AppColors.backgroundInput,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: hasImage ? AppColors.primary : AppColors.divider,
+                width: 1.2,
+              ),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  hasImage ? Icons.check_circle : Icons.upload_file,
+                  color: hasImage ? AppColors.primary : AppColors.textHint,
+                  size: 24,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    hasImage
+                        ? _selectedQrisImage!.name
+                        : 'Pilih foto QRIS dari galeri',
+                    style: AppTextStyles.interBodyMedium.copyWith(
+                      color: hasImage
+                          ? AppColors.textPrimary
+                          : AppColors.textHint,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  hasImage ? 'Ganti' : 'Upload',
+                  style: AppTextStyles.interCaption.copyWith(
+                    color: AppColors.primary,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          'Foto QRIS akan disimpan untuk proses verifikasi klaim hadiah.',
+          style: AppTextStyles.interCaption.copyWith(
+            color: AppColors.textHint,
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _buildQrisForm() {
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _buildInputField(
-          controller: _noHpController,
-          label: 'Nomor Handphone Terdaftar',
-          hint: '081234567890',
-          keyboardType: TextInputType.phone,
-        ),
-        const SizedBox(height: 16),
-        _buildInputField(
-          controller: _namaPemilikController,
+          controller: _namaPemilikQrisController,
           label: 'Nama Pemilik QRIS',
           hint: 'Nama merchant QRIS / pemilik',
         ),
+        const SizedBox(height: 16),
+        _buildQrisUploadBox(),
       ],
     );
   }
@@ -654,7 +793,7 @@ class _RequestClaimPrizePageState extends State<RequestClaimPrizePage> {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'Proses verifikasi klaim membutuhkan waktu maksimal 2 x 24 jam hari kerja.\nPastikan data rekening yang anda masukkan sudah benar',
+                  'Proses verifikasi klaim membutuhkan waktu maksimal 2 x 24 jam hari kerja.\nPastikan data pencairan hadiah yang anda masukkan sudah benar.',
                   style: AppTextStyles.interCaption.copyWith(
                     color: AppColors.textHint,
                     height: 1.5,
@@ -669,10 +808,12 @@ class _RequestClaimPrizePageState extends State<RequestClaimPrizePage> {
   }
 
   Widget _buildSubmitButton() {
+    final bool disableButton = _isLoading || _isFetchingMethods;
+
     return SizedBox(
       width: double.infinity,
       child: ElevatedButton(
-        onPressed: _isLoading ? null : _submitClaim,
+        onPressed: disableButton ? null : _submitClaim,
         style: ElevatedButton.styleFrom(
           backgroundColor: AppColors.primary,
           padding: const EdgeInsets.symmetric(
