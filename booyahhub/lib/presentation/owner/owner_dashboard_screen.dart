@@ -33,6 +33,12 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
   List<String> _monthLabels = [];
   bool _isLoadingRevenue = true;
 
+  // Action list data
+  int _pendingTagihan = 0;
+  int _adminMelampauiLimit = 0;
+  int _premiumMenunggu = 0;
+  bool _isLoadingActions = true;
+
   @override
   void initState() {
     super.initState();
@@ -41,6 +47,7 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
     _fetchActiveSessions();
     _fetchPendingBills();
     _fetchTotalRevenue();
+    _fetchActionData();
 
     // Tampilkan popup notifikasi belum terbaca
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -65,7 +72,7 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
       for (var item in response) {
         final totalUtang = item['total_utang'] ?? 0;
         final limitUtang = item['limit_utang'] ?? 0;
-        
+
         if (totalUtang >= limitUtang && limitUtang > 0) {
           final notifId = 'suspend_${item['akun_id']}';
           if (!readIds.contains(notifId)) {
@@ -73,7 +80,8 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
             unread.add({
               'id': notifId,
               'judul': 'Admin Terkena Suspend',
-              'pesan': 'Akun admin $adminName telah otomatis di-suspend karena utangnya (Rp$totalUtang) melebihi batas limit (Rp$limitUtang).'
+              'pesan':
+                  'Akun admin $adminName telah otomatis di-suspend karena utangnya (Rp$totalUtang) melebihi batas limit (Rp$limitUtang).',
             });
           }
         }
@@ -101,7 +109,9 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
         onTap: () {
           Navigator.push(
             context,
-            MaterialPageRoute(builder: (context) => const OwnerNotificationPage()),
+            MaterialPageRoute(
+              builder: (context) => const OwnerNotificationPage(),
+            ),
           );
         },
       );
@@ -115,6 +125,46 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
     return 'Rp ${value.toInt().toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]}.')}';
   }
 
+  Future<void> _fetchActionData() async {
+    try {
+      final supabase = Supabase.instance.client;
+
+      // 1. Tagihan menunggu verifikasi (pelunasan_utang_admin status pending)
+      final tagihanRes = await supabase
+          .from('pelunasan_utang_admin')
+          .select('id_pelunasan')
+          .eq('status', 'pending');
+
+      // 2. Admin yang melewati limit utang
+      final adminRes = await supabase
+          .from('profil_admin')
+          .select('akun_id, total_utang, limit_utang');
+      final int melampauiLimit = (adminRes as List).where((a) {
+        final total = (a['total_utang'] as num? ?? 0);
+        final limit = (a['limit_utang'] as num? ?? 0);
+        return limit > 0 && total >= limit;
+      }).length;
+
+      // 3. Paket premium menunggu aktivasi
+      final premiumRes = await supabase
+          .from('transaksi_premium')
+          .select('id_transaksi')
+          .eq('status', 'menunggu');
+
+      if (mounted) {
+        setState(() {
+          _pendingTagihan = (tagihanRes as List).length;
+          _adminMelampauiLimit = melampauiLimit;
+          _premiumMenunggu = (premiumRes as List).length;
+          _isLoadingActions = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error fetch action data: $e');
+      if (mounted) setState(() => _isLoadingActions = false);
+    }
+  }
+
   Future<void> _fetchTotalRevenue() async {
     try {
       final supabase = Supabase.instance.client;
@@ -124,17 +174,23 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
           .from('pengaturan_fee')
           .select('fee_platform_persen')
           .maybeSingle();
-      final int feePersen = (feeSettings?['fee_platform_persen'] as num? ?? 25).toInt();
+      final int feePersen = (feeSettings?['fee_platform_persen'] as num? ?? 25)
+          .toInt();
 
       // Ambil semua scrim + biaya_pendaftaran
-      final scrims = await supabase.from('scrim').select('id_scrim, biaya_pendaftaran');
+      final scrims = await supabase
+          .from('scrim')
+          .select('id_scrim, biaya_pendaftaran');
       final scrimBiayaMap = <int, double>{
         for (var s in scrims as List)
-          s['id_scrim'] as int: (s['biaya_pendaftaran'] as num? ?? 0).toDouble(),
+          s['id_scrim'] as int: (s['biaya_pendaftaran'] as num? ?? 0)
+              .toDouble(),
       };
 
       // Ambil semua sesi_scrim
-      final sesis = await supabase.from('sesi_scrim').select('id_sesi, id_scrim');
+      final sesis = await supabase
+          .from('sesi_scrim')
+          .select('id_sesi, id_scrim');
       final sesiToScrim = <int, int>{
         for (var s in sesis as List) s['id_sesi'] as int: s['id_scrim'] as int,
       };
@@ -165,7 +221,9 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
         final tglStr = r['diverifikasi_pada'] as String?;
         if (tglStr != null) {
           try {
-            datesByScrim.putIfAbsent(scrimId, () => []).add(DateTime.parse(tglStr).toLocal());
+            datesByScrim
+                .putIfAbsent(scrimId, () => [])
+                .add(DateTime.parse(tglStr).toLocal());
           } catch (_) {}
         }
       }
@@ -182,14 +240,28 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
         // Distribusikan fee ke bulan sesuai tanggal konfirmasi
         final feePerReg = rawFee / entry.value;
         for (final tgl in datesByScrim[entry.key] ?? <DateTime>[]) {
-          final int monthDiff = (now.year - tgl.year) * 12 + now.month - tgl.month;
+          final int monthDiff =
+              (now.year - tgl.year) * 12 + now.month - tgl.month;
           if (monthDiff >= 0 && monthDiff < 6) {
             tempMonthly[5 - monthDiff] += feePerReg;
           }
         }
       }
 
-      final monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Ags', 'Sep', 'Okt', 'Nov', 'Des'];
+      final monthNames = [
+        'Jan',
+        'Feb',
+        'Mar',
+        'Apr',
+        'Mei',
+        'Jun',
+        'Jul',
+        'Ags',
+        'Sep',
+        'Okt',
+        'Nov',
+        'Des',
+      ];
       final tempLabels = List.generate(6, (i) {
         int m = now.month - (5 - i) - 1;
         if (m < 0) m += 12;
@@ -248,7 +320,7 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
           .from('pelunasan_utang_admin')
           .select('id_pelunasan')
           .eq('status', 'pending');
-          
+
       if (mounted) {
         setState(() {
           _totalPendingBills = (response as List).length;
@@ -272,7 +344,7 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
           .from('scrim')
           .select('id_scrim')
           .eq('status_scrim', 'aktif');
-          
+
       if (mounted) {
         setState(() {
           _totalActiveSessions = (response as List).length;
@@ -296,7 +368,7 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
           .from('profil_admin')
           .select('id_profil_admin')
           .eq('status_verifikasi_ktp', 'terverifikasi');
-          
+
       if (mounted) {
         setState(() {
           _totalAdmin = (response as List).length;
@@ -319,7 +391,12 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
       backgroundColor: AppColors.background,
       body: SafeArea(
         child: ListView(
-          padding: const EdgeInsets.fromLTRB(24, 24, 24, 100), // extra padding for floating navbar
+          padding: const EdgeInsets.fromLTRB(
+            24,
+            24,
+            24,
+            100,
+          ), // extra padding for floating navbar
           children: [
             _buildHeader(),
             const SizedBox(height: 32),
@@ -399,7 +476,9 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
           onTap: () {
             Navigator.push(
               context,
-              MaterialPageRoute(builder: (context) => const OwnerNotificationPage()),
+              MaterialPageRoute(
+                builder: (context) => const OwnerNotificationPage(),
+              ),
             );
           },
           child: Container(
@@ -412,7 +491,11 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
             child: Stack(
               alignment: Alignment.center,
               children: [
-                const Icon(Icons.notifications_none_rounded, color: Colors.white, size: 22),
+                const Icon(
+                  Icons.notifications_none_rounded,
+                  color: Colors.white,
+                  size: 22,
+                ),
                 Positioned(
                   right: 8,
                   top: 8,
@@ -442,7 +525,9 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
               child: _buildSummaryCard(
                 title: 'PENDAPATAN',
                 icon: Icons.account_balance_wallet_rounded,
-                value: _isLoadingRevenue ? '...' : _formatCompactCurrency(_totalRevenue),
+                value: _isLoadingRevenue
+                    ? '...'
+                    : _formatCompactCurrency(_totalRevenue),
                 subtitle: 'Total klaim dilunasi',
                 subtitleColor: Colors.blueGrey,
                 iconColor: const Color(0xFFFFD700),
@@ -453,7 +538,9 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
               child: _buildSummaryCard(
                 title: 'PELUNASAN\nMENUNGGU',
                 icon: Icons.receipt_long_rounded,
-                value: _isLoadingPendingBills ? '...' : '$_totalPendingBills Pengajuan',
+                value: _isLoadingPendingBills
+                    ? '...'
+                    : '$_totalPendingBills Pengajuan',
                 subtitle: 'menunggu verifikasi',
                 subtitleColor: const Color(0xFFFFD700),
                 iconColor: const Color(0xFFFFD700),
@@ -468,7 +555,9 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
               child: _buildSummaryCard(
                 title: 'SCRIM AKTIF',
                 icon: Icons.videogame_asset_rounded,
-                value: _isLoadingActiveSessions ? '...' : '$_totalActiveSessions Scrim',
+                value: _isLoadingActiveSessions
+                    ? '...'
+                    : '$_totalActiveSessions Scrim',
                 subtitle: 'Berlangsung Sekarang',
                 subtitleColor: Colors.blueGrey,
                 iconColor: const Color(0xFFFFD700),
@@ -546,12 +635,19 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
                   width: 6,
                   height: 6,
                   margin: const EdgeInsets.only(right: 6),
-                  decoration: const BoxDecoration(color: Colors.blueGrey, shape: BoxShape.circle),
+                  decoration: const BoxDecoration(
+                    color: Colors.blueGrey,
+                    shape: BoxShape.circle,
+                  ),
                 )
               else if (subtitleColor == const Color(0xFF00FF87))
                 const Padding(
                   padding: EdgeInsets.only(right: 2.0),
-                  child: Icon(Icons.arrow_drop_up, color: Color(0xFF00FF87), size: 16),
+                  child: Icon(
+                    Icons.arrow_drop_up,
+                    color: Color(0xFF00FF87),
+                    size: 16,
+                  ),
                 ),
               Expanded(
                 child: Text(
@@ -602,55 +698,66 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
             color: const Color(0xFF131F2D),
             borderRadius: BorderRadius.circular(16),
           ),
-          child: _isLoadingRevenue 
-              ? const Center(child: CircularProgressIndicator(color: Color(0xFFFFD700)))
+          child: _isLoadingRevenue
+              ? const Center(
+                  child: CircularProgressIndicator(color: Color(0xFFFFD700)),
+                )
               : Column(
-            children: [
-              Expanded(
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceAround,
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: List.generate(6, (index) {
-                    double maxVal = _monthlyRevenue.reduce((curr, next) => curr > next ? curr : next);
-                    if (maxVal == 0) maxVal = 1; // Hindari division by zero
-                    double heightRatio = _monthlyRevenue[index] / maxVal;
-                    
-                    return Tooltip(
-                      message: _formatCompactCurrency(_monthlyRevenue[index]),
-                      child: Container(
-                        width: 24,
-                        height: 90 * heightRatio + 4,
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFFFD700),
-                          borderRadius: BorderRadius.circular(4),
-                          boxShadow: [
-                            if (heightRatio > 0)
-                              BoxShadow(
-                                color: const Color(0xFFFFD700).withValues(alpha: 0.4),
-                                blurRadius: 6,
-                                offset: const Offset(0, -2),
-                              )
-                          ],
-                        ),
+                  children: [
+                    Expanded(
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceAround,
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: List.generate(6, (index) {
+                          double maxVal = _monthlyRevenue.reduce(
+                            (curr, next) => curr > next ? curr : next,
+                          );
+                          if (maxVal == 0)
+                            maxVal = 1; // Hindari division by zero
+                          double heightRatio = _monthlyRevenue[index] / maxVal;
+
+                          return Tooltip(
+                            message: _formatCompactCurrency(
+                              _monthlyRevenue[index],
+                            ),
+                            child: Container(
+                              width: 24,
+                              height: 90 * heightRatio + 4,
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFFFD700),
+                                borderRadius: BorderRadius.circular(4),
+                                boxShadow: [
+                                  if (heightRatio > 0)
+                                    BoxShadow(
+                                      color: const Color(
+                                        0xFFFFD700,
+                                      ).withValues(alpha: 0.4),
+                                      blurRadius: 6,
+                                      offset: const Offset(0, -2),
+                                    ),
+                                ],
+                              ),
+                            ),
+                          );
+                        }),
                       ),
-                    );
-                  }),
+                    ),
+                    const SizedBox(height: 12),
+                    Container(
+                      height: 1,
+                      color: Colors.white24,
+                      margin: const EdgeInsets.only(bottom: 8),
+                    ),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceAround,
+                      children: List.generate(6, (index) {
+                        return _buildChartLabel(
+                          _monthLabels.isNotEmpty ? _monthLabels[index] : '',
+                        );
+                      }),
+                    ),
+                  ],
                 ),
-              ),
-              const SizedBox(height: 12),
-              Container(
-                height: 1,
-                color: Colors.white24,
-                margin: const EdgeInsets.only(bottom: 8),
-              ),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
-                children: List.generate(6, (index) {
-                   return _buildChartLabel(_monthLabels.isNotEmpty ? _monthLabels[index] : '');
-                }),
-              ),
-            ],
-          ),
         ),
       ],
     );
@@ -659,58 +766,187 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
   Widget _buildChartLabel(String text) {
     return Text(
       text,
-      style: AppTextStyles.interCaption.copyWith(color: Colors.white70, fontSize: 11),
+      style: AppTextStyles.interCaption.copyWith(
+        color: Colors.white70,
+        fontSize: 11,
+      ),
     );
   }
 
   Widget _buildActionList() {
+    final bool adaTindakan =
+        _pendingTagihan > 0 || _adminMelampauiLimit > 0 || _premiumMenunggu > 0;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          'Perlu Tindakan Owner',
-          style: AppTextStyles.poppinsTitleSmall.copyWith(
-            color: Colors.white,
-            fontWeight: FontWeight.bold,
-            fontSize: 14,
+        // Header row dengan badge count
+        Row(
+          children: [
+            Text(
+              'Perlu Tindakan Owner',
+              style: AppTextStyles.poppinsTitleSmall.copyWith(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+                fontSize: 14,
+              ),
+            ),
+            const SizedBox(width: 8),
+            if (!_isLoadingActions)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: adaTindakan
+                      ? const Color(0xFFFFD700).withValues(alpha: 0.15)
+                      : Colors.white.withValues(alpha: 0.07),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: adaTindakan
+                        ? const Color(0xFFFFD700).withValues(alpha: 0.5)
+                        : Colors.white24,
+                    width: 1,
+                  ),
+                ),
+                child: Text(
+                  adaTindakan
+                      ? '${_pendingTagihan + _adminMelampauiLimit + _premiumMenunggu} item'
+                      : 'Semua beres',
+                  style: AppTextStyles.interCaption.copyWith(
+                    color: adaTindakan
+                        ? const Color(0xFFFFD700)
+                        : Colors.white54,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+          ],
+        ),
+        const SizedBox(height: 16),
+
+        // Loading state
+        if (_isLoadingActions)
+          Container(
+            height: 100,
+            decoration: BoxDecoration(
+              color: const Color(0xFF131F2D),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const Center(
+              child: CircularProgressIndicator(
+                color: Color(0xFFFFD700),
+                strokeWidth: 2,
+              ),
+            ),
+          )
+        // Empty state
+        else if (!adaTindakan)
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 24),
+            decoration: BoxDecoration(
+              color: const Color(0xFF131F2D),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: Colors.white.withValues(alpha: 0.06),
+                width: 1,
+              ),
+            ),
+            child: Column(
+              children: [
+                Container(
+                  width: 56,
+                  height: 56,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF00FF87).withValues(alpha: 0.1),
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: const Color(0xFF00FF87).withValues(alpha: 0.3),
+                      width: 1.5,
+                    ),
+                  ),
+                  child: const Icon(
+                    Icons.check_rounded,
+                    color: Color(0xFF00FF87),
+                    size: 28,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'Semua Sudah Ditangani',
+                  style: AppTextStyles.poppinsTitleSmall.copyWith(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 13,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  'Tidak ada tindakan yang perlu\ndilakukan saat ini.',
+                  textAlign: TextAlign.center,
+                  style: AppTextStyles.interCaption.copyWith(
+                    color: Colors.white38,
+                    fontSize: 11,
+                    height: 1.6,
+                  ),
+                ),
+              ],
+            ),
+          )
+        // Action cards
+        else
+          Column(
+            children: [
+              if (_pendingTagihan > 0) ...[
+                _buildActionCard(
+                  title: 'Tagihan Menunggu Verifikasi',
+                  badgeText: '$_pendingTagihan Menunggu',
+                  description: 'Admin sudah upload bukti',
+                  borderColor: const Color(0xFFFFD700),
+                  badgeColor: const Color(0xFFFFD700).withValues(alpha: 0.15),
+                  badgeTextColor: const Color(0xFFFFD700),
+                  buttonText: 'VERIFIKASI',
+                  buttonColor: const Color(0xFFFFD700),
+                  buttonTextColor: Colors.black,
+                  onTap: () => Navigator.pushNamed(
+                    context,
+                    '/owner/payment-verification',
+                  ),
+                ),
+                const SizedBox(height: 16),
+              ],
+              if (_adminMelampauiLimit > 0) ...[
+                _buildActionCard(
+                  title: 'Admin Melewati Limit Utang',
+                  badgeText: '$_adminMelampauiLimit Admin',
+                  description: 'Admin melewati limit',
+                  borderColor: Colors.redAccent,
+                  badgeColor: Colors.redAccent.withValues(alpha: 0.15),
+                  badgeTextColor: Colors.redAccent,
+                  buttonText: 'LIHAT',
+                  buttonColor: Colors.white12,
+                  buttonTextColor: Colors.white70,
+                  onTap: () =>
+                      Navigator.pushNamed(context, '/owner/admin-verification'),
+                ),
+                const SizedBox(height: 16),
+              ],
+              if (_premiumMenunggu > 0)
+                _buildActionCard(
+                  title: 'Paket Premium Menunggu Aktivasi',
+                  badgeText: '$_premiumMenunggu Menunggu',
+                  description: 'perlu dicek',
+                  borderColor: const Color(0xFF00FF87),
+                  badgeColor: const Color(0xFF00FF87).withValues(alpha: 0.15),
+                  badgeTextColor: const Color(0xFF00FF87),
+                  buttonText: 'LIHAT',
+                  buttonColor: Colors.white12,
+                  buttonTextColor: Colors.white70,
+                  onTap: () =>
+                      Navigator.pushNamed(context, '/owner/premium-management'),
+                ),
+            ],
           ),
-        ),
-        const SizedBox(height: 16),
-        _buildActionCard(
-          title: 'Tagihan Menunggu Verifikasi',
-          badgeText: '8 Menunggu',
-          description: 'Admin sudah upload bukti',
-          borderColor: const Color(0xFFFFD700),
-          badgeColor: const Color(0xFFFFD700).withValues(alpha: 0.15),
-          badgeTextColor: const Color(0xFFFFD700),
-          buttonText: 'VERIFIKASI',
-          buttonColor: const Color(0xFFFFD700),
-          buttonTextColor: Colors.black,
-        ),
-        const SizedBox(height: 16),
-        _buildActionCard(
-          title: 'Admin Melewati Limit Utang',
-          badgeText: '3 Admin',
-          description: 'Admin melewati limit',
-          borderColor: Colors.redAccent,
-          badgeColor: Colors.redAccent.withValues(alpha: 0.15),
-          badgeTextColor: Colors.redAccent,
-          buttonText: 'LIHAT',
-          buttonColor: Colors.white12,
-          buttonTextColor: Colors.white70,
-        ),
-        const SizedBox(height: 16),
-        _buildActionCard(
-          title: 'Paket Premium Menunggu Aktivasi',
-          badgeText: '8 Menunggu',
-          description: 'perlu dicek',
-          borderColor: const Color(0xFF00FF87),
-          badgeColor: const Color(0xFF00FF87).withValues(alpha: 0.15),
-          badgeTextColor: const Color(0xFF00FF87),
-          buttonText: 'LIHAT',
-          buttonColor: Colors.white12,
-          buttonTextColor: Colors.white70,
-        ),
       ],
     );
   }
@@ -725,6 +961,7 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
     required String buttonText,
     required Color buttonColor,
     required Color buttonTextColor,
+    VoidCallback? onTap,
   }) {
     return Container(
       decoration: BoxDecoration(
@@ -735,9 +972,7 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
         borderRadius: BorderRadius.circular(8),
         child: Container(
           decoration: BoxDecoration(
-            border: Border(
-              left: BorderSide(color: borderColor, width: 4),
-            ),
+            border: Border(left: BorderSide(color: borderColor, width: 4)),
           ),
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
           child: Row(
@@ -759,7 +994,10 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
                     Row(
                       children: [
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
                           decoration: BoxDecoration(
                             color: badgeColor,
                             borderRadius: BorderRadius.circular(4),
@@ -792,7 +1030,7 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
               ),
               const SizedBox(width: 16),
               ElevatedButton(
-                onPressed: () {},
+                onPressed: onTap,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: buttonColor,
                   foregroundColor: buttonTextColor,
