@@ -118,43 +118,83 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
   Future<void> _fetchTotalRevenue() async {
     try {
       final supabase = Supabase.instance.client;
-      final response = await supabase
-          .from('pelunasan_utang_admin')
-          .select() // Ambil semua kolom untuk jaga-jaga
-          .eq('status', 'diverifikasi');
 
-      double total = 0;
-      final now = DateTime.now();
-      List<double> tempMonthly = List.filled(6, 0.0);
+      // Ambil fee_platform_persen & nominal_minimum_platform
+      final feeSettings = await supabase
+          .from('pengaturan_fee')
+          .select('fee_platform_persen, nominal_minimum_platform')
+          .maybeSingle();
+      final int feePersen = (feeSettings?['fee_platform_persen'] as num? ?? 25).toInt();
+      final double minFee = (feeSettings?['nominal_minimum_platform'] as num? ?? 5000).toDouble();
 
-      for (var row in response as List) {
-        double nominal = (row['nominal'] ?? 0).toDouble();
-        total += nominal;
-        
-        // Coba cari tanggal mana saja yang tersedia
-        final dateStr = row['diverifikasi_pada'] ?? row['created_at'] ?? row['dibuat_pada'] ?? row['tanggal'];
-        if (dateStr != null) {
-          final date = DateTime.parse(dateStr.toString());
-          // Hitung selisih bulan
-          int monthDiff = (now.year - date.year) * 12 + now.month - date.month;
-          if (monthDiff >= 0 && monthDiff < 6) {
-             // Index 5 adalah bulan ini, 0 adalah 5 bulan lalu
-             tempMonthly[5 - monthDiff] += nominal;
-          }
-        } else {
-          // Jika tidak ada data tanggal sama sekali, masukkan ke bulan ini
-          tempMonthly[5] += nominal;
+      // Ambil semua scrim + biaya_pendaftaran
+      final scrims = await supabase.from('scrim').select('id_scrim, biaya_pendaftaran');
+      final scrimBiayaMap = <int, double>{
+        for (var s in scrims as List)
+          s['id_scrim'] as int: (s['biaya_pendaftaran'] as num? ?? 0).toDouble(),
+      };
+
+      // Ambil semua sesi_scrim
+      final sesis = await supabase.from('sesi_scrim').select('id_sesi, id_scrim');
+      final sesiToScrim = <int, int>{
+        for (var s in sesis as List) s['id_sesi'] as int: s['id_scrim'] as int,
+      };
+      final sesiIds = sesiToScrim.keys.toList();
+
+      if (sesiIds.isEmpty) {
+        if (mounted) setState(() => _isLoadingRevenue = false);
+        return;
+      }
+
+      // Ambil semua pendaftaran dikonfirmasi
+      final regs = await supabase
+          .from('pendaftaran_tim')
+          .select('id_sesi, dibuat_pada')
+          .inFilter('id_sesi', sesiIds)
+          .eq('status_pembayaran', 'dikonfirmasi');
+
+      // Hitung fee platform per scrim
+      final Map<int, int> countPerScrim = {};
+      final Map<int, List<DateTime>> datesByScrim = {};
+
+      for (final r in regs as List) {
+        final scrimId = sesiToScrim[r['id_sesi'] as int] ?? 0;
+        if (scrimId == 0) continue;
+        countPerScrim[scrimId] = (countPerScrim[scrimId] ?? 0) + 1;
+        final tglStr = r['dibuat_pada'] as String?;
+        if (tglStr != null) {
+          try {
+            datesByScrim.putIfAbsent(scrimId, () => []).add(DateTime.parse(tglStr).toLocal());
+          } catch (_) {}
         }
       }
 
-      // Generate nama bulan (Jan, Feb, ...)
-      final monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Ags', 'Sep', 'Okt', 'Nov', 'Des'];
-      List<String> tempLabels = [];
-      for (int i = 5; i >= 0; i--) {
-        int m = now.month - i - 1;
-        if (m < 0) m += 12;
-        tempLabels.add(monthNames[m]);
+      final now = DateTime.now();
+      double total = 0;
+      List<double> tempMonthly = List.filled(6, 0.0);
+
+      for (final entry in countPerScrim.entries) {
+        final biaya = scrimBiayaMap[entry.key] ?? 0;
+        final rawFee = biaya * entry.value * feePersen / 100;
+        final scrimFee = rawFee < minFee ? minFee : rawFee;
+        total += scrimFee;
+
+        // Distribusikan fee ke bulan sesuai tanggal konfirmasi
+        final feePerReg = scrimFee / entry.value;
+        for (final tgl in datesByScrim[entry.key] ?? <DateTime>[]) {
+          final int monthDiff = (now.year - tgl.year) * 12 + now.month - tgl.month;
+          if (monthDiff >= 0 && monthDiff < 6) {
+            tempMonthly[5 - monthDiff] += feePerReg;
+          }
+        }
       }
+
+      final monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Ags', 'Sep', 'Okt', 'Nov', 'Des'];
+      final tempLabels = List.generate(6, (i) {
+        int m = now.month - (5 - i) - 1;
+        if (m < 0) m += 12;
+        return monthNames[m];
+      });
 
       if (mounted) {
         setState(() {
@@ -166,11 +206,7 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
       }
     } catch (e) {
       debugPrint('Error fetch revenue: $e');
-      if (mounted) {
-        setState(() {
-          _isLoadingRevenue = false;
-        });
-      }
+      if (mounted) setState(() => _isLoadingRevenue = false);
     }
   }
 

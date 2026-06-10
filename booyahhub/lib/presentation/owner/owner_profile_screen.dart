@@ -39,24 +39,63 @@ class _OwnerProfileScreenState extends State<OwnerProfileScreen> {
       final todayStart = DateTime(now.year, now.month, now.day);
       final yesterdayStart = todayStart.subtract(const Duration(days: 1));
 
-      final rows = await _supabase
-          .from('pelunasan_utang_admin')
-          .select('nominal, diverifikasi_pada, created_at')
-          .eq('status', 'diverifikasi');
+      // 1. Fee settings
+      final feeSettings = await _supabase
+          .from('pengaturan_fee')
+          .select('fee_platform_persen, nominal_minimum_platform')
+          .maybeSingle();
+      final int feePersen = (feeSettings?['fee_platform_persen'] as num? ?? 25).toInt();
+      final double minFee = (feeSettings?['nominal_minimum_platform'] as num? ?? 5000).toDouble();
 
-      double hariIni = 0, kemarin = 0, allTime = 0;
-      for (final row in rows as List) {
-        final nominal = (row['nominal'] as num? ?? 0).toDouble();
-        allTime += nominal;
+      // 2. All scrims biaya
+      final scrims = await _supabase.from('scrim').select('id_scrim, biaya_pendaftaran');
+      final Map<int, double> scrimBiayaMap = {
+        for (final s in scrims as List)
+          (s['id_scrim'] as int): (s['biaya_pendaftaran'] as num? ?? 0).toDouble()
+      };
 
-        final rawDate = row['diverifikasi_pada'] ?? row['created_at'];
+      // 3. All sesi_scrim → scrim mapping
+      final sesis = await _supabase.from('sesi_scrim').select('id_sesi, id_scrim');
+      final Map<int, int> sesiToScrim = {
+        for (final s in sesis as List)
+          (s['id_sesi'] as int): (s['id_scrim'] as int)
+      };
+
+      // 4. All confirmed registrations
+      final regs = await _supabase
+          .from('pendaftaran_tim')
+          .select('id_sesi, dibuat_pada')
+          .eq('status_pembayaran', 'dikonfirmasi');
+
+      // 5. Group confirmed count + dates per scrim
+      final Map<int, int> countPerScrim = {};
+      final Map<int, List<DateTime>> datesByScrim = {};
+      for (final r in regs as List) {
+        final sesiId = r['id_sesi'] as int?;
+        if (sesiId == null) continue;
+        final scrimId = sesiToScrim[sesiId];
+        if (scrimId == null) continue;
+        countPerScrim[scrimId] = (countPerScrim[scrimId] ?? 0) + 1;
+        final rawDate = r['dibuat_pada']?.toString();
         if (rawDate != null) {
-          final tgl = DateTime.tryParse(rawDate.toString())?.toLocal();
-          if (tgl != null) {
-            final tglDay = DateTime(tgl.year, tgl.month, tgl.day);
-            if (!tglDay.isBefore(todayStart)) hariIni += nominal;
-            if (tglDay == yesterdayStart) kemarin += nominal;
-          }
+          final tgl = DateTime.tryParse(rawDate)?.toLocal();
+          if (tgl != null) datesByScrim.putIfAbsent(scrimId, () => []).add(tgl);
+        }
+      }
+
+      // 6. Hitung fee per scrim dan distribusikan ke hariIni/kemarin/allTime
+      double hariIni = 0, kemarin = 0, allTime = 0;
+      for (final entry in countPerScrim.entries) {
+        final biaya = scrimBiayaMap[entry.key] ?? 0;
+        final rawFee = biaya * entry.value * feePersen / 100;
+        final scrimFee = rawFee < minFee ? minFee : rawFee;
+        final feePerReg = scrimFee / entry.value;
+
+        for (final tgl in datesByScrim[entry.key] ?? <DateTime>[]) {
+          allTime += feePerReg;
+          final tglDay = DateTime(tgl.year, tgl.month, tgl.day);
+          if (!tglDay.isBefore(todayStart)) hariIni += feePerReg;
+          if (tglDay == yesterdayStart) kemarin += feePerReg;
         }
       }
 

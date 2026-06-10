@@ -91,13 +91,16 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       final fotoPath = profil?['foto_profil'] as String?;
       final limitUtang = (profil?['limit_utang'] as num? ?? 100000).toDouble();
 
-      // Ambil pengaturan fee platform untuk hitung utang
+      // Ambil pengaturan fee
       final feeSettings = await _supabase
           .from('pengaturan_fee')
-          .select('fee_platform_persen, nominal_minimum_platform')
+          .select('fee_platform_persen, nominal_minimum_platform, fee_admin_persen, is_persentase_admin, fee_admin_tetap')
           .maybeSingle();
       final int feePlatformPersen = (feeSettings?['fee_platform_persen'] as num? ?? 25).toInt();
       final double nominalMinimumPlatform = (feeSettings?['nominal_minimum_platform'] as num? ?? 5000).toDouble();
+      final int feeAdminPersen = (feeSettings?['fee_admin_persen'] as num? ?? 10).toInt();
+      final bool isPersentaseAdmin = (feeSettings?['is_persentase_admin'] as bool? ?? true);
+      final double feeAdminTetap = (feeSettings?['fee_admin_tetap'] as num? ?? 0).toDouble();
 
       // Admin's scrims (termasuk status_scrim untuk hitung utang dinamis)
       final scrims = await _supabase
@@ -192,10 +195,13 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           if (!tglDay.isBefore(todayStart)) bookingHariIni++;
           if (tglDay == yesterdayStart) bookingKemarin++;
 
-          if (status == 'dikonfirmasi' || status == 'menunggu') {
-            if (!tglDay.isBefore(thisMonthStart)) pendapatanBulanIni += biaya;
+          if (status == 'dikonfirmasi') {
+            final feeAdmin = isPersentaseAdmin
+                ? biaya * feeAdminPersen / 100
+                : feeAdminTetap;
+            if (!tglDay.isBefore(thisMonthStart)) pendapatanBulanIni += feeAdmin;
             if (!tglDay.isBefore(lastMonthStart) && tglDay.isBefore(thisMonthStart)) {
-              pendapatanBulanLalu += biaya;
+              pendapatanBulanLalu += feeAdmin;
             }
           }
 
