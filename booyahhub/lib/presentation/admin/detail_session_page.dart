@@ -313,181 +313,184 @@ class _DetailSessionPageState extends State<DetailSessionPage>
   }
 
   Widget _buildRoomIdTab() {
-    if (_teams.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(Icons.people_outline, size: 48, color: AppColors.textSecondary),
-            const SizedBox(height: 16),
-            Text('Belum ada tim terdaftar', style: AppTextStyles.interBody),
-          ],
-        ),
-      );
-    }
-
-    final roomIdIndex = _selectedMatch - 1;
-    if (roomIdIndex < 0 || roomIdIndex >= _roomIdControllers.length) {
-      return const Center(child: CircularProgressIndicator(color: AppColors.primary));
-    }
-
-    final currentRoomId = _roomIdControllers[roomIdIndex].text.trim();
-    final currentPassword = _passwordControllers[roomIdIndex].text.trim();
-    final isAlreadyDistributed = _isDistributed.length > roomIdIndex && _isDistributed[roomIdIndex];
-    final isFormValid = currentRoomId.isNotEmpty && currentPassword.isNotEmpty && !isAlreadyDistributed;
-
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
+  if (_teams.isEmpty) {
+    return Center(
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Row(
-            children: List.generate(_jumlahMatch, (i) {
-              final matchNum = i + 1;
-              final isSelected = _selectedMatch == matchNum;
-              return Expanded(
-                child: GestureDetector(
-                  onTap: () => setState(() => _selectedMatch = matchNum),
-                  child: Container(
-                    margin: const EdgeInsets.symmetric(horizontal: 4),
-                    padding: const EdgeInsets.symmetric(vertical: 8),
-                    decoration: BoxDecoration(
-                      color: isSelected ? AppColors.primary : AppColors.primary.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: AppColors.primary, width: isSelected ? 2 : 1),
-                    ),
-                    child: Center(
-                      child: Text(
-                        'Match $matchNum',
-                        style: AppTextStyles.interBodyMedium.copyWith(
-                          color: isSelected ? Colors.black : AppColors.primary,
-                          fontWeight: FontWeight.w600,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              );
-            }),
-          ),
-          const SizedBox(height: 24),
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: AppColors.backgroundCard,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: AppColors.surfaceVariant),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Text('MATCH $_selectedMatch', style: AppTextStyles.poppinsTitleSmall.copyWith(color: AppColors.primary)),
-                    const Spacer(),
-                    if (isAlreadyDistributed)
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: AppColors.success,
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        child: Text(
-                          'DISTRIBUTED',
-                          style: AppTextStyles.interCaption.copyWith(
-                            color: Colors.black,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 9,
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                _buildTextField(
-                  label: 'ROOM ID *',
-                  controller: _roomIdControllers[roomIdIndex],
-                  hint: 'Masukkan Room ID (wajib)',
-                  onChanged: (_) => setState(() {}),
-                  enabled: !isAlreadyDistributed,
-                ),
-                const SizedBox(height: 12),
-                _buildTextField(
-                  label: 'PASSWORD *',
-                  controller: _passwordControllers[roomIdIndex],
-                  hint: 'Masukkan Password (wajib)',
-                  obscureText: true,
-                  onChanged: (_) => setState(() {}),
-                  enabled: !isAlreadyDistributed,
-                ),
-                const SizedBox(height: 16),
-                SizedBox(
-                  width: double.infinity,
-                  height: 48,
-                  child: ElevatedButton(
-                    onPressed: isFormValid ? () => _distributeToAll(_selectedMatch) : null,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primary,
-                      foregroundColor: Colors.black,
-                      disabledBackgroundColor: AppColors.primary.withOpacity(0.5),
-                    ),
-                    child: Text(
-                      isAlreadyDistributed
-                          ? 'SUDAH DIDISTRIBUSIKAN'
-                          : 'DISTRIBUSIKAN MATCH $_selectedMatch KE SEMUA TIM',
-                      style: AppTextStyles.poppinsButton.copyWith(fontSize: 12),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 24),
-          Text('PESERTA TERDAFTAR', style: AppTextStyles.interLabel.copyWith(color: AppColors.primary, letterSpacing: 1)),
-          const SizedBox(height: 12),
-          ..._teams.asMap().entries.map((entry) {
-            final idx = entry.key;
-            final team = entry.value;
-            return Container(
-              margin: const EdgeInsets.only(bottom: 8),
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: AppColors.backgroundCard,
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: AppColors.surfaceVariant),
-              ),
-              child: Row(
-                children: [
-                  Container(
-                    width: 40,
-                    height: 40,
-                    decoration: BoxDecoration(
-                      color: AppColors.primary.withOpacity(0.1),
-                      shape: BoxShape.circle,
-                    ),
-                    child: Center(
-                      child: Text('${idx + 1}', style: AppTextStyles.poppinsTitleSmall.copyWith(color: AppColors.primary)),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(team['nama_tim'], style: AppTextStyles.poppinsTitleSmall),
-                        Text('Kapten: ${team['kapten']}', style: AppTextStyles.interCaption),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            );
-          }),
+          const Icon(Icons.people_outline, size: 48, color: AppColors.textSecondary),
+          const SizedBox(height: 16),
+          Text('Belum ada tim terdaftar', style: AppTextStyles.interBody),
         ],
       ),
     );
   }
+
+  final roomIdIndex = _selectedMatch - 1;
+  if (roomIdIndex < 0 || roomIdIndex >= _roomIdControllers.length) {
+    return const Center(child: CircularProgressIndicator(color: AppColors.primary));
+  }
+
+  final currentRoomId = _roomIdControllers[roomIdIndex].text.trim();
+  final currentPassword = _passwordControllers[roomIdIndex].text.trim();
+  
+  // ✅ PERBAIKAN: Tombol aktif jika form diisi, TERLEPAS dari isDistributed
+  final isFormValid = currentRoomId.isNotEmpty && currentPassword.isNotEmpty;
+  
+  // ✅ Tampilkan badge "DISTRIBUTED" hanya untuk info (tidak mempengaruhi tombol)
+  final isAlreadyDistributed = _isDistributed.length > roomIdIndex && _isDistributed[roomIdIndex];
+
+  return SingleChildScrollView(
+    padding: const EdgeInsets.all(16),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: List.generate(_jumlahMatch, (i) {
+            final matchNum = i + 1;
+            final isSelected = _selectedMatch == matchNum;
+            return Expanded(
+              child: GestureDetector(
+                onTap: () => setState(() => _selectedMatch = matchNum),
+                child: Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 4),
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  decoration: BoxDecoration(
+                    color: isSelected ? AppColors.primary : AppColors.primary.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: AppColors.primary, width: isSelected ? 2 : 1),
+                  ),
+                  child: Center(
+                    child: Text(
+                      'Match $matchNum',
+                      style: AppTextStyles.interBodyMedium.copyWith(
+                        color: isSelected ? Colors.black : AppColors.primary,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            );
+          }),
+        ),
+        const SizedBox(height: 24),
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: AppColors.backgroundCard,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: AppColors.surfaceVariant),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Text('MATCH $_selectedMatch', style: AppTextStyles.poppinsTitleSmall.copyWith(color: AppColors.primary)),
+                  const Spacer(),
+                  if (isAlreadyDistributed)
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: AppColors.success,
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text(
+                        'SUDAH PERNAH DIDISTRIBUSIKAN',
+                        style: AppTextStyles.interCaption.copyWith(
+                          color: Colors.black,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 9,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              _buildTextField(
+                label: 'ROOM ID *',
+                controller: _roomIdControllers[roomIdIndex],
+                hint: 'Masukkan Room ID (wajib)',
+                onChanged: (_) => setState(() {}),
+                enabled: true, // ✅ SELALU ENABLE, BISA EDIT KAPAN SAJA
+              ),
+              const SizedBox(height: 12),
+              _buildTextField(
+                label: 'PASSWORD *',
+                controller: _passwordControllers[roomIdIndex],
+                hint: 'Masukkan Password (wajib)',
+                obscureText: true,
+                onChanged: (_) => setState(() {}),
+                enabled: true, // ✅ SELALU ENABLE
+              ),
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                height: 48,
+                child: ElevatedButton(
+                  // ✅ TOMBOL AKTIF JIKA FORM VALID (tidak peduli sudah pernah distribute atau belum)
+                  onPressed: isFormValid ? () => _distributeToAll(_selectedMatch) : null,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: Colors.black,
+                    disabledBackgroundColor: AppColors.primary.withOpacity(0.5),
+                  ),
+                  child: Text(
+                    'DISTRIBUSIKAN MATCH $_selectedMatch KE SEMUA TIM',
+                    style: AppTextStyles.poppinsButton.copyWith(fontSize: 12),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 24),
+        Text('PESERTA TERDAFTAR', style: AppTextStyles.interLabel.copyWith(color: AppColors.primary, letterSpacing: 1)),
+        const SizedBox(height: 12),
+        ..._teams.asMap().entries.map((entry) {
+          final idx = entry.key;
+          final team = entry.value;
+          return Container(
+            margin: const EdgeInsets.only(bottom: 8),
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: AppColors.backgroundCard,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: AppColors.surfaceVariant),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withOpacity(0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Center(
+                    child: Text('${idx + 1}', style: AppTextStyles.poppinsTitleSmall.copyWith(color: AppColors.primary)),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(team['nama_tim'], style: AppTextStyles.poppinsTitleSmall),
+                      Text('Kapten: ${team['kapten']}', style: AppTextStyles.interCaption),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          );
+        }),
+      ],
+    ),
+  );
+}
 
   Widget _buildTextField({
     required String label,
