@@ -5,6 +5,8 @@ import '../../config/app_constants.dart';
 import '../../config/app_text_styles.dart';
 import '../../config/supabase_client.dart';
 import '../../data/models/sesi_scrim_model.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../config/app_session.dart';
 
 class BookingScrimPage extends StatefulWidget {
   final int scrimId;
@@ -26,6 +28,9 @@ class _BookingScrimPageState extends State<BookingScrimPage> {
 
   DateTime _focusedMonth = DateTime.now();
   String? _selectedDateString; // Contoh tampungan: '2026-05-24'
+
+  // Set id_sesi yang sudah didaftarkan user ini (status != ditolak)
+  Set<int> _sesiSudahDaftar = {};
 
   // ─── Lifecycle ───────────────────────────────────────────
   @override
@@ -53,7 +58,30 @@ class _BookingScrimPageState extends State<BookingScrimPage> {
           .eq('id_scrim', widget.scrimId)
           .order('waktu_mulai', ascending: true);
 
-      // 3) Hitung sisa kapasitas/slot terisi dari pendaftaran_tim
+      // 3) Ambil sesi yang sudah didaftar user ini (status != ditolak)
+      final supabase = Supabase.instance.client;
+      final email = supabase.sessionEmail;
+      Set<int> sesiSudahDaftar = {};
+      if (email != null) {
+        final akunResp = await supabase
+            .from('akun')
+            .select('id_akun')
+            .eq('email', email!)
+            .maybeSingle();
+        if (akunResp != null) {
+          final int akunId = akunResp['id_akun'];
+          final daftarResp = await supabase
+              .from('pendaftaran_tim')
+              .select('id_sesi')
+              .eq('akun_id', akunId)
+              .neq('status_pembayaran', 'ditolak');
+          sesiSudahDaftar = (daftarResp as List)
+              .map((e) => e['id_sesi'] as int)
+              .toSet();
+        }
+      }
+
+      // 4) Hitung sisa kapasitas/slot terisi dari pendaftaran_tim
       final pendResp = await SupabaseClientHelper.client
           .from('pendaftaran_tim')
           .select('id_sesi')
@@ -65,7 +93,7 @@ class _BookingScrimPageState extends State<BookingScrimPage> {
         terisiMap[id] = (terisiMap[id] ?? 0) + 1;
       }
 
-      // 4) Bangun Struktur Map pake SesiScrimModel
+      // 5) Bangun Struktur Map pake SesiScrimModel
       final Map<String, List<SesiScrimModel>> grouped = {};
       for (final row in sesiResp as List) {
         final mulai = DateTime.parse(row['waktu_mulai']);
@@ -90,6 +118,7 @@ class _BookingScrimPageState extends State<BookingScrimPage> {
       setState(() {
         _sesiPerTanggal = grouped;
         _tanggalAktif = grouped.keys.toSet();
+        _sesiSudahDaftar = sesiSudahDaftar;
         
         if (_tanggalAktif.isNotEmpty) {
           final sorted = _tanggalAktif.toList()..sort();
@@ -370,12 +399,18 @@ class _BookingScrimPageState extends State<BookingScrimPage> {
   Widget _buildSlotChip(SesiScrimModel slot) {
     final isSelected = _selectedSlot?.idSesi == slot.idSesi;
     final isFull = slot.isFull;
+    final sudahDaftar = _sesiSudahDaftar.contains(slot.idSesi);
+    final isDisabled = isFull || sudahDaftar;
 
     Color bg;
     Color borderColor;
     Color textColor;
 
-    if (isFull) {
+    if (sudahDaftar) {
+      bg = AppColors.primary.withOpacity(0.08);
+      borderColor = AppColors.primary.withOpacity(0.4);
+      textColor = AppColors.primary.withOpacity(0.6);
+    } else if (isFull) {
       bg = AppColors.accentRed.withOpacity(0.15);
       borderColor = AppColors.accentRed;
       textColor = AppColors.accentRed;
@@ -390,7 +425,7 @@ class _BookingScrimPageState extends State<BookingScrimPage> {
     }
 
     return GestureDetector(
-      onTap: isFull ? null : () {
+      onTap: isDisabled ? null : () {
         setState(() {
           _selectedSlot = isSelected ? null : slot;
         });
@@ -403,13 +438,38 @@ class _BookingScrimPageState extends State<BookingScrimPage> {
         ),
         alignment: Alignment.center,
         padding: const EdgeInsets.symmetric(horizontal: 4),
-        child: Text(
-          _formatSlotLabel(slot),
-          style: AppTextStyles.interCaption.copyWith(
-            color: textColor,
-            fontWeight: FontWeight.w600,
-          ),
-          textAlign: TextAlign.center,
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(
+              _formatSlotLabel(slot),
+              style: AppTextStyles.interCaption.copyWith(
+                color: textColor,
+                fontWeight: FontWeight.w600,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            if (sudahDaftar)
+              Text(
+                'Sudah Daftar',
+                style: AppTextStyles.interCaption.copyWith(
+                  color: AppColors.primary.withOpacity(0.7),
+                  fontSize: 9,
+                  fontWeight: FontWeight.w500,
+                ),
+                textAlign: TextAlign.center,
+              )
+            else if (isFull)
+              Text(
+                'Penuh',
+                style: AppTextStyles.interCaption.copyWith(
+                  color: AppColors.accentRed,
+                  fontSize: 9,
+                  fontWeight: FontWeight.w500,
+                ),
+                textAlign: TextAlign.center,
+              ),
+          ],
         ),
       ),
     );

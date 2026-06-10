@@ -381,7 +381,7 @@ class _UserPesananPageState extends State<UserPesananPage> {
                 const SizedBox(height: 8),
                 Row(
                   children: [
-                    Expanded(child: _buildResultItemPopup(icon: Icons.emoji_events, label: 'Peringkat', value: '#${hasil['peringkat']}', color: Colors.amber)),
+                    Expanded(child: _buildResultItemPopup(icon: Icons.emoji_events, label: 'peringkat', value: '#${hasil['peringkat']}', color: Colors.amber)),
                     Expanded(child: _buildResultItemPopup(icon: Icons.sports_esports, label: 'Total Kill', value: '${hasil['total_kill'] ?? 0}', color: Colors.redAccent)),
                     Expanded(child: _buildResultItemPopup(icon: Icons.star, label: 'Total Poin', value: '${hasil['total_poin'] ?? 0}', color: AppColors.primary)),
                   ],
@@ -621,7 +621,7 @@ class _UserPesananPageState extends State<UserPesananPage> {
                       child: const Text('Bayar Sekarang', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
                     ),
                   if (isConfirmed && hasRoomId) Row(children: [Icon(Icons.meeting_room, size: 14, color: AppColors.primary), const SizedBox(width: 4), Text('Room tersedia', style: AppTextStyles.interCaption.copyWith(color: AppColors.primary))]),
-                  if (hasil != null && hasil['peringkat'] != null && hasil['peringkat'] <= 3) Row(children: [Icon(Icons.emoji_events, size: 14, color: Colors.amber), const SizedBox(width: 4), Text('Juara ${hasil['peringkat']}', style: AppTextStyles.interCaption.copyWith(color: Colors.amber))]),
+                  if (hasil != null && hasil['placement'] != null && hasil['placement'] <= 3) Row(children: [Icon(Icons.emoji_events, size: 14, color: Colors.amber), const SizedBox(width: 4), Text('Juara ${hasil['placement']}', style: AppTextStyles.interCaption.copyWith(color: Colors.amber))]),
                 ],
               ),
             ),
