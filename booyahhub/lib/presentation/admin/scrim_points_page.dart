@@ -15,10 +15,13 @@ class ScrimPointsPage extends StatefulWidget {
 class _ScrimPointsPageState extends State<ScrimPointsPage> {
   final _supabase = Supabase.instance.client;
   bool _isLoading = true;
+  bool _hasChanges = false; // ✅ Track apakah ada perubahan yang belum disimpan
 
   List<Map<String, dynamic>> _teams = [];
   List<Map<String, dynamic>> _poinSystem = [];
   List<TextEditingController> _killControllers = [];
+  List<int?> _originalPlaces = [];
+  List<int> _originalKills = [];
 
   @override
   void initState() {
@@ -43,21 +46,17 @@ class _ScrimPointsPageState extends State<ScrimPointsPage> {
           .select('placement, poin_placement')
           .order('placement', ascending: true);
 
-      if (mounted) _poinSystem = List<Map<String, dynamic>>.from(poinData);
+      if (mounted) {
+        _poinSystem = List<Map<String, dynamic>>.from(poinData);
+      }
 
-      if (_poinSystem.isEmpty) {
-        final poinValues = [12, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0, 0];
-        for (int i = 0; i < 12; i++) {
-          await _supabase.from('sistem_poin').insert({
-            'placement': i + 1,
-            'poin_placement': poinValues[i],
-          });
-        }
-        final newPoinData = await _supabase
-            .from('sistem_poin')
-            .select('placement, poin_placement')
-            .order('placement', ascending: true);
-        if (mounted) _poinSystem = List<Map<String, dynamic>>.from(newPoinData);
+      if (_poinSystem.isEmpty && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Sistem poin belum diatur. Hubungi owner.'),
+            backgroundColor: AppColors.error,
+          ),
+        );
       }
 
       await _fetchTeamsData(widget.sesiId);
@@ -93,6 +92,8 @@ class _ScrimPointsPageState extends State<ScrimPointsPage> {
 
       List<Map<String, dynamic>> teamList = [];
       final newControllers = <TextEditingController>[];
+      final List<int?> originalPlaces = [];
+      final List<int> originalKills = [];
 
       for (var p in pendaftaran) {
         final akunId = p['akun_id'] as int?;
@@ -152,6 +153,8 @@ class _ScrimPointsPageState extends State<ScrimPointsPage> {
           'poin': totalPoin,
         });
         newControllers.add(TextEditingController(text: kill.toString()));
+        originalPlaces.add(place);
+        originalKills.add(kill);
       }
 
       for (var c in _killControllers) { c.dispose(); }
@@ -159,6 +162,9 @@ class _ScrimPointsPageState extends State<ScrimPointsPage> {
         setState(() {
           _teams = teamList;
           _killControllers = newControllers;
+          _originalPlaces = originalPlaces;
+          _originalKills = originalKills;
+          _hasChanges = false;
         });
       }
     } catch (e) {
@@ -167,12 +173,32 @@ class _ScrimPointsPageState extends State<ScrimPointsPage> {
     }
   }
 
+  // ✅ Cek apakah ada perubahan dari data asli
+  void _checkForChanges() {
+    bool hasChanges = false;
+    for (int i = 0; i < _teams.length; i++) {
+      final currentPlace = _teams[i]['place'];
+      final currentKill = int.tryParse(_killControllers[i].text) ?? 0;
+      
+      if (currentPlace != _originalPlaces[i] || currentKill != _originalKills[i]) {
+        hasChanges = true;
+        break;
+      }
+    }
+    
+    if (_hasChanges != hasChanges) {
+      setState(() => _hasChanges = hasChanges);
+    }
+  }
+
   Future<void> _saveScores() async {
     if (_teams.isEmpty) return;
     if (!mounted) return;
+    
     setState(() => _isLoading = true);
     try {
       const matchKe = 1;
+      
       for (int i = 0; i < _teams.length; i++) {
         final team = _teams[i];
         final place = team['place'];
@@ -215,11 +241,18 @@ class _ScrimPointsPageState extends State<ScrimPointsPage> {
           });
         }
       }
+      
+      // ✅ Update original values setelah simpan
+      for (int i = 0; i < _teams.length; i++) {
+        _originalPlaces[i] = _teams[i]['place'];
+        _originalKills[i] = int.tryParse(_killControllers[i].text) ?? 0;
+      }
+      
       if (mounted) {
+        setState(() => _hasChanges = false);
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Skor berhasil disimpan'), backgroundColor: AppColors.success),
         );
-        await _fetchTeamsData(widget.sesiId);
       }
     } catch (e) {
       if (mounted) {
@@ -236,6 +269,7 @@ class _ScrimPointsPageState extends State<ScrimPointsPage> {
     setState(() {
       _teams[index]['place'] = place;
       _updatePoin(index);
+      _checkForChanges(); // ✅ Cek perubahan
     });
   }
 
@@ -244,6 +278,7 @@ class _ScrimPointsPageState extends State<ScrimPointsPage> {
       _teams[index]['kill'] = kill;
       _killControllers[index].text = kill.toString();
       _updatePoin(index);
+      _checkForChanges(); // ✅ Cek perubahan
     });
   }
 
@@ -352,8 +387,16 @@ class _ScrimPointsPageState extends State<ScrimPointsPage> {
                                     const SizedBox(height: 2),
                                     Container(
                                       height: 40,
-                                      decoration: BoxDecoration(color: AppColors.primary.withOpacity(0.1), borderRadius: BorderRadius.circular(10)),
-                                      child: Center(child: Text('${team['poin']}', style: AppTextStyles.poppinsMoneyLarge.copyWith(fontSize: 16))),
+                                      decoration: BoxDecoration(
+                                        color: AppColors.primary.withOpacity(0.1),
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                      child: Center(
+                                        child: Text(
+                                          '${team['poin']}',
+                                          style: AppTextStyles.poppinsMoneyLarge.copyWith(fontSize: 16),
+                                        ),
+                                      ),
                                     ),
                                   ],
                                 ),
@@ -369,15 +412,23 @@ class _ScrimPointsPageState extends State<ScrimPointsPage> {
             ),
           ),
         ),
+        // ✅ Tombol SIMPAN - DISABLE jika tidak ada perubahan
         Container(
           margin: const EdgeInsets.all(12),
           child: SizedBox(
             width: double.infinity,
             height: 48,
             child: ElevatedButton(
-              onPressed: _saveScores,
-              style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary, foregroundColor: Colors.black),
-              child: Text('SIMPAN SEMUA POIN', style: AppTextStyles.poppinsButton.copyWith(fontSize: 13)),
+              onPressed: _hasChanges ? _saveScores : null,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.black,
+                disabledBackgroundColor: AppColors.primary.withOpacity(0.5),
+              ),
+              child: Text(
+                _hasChanges ? 'SIMPAN SEMUA POIN' : 'TIDAK ADA PERUBAHAN',
+                style: AppTextStyles.poppinsButton.copyWith(fontSize: 13),
+              ),
             ),
           ),
         ),
@@ -389,7 +440,11 @@ class _ScrimPointsPageState extends State<ScrimPointsPage> {
     return Expanded(
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 8),
-        decoration: BoxDecoration(color: AppColors.backgroundCard, borderRadius: BorderRadius.circular(10), border: Border.all(color: AppColors.surfaceVariant)),
+        decoration: BoxDecoration(
+          color: AppColors.backgroundCard,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: AppColors.surfaceVariant),
+        ),
         child: Column(
           children: [
             Text(value, style: AppTextStyles.poppinsMoneyLarge.copyWith(fontSize: 16)),
@@ -401,22 +456,35 @@ class _ScrimPointsPageState extends State<ScrimPointsPage> {
   }
 
   Widget _buildPlaceDropdown(int? currentPlace, Function(int?) onChanged) {
+    final bool hasValue = currentPlace != null && 
+        _poinSystem.any((p) => p['placement'] == currentPlace);
+    final int? dropdownValue = hasValue ? currentPlace : null;
+
     return Container(
       height: 40,
       padding: const EdgeInsets.symmetric(horizontal: 8),
-      decoration: BoxDecoration(color: AppColors.inputFill, borderRadius: BorderRadius.circular(10)),
+      decoration: BoxDecoration(
+        color: AppColors.inputFill,
+        borderRadius: BorderRadius.circular(10),
+      ),
       child: DropdownButtonHideUnderline(
         child: DropdownButton<int?>(
-          value: currentPlace,
+          value: dropdownValue,
           isExpanded: true,
           dropdownColor: AppColors.backgroundCard,
           style: AppTextStyles.interInput.copyWith(fontSize: 12),
           hint: Text('Pilih', style: AppTextStyles.interHint.copyWith(fontSize: 11)),
           items: [
-            const DropdownMenuItem<int?>(value: null, child: Text('Pilih Place', style: TextStyle(fontSize: 11))),
+            const DropdownMenuItem<int?>(
+              value: null,
+              child: Text('Pilih Place', style: TextStyle(fontSize: 11)),
+            ),
             ..._poinSystem.map((p) => DropdownMenuItem<int?>(
               value: p['placement'] as int,
-              child: Text('#${p['placement']} - ${p['poin_placement']} Poin', style: const TextStyle(fontSize: 11)),
+              child: Text(
+                '#${p['placement']} - ${p['poin_placement']} Poin',
+                style: const TextStyle(fontSize: 11),
+              ),
             )),
           ],
           onChanged: onChanged,
@@ -429,14 +497,23 @@ class _ScrimPointsPageState extends State<ScrimPointsPage> {
     return Container(
       height: 40,
       padding: const EdgeInsets.symmetric(horizontal: 4),
-      decoration: BoxDecoration(color: AppColors.inputFill, borderRadius: BorderRadius.circular(10)),
+      decoration: BoxDecoration(
+        color: AppColors.inputFill,
+        borderRadius: BorderRadius.circular(10),
+      ),
       child: TextField(
         controller: _killControllers[index],
         textAlign: TextAlign.center,
         style: AppTextStyles.interInput.copyWith(fontSize: 13),
         keyboardType: TextInputType.number,
-        decoration: const InputDecoration(border: InputBorder.none, contentPadding: EdgeInsets.symmetric(vertical: 8)),
-        onChanged: (value) => onChanged(int.tryParse(value) ?? 0),
+        decoration: const InputDecoration(
+          border: InputBorder.none,
+          contentPadding: EdgeInsets.symmetric(vertical: 8),
+        ),
+        onChanged: (value) {
+          final kill = int.tryParse(value) ?? 0;
+          onChanged(kill);
+        },
       ),
     );
   }
