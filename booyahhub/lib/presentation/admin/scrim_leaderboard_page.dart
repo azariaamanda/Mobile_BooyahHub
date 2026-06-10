@@ -1,4 +1,6 @@
 ﻿import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../config/app_session.dart';
 import '../../config/app_color.dart';
@@ -8,20 +10,24 @@ import '../../data/models/services/admin_service.dart';
 
 class ScrimLeaderboardPage extends StatefulWidget {
   final int sesiId;
-  const ScrimLeaderboardPage({super.key, required this.sesiId});
+
+  const ScrimLeaderboardPage({
+    super.key,
+    required this.sesiId,
+  });
 
   @override
   State<ScrimLeaderboardPage> createState() => _ScrimLeaderboardPageState();
 }
 
 class _ScrimLeaderboardPageState extends State<ScrimLeaderboardPage> {
-  final _supabase = Supabase.instance.client;
   final _adminService = AdminService();
-
   bool _isLoading = true;
   bool _isBagiHadiah = false;
   List<Map<String, dynamic>> _leaderboardData = [];
-  int? _currentUserId;
+  String _dateSubtitle = '';
+  String _scrimTitle = '';
+  String _sesiTitle = '';
 
   @override
   void initState() {
@@ -29,30 +35,35 @@ class _ScrimLeaderboardPageState extends State<ScrimLeaderboardPage> {
     _fetchLeaderboard();
   }
 
-  @override
-  void dispose() {
-    super.dispose();
-  }
-
   Future<void> _fetchLeaderboard() async {
-    if (!mounted) return;
-    setState(() => _isLoading = true);
     try {
-      // Ambil current user
-      final userEmail = _supabase.auth.currentUser?.email;
-      if (userEmail != null) {
-        final userData = await _supabase
-            .from('akun')
-            .select('id_akun')
-            .eq('email', userEmail)
-            .maybeSingle();
-        _currentUserId = userData?['id_akun'];
+      final supabase = Supabase.instance.client;
+
+      // 1. Ambil info Sesi Scrim
+      final sesiRes = await supabase
+          .from('sesi_scrim')
+          .select('waktu_mulai, nama_sesi, scrim(nama_scrim)')
+          .eq('id_sesi', widget.sesiId)
+          .maybeSingle();
+
+      if (sesiRes != null) {
+        if (sesiRes['waktu_mulai'] != null) {
+          DateTime dt = DateTime.parse(sesiRes['waktu_mulai']).toLocal();
+          final months = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+          _dateSubtitle = '${dt.day} ${months[dt.month - 1]} ${dt.year}';
+        }
+        
+        _sesiTitle = sesiRes['nama_sesi'] ?? '';
+        final scrimObj = sesiRes['scrim'];
+        if (scrimObj is Map && scrimObj['nama_scrim'] != null) {
+          _scrimTitle = scrimObj['nama_scrim'];
+        }
       }
 
-      // Ambil semua pendaftaran tim untuk sesi ini
-      final pendaftaranList = await _supabase
+      // 2. Ambil semua pendaftaran tim untuk sesi ini
+      final pendaftaranList = await supabase
           .from('pendaftaran_tim')
-          .select('id_pendaftaran, akun_id, nama_kapten')
+          .select('id_pendaftaran, akun_id, nama_kapten, dibuat_pada')
           .eq('id_sesi', widget.sesiId)
           .eq('status_pembayaran', 'dikonfirmasi');
 
@@ -66,74 +77,128 @@ class _ScrimLeaderboardPageState extends State<ScrimLeaderboardPage> {
         return;
       }
 
-      // Ambil semua hasil pertandingan untuk sesi ini
-      final results = await _supabase
+      // 3. Ambil semua hasil pertandingan untuk sesi ini
+      final hasilList = await supabase
           .from('hasil_pertandingan')
-          .select('total_poin, total_kill, id_pendaftaran')
-          .eq('id_sesi', widget.sesiId);
+          .select('*')
+          .eq('id_sesi', widget.sesiId)
+          .order('diupdate_pada', ascending: false); // Urutkan dari yang terbaru
 
-      // Buat mapping pendaftaran_id ke hasil
-      final Map<int, Map<String, dynamic>> hasilMap = {};
-      for (var r in results) {
-        hasilMap[r['id_pendaftaran']] = r;
-      }
-
-      // Aggregate data per tim
-      Map<int, Map<String, dynamic>> teamAggregate = {};
+      // Buat mapping hasil per pendaftaran (TOTAL semua match)
+      // Tapi untuk akun yang sama, ambil dari pendaftaran terbaru
+      Map<int, Map<String, dynamic>> hasilPerPendaftaran = {};
       
-      for (var p in pendaftaranList) {
-        final akunId = p['akun_id'] as int?;
-        if (akunId == null) continue;
+      for (var h in hasilList) {
+        final idPendaftaran = h['id_pendaftaran'];
+        final totalKill = h['total_kill'] ?? 0;
+        final totalPoin = h['total_poin'] ?? 0;
         
-        final hasil = hasilMap[p['id_pendaftaran']] ?? {};
-        
-        String namaTim = 'Tim $akunId';
-        
-        // Ambil nama tim dari profil_pengguna
-        final profilData = await _supabase
-            .from('profil_pengguna')
-            .select('nama_tim')
-            .eq('akun_id', akunId)
-            .maybeSingle();
-        
-        if (profilData != null && profilData['nama_tim'] != null) {
-          namaTim = profilData['nama_tim'];
-        }
-        
-        if (!teamAggregate.containsKey(akunId)) {
-          teamAggregate[akunId] = {
-            'akun_id': akunId,
-            'nama_tim': namaTim,
-            'kapten': p['nama_kapten'] ?? '',
-            'total_poin': 0,
+        if (!hasilPerPendaftaran.containsKey(idPendaftaran)) {
+          hasilPerPendaftaran[idPendaftaran] = {
             'total_kill': 0,
+            'total_poin': 0,
+            'match_ke': h['match_ke'] ?? 0,
           };
         }
         
-        teamAggregate[akunId]!['total_poin'] = (teamAggregate[akunId]!['total_poin'] ?? 0) + (hasil['total_poin'] ?? 0);
-        teamAggregate[akunId]!['total_kill'] = (teamAggregate[akunId]!['total_kill'] ?? 0) + (hasil['total_kill'] ?? 0);
+        hasilPerPendaftaran[idPendaftaran]!['total_kill'] += totalKill;
+        hasilPerPendaftaran[idPendaftaran]!['total_poin'] += totalPoin;
       }
-      
-      // Konversi ke list dan urutkan
-      List<Map<String, dynamic>> leaderboard = teamAggregate.values.toList();
-      leaderboard.sort((a, b) => (b['total_poin'] ?? 0).compareTo(a['total_poin'] ?? 0));
-      
-      // Tambahkan posisi
-      for (int i = 0; i < leaderboard.length; i++) {
-        leaderboard[i]['pos'] = i + 1;
-        leaderboard[i]['isMyTeam'] = (_currentUserId != null && leaderboard[i]['akun_id'] == _currentUserId);
+
+      // 4. Ambil profil pengguna untuk semua akun_id
+      Set<int> akunIds = {};
+      for (var p in pendaftaranList) {
+        if (p['akun_id'] != null) {
+          akunIds.add(p['akun_id']);
+        }
       }
+
+      Map<int, String> mapNamaTim = {};
+      Map<int, String> mapFotoProfil = {};
+      if (akunIds.isNotEmpty) {
+        final profilRes = await supabase
+            .from('profil_pengguna')
+            .select('akun_id, nama_tim, foto_profil')
+            .inFilter('akun_id', akunIds.toList());
+        for (var prof in profilRes) {
+          mapNamaTim[prof['akun_id']] = prof['nama_tim'];
+          mapFotoProfil[prof['akun_id']] = prof['foto_profil'];
+        }
+      }
+
+      // 5. Cari pendaftaran terbaru untuk setiap akun
+      Map<int, Map<String, dynamic>> pendaftaranTerbaruPerAkun = {};
       
+      // Urutkan pendaftaran dari yang terbaru
+      List<Map<String, dynamic>> sortedPendaftaran = List.from(pendaftaranList);
+      sortedPendaftaran.sort((a, b) {
+        DateTime aDate = DateTime.parse(a['dibuat_pada'] ?? '2000-01-01');
+        DateTime bDate = DateTime.parse(b['dibuat_pada'] ?? '2000-01-01');
+        return bDate.compareTo(aDate);
+      });
+      
+      for (var p in sortedPendaftaran) {
+        final akunId = p['akun_id'];
+        if (akunId != null && !pendaftaranTerbaruPerAkun.containsKey(akunId)) {
+          pendaftaranTerbaruPerAkun[akunId] = {
+            'id_pendaftaran': p['id_pendaftaran'],
+            'akun_id': akunId,
+            'nama_kapten': p['nama_kapten'] ?? '',
+          };
+        }
+      }
+
+      // 6. Proses data leaderboard per akun (ambil dari pendaftaran terbaru)
+      List<Map<String, dynamic>> teamList = [];
+
+      for (var entry in pendaftaranTerbaruPerAkun.entries) {
+        final akunId = entry.key;
+        final pendaftaranData = entry.value;
+        final pendaftaranId = pendaftaranData['id_pendaftaran'];
+        final hasil = hasilPerPendaftaran[pendaftaranId] ?? {'total_kill': 0, 'total_poin': 0};
+        
+        String namaTim = mapNamaTim[akunId] ?? pendaftaranData['nama_kapten'] ?? 'Team $akunId';
+        String? fotoProfil = mapFotoProfil[akunId];
+        
+        teamList.add({
+          'akun_id': akunId,
+          'nama_tim': namaTim,
+          'foto_profil': fotoProfil,
+          'total_kill': hasil['total_kill'],
+          'total_poin': hasil['total_poin'],
+        });
+      }
+
+      // 7. Urutkan berdasarkan total poin
+      teamList.sort((a, b) {
+        int cmp = (b['total_poin'] as int).compareTo(a['total_poin'] as int);
+        if (cmp == 0) {
+          return (b['total_kill'] as int).compareTo(a['total_kill'] as int);
+        }
+        return cmp;
+      });
+
+      // 8. Beri rank
+      for (int i = 0; i < teamList.length; i++) {
+        teamList[i]['rank'] = i + 1;
+      }
+
       if (mounted) {
-        setState(() => _leaderboardData = leaderboard);
+        setState(() {
+          _leaderboardData = teamList;
+          _isLoading = false;
+        });
       }
     } catch (e) {
-      print('Error: $e');
-    } finally {
+      debugPrint('Leaderboard Error: $e');
       if (mounted) {
         setState(() => _isLoading = false);
       }
     }
+  }
+
+  Map<String, dynamic> _emptyPlayer(int rank) {
+    return {'rank': rank, 'nama_tim': '-', 'total_kill': 0, 'total_poin': 0, 'foto_profil': null};
   }
 
   Future<void> _dobagiHadiah() async {
@@ -151,11 +216,12 @@ class _ScrimLeaderboardPageState extends State<ScrimLeaderboardPage> {
       ),
     );
     
-    // Refresh leaderboard after distributing prizes
     await _fetchLeaderboard();
   }
 
   Widget _buildBagiHadiahButton() {
+    final hasPoinData = _leaderboardData.any((team) => (team['total_poin'] ?? 0) > 0);
+    
     return Container(
       padding: EdgeInsets.fromLTRB(
         AppConstants.paddingM,
@@ -179,7 +245,7 @@ class _ScrimLeaderboardPageState extends State<ScrimLeaderboardPage> {
             ),
             elevation: 0,
           ),
-          onPressed: _isBagiHadiah ? null : _dobagiHadiah,
+          onPressed: (_isBagiHadiah || !hasPoinData) ? null : _dobagiHadiah,
           child: _isBagiHadiah
               ? const SizedBox(
                   width: 20,
@@ -209,355 +275,416 @@ class _ScrimLeaderboardPageState extends State<ScrimLeaderboardPage> {
     );
   }
 
-  Widget _avatar(String teamName, double size, {Color? borderColor}) {
-    final initials = teamName.trim().split(' ')
-        .take(2)
-        .map((w) => w.isNotEmpty ? w[0].toUpperCase() : '')
-        .join();
-
-    return Container(
-      width: size,
-      height: size,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        color: AppColors.surfaceVariant,
-        border: Border.all(
-          color: borderColor ?? AppColors.inputBorder,
-          width: borderColor != null ? 2.5 : 1.5,
-        ),
-      ),
-      child: Center(
-        child: Text(
-          initials.isNotEmpty ? initials : '?',
-          style: TextStyle(
-            color: borderColor ?? AppColors.textSecondary,
-            fontWeight: FontWeight.w700,
-            fontSize: size * 0.3,
-            fontFamily: 'Poppins',
-          ),
-        ),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
-      return const Center(child: CircularProgressIndicator(color: AppColors.primary));
-    }
-
-    if (_leaderboardData.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(Icons.emoji_events_outlined, size: 48, color: AppColors.textSecondary),
-            const SizedBox(height: 16),
-            Text('Belum ada data leaderboard', style: AppTextStyles.interBody),
-          ],
-        ),
-      );
-    }
-
-    // Pastikan data cukup untuk podium
-    final hasPodium = _leaderboardData.length >= 3;
-    
-    if (!hasPodium) {
-      // Hanya tampilkan tabel jika kurang dari 3 tim
       return Scaffold(
         backgroundColor: AppColors.background,
-        body: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
-          child: _buildTable(_leaderboardData),
+        appBar: AppBar(
+          backgroundColor: AppColors.background,
+          elevation: 0,
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back, color: AppColors.textPrimary),
+            onPressed: () => context.pop(),
+          ),
+          title: Text(
+            'Leaderboard',
+            style: AppTextStyles.poppinsTitle.copyWith(fontSize: 18),
+          ),
+          centerTitle: false,
         ),
-        bottomNavigationBar: _buildBagiHadiahButton(),
+        body: const Center(child: CircularProgressIndicator(color: AppColors.primary)),
       );
     }
 
-    final top3 = _leaderboardData.take(3).toList();
-    final rest = _leaderboardData.skip(3).toList();
-
-    final podiumOrder = [top3[1], top3[0], top3[2]];
-    final podiumColors = [
-      const Color(0xFFC0C0C0),
-      const Color(0xFFC9A227),
-      const Color(0xFFCD7F32),
-    ];
-    final podiumRanks = [2, 1, 3];
-    final podiumHeights = [90.0, 120.0, 75.0];
+    final allPlayers = _leaderboardData;
+    
+    final top1 = allPlayers.firstWhere((p) => p['rank'] == 1, orElse: () => _emptyPlayer(1));
+    final top2 = allPlayers.firstWhere((p) => p['rank'] == 2, orElse: () => _emptyPlayer(2));
+    final top3 = allPlayers.firstWhere((p) => p['rank'] == 3, orElse: () => _emptyPlayer(3));
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildPodium(podiumOrder, podiumColors, podiumRanks, podiumHeights),
-            const SizedBox(height: 28),
-            if (rest.isNotEmpty) _buildTable(rest),
-          ],
+      body: RefreshIndicator(
+        onRefresh: _fetchLeaderboard,
+        color: AppColors.primary,
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          child: SafeArea(
+            child: Column(
+              children: [
+                if (_scrimTitle.isNotEmpty)
+                  Container(
+                    margin: const EdgeInsets.symmetric(horizontal: AppConstants.paddingM),
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: AppColors.backgroundCard,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: AppColors.inputBorder.withOpacity(0.3)),
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: AppColors.primary.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: const Icon(Icons.emoji_events_rounded, color: AppColors.primary, size: 28),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                _scrimTitle.toUpperCase(),
+                                style: AppTextStyles.poppinsHeadline.copyWith(
+                                  fontSize: 16,
+                                  color: AppColors.white,
+                                  letterSpacing: 0.5,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              const SizedBox(height: 6),
+                              Row(
+                                children: [
+                                  if (_sesiTitle.isNotEmpty) ...[
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                      decoration: BoxDecoration(
+                                        color: AppColors.primary,
+                                        borderRadius: BorderRadius.circular(4),
+                                      ),
+                                      child: Text(
+                                        _sesiTitle.toUpperCase(),
+                                        style: GoogleFonts.inter(
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.bold,
+                                          color: AppColors.black,
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                  ],
+                                  if (_dateSubtitle.isNotEmpty)
+                                    Text(
+                                      _dateSubtitle,
+                                      style: GoogleFonts.inter(
+                                        fontSize: 12,
+                                        color: AppColors.textSecondary,
+                                      ),
+                                    ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                const SizedBox(height: 24),
+
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: AppConstants.paddingM),
+                  child: _buildPodiumSection(top1, top2, top3),
+                ),
+                
+                const SizedBox(height: 24),
+
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: AppConstants.paddingXL),
+                  child: Row(
+                    children: [
+                      SizedBox(
+                        width: 30,
+                        child: Text('POS', style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.textSecondary.withOpacity(0.6), letterSpacing: 1)),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Text('TEAM / PLAYER', style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.textSecondary.withOpacity(0.6), letterSpacing: 1)),
+                      ),
+                      SizedBox(
+                        width: 50,
+                        child: Text('KILLS', textAlign: TextAlign.center, style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.textSecondary.withOpacity(0.6), letterSpacing: 1)),
+                      ),
+                      SizedBox(
+                        width: 60,
+                        child: Text('POINTS', textAlign: TextAlign.right, style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.textSecondary.withOpacity(0.6), letterSpacing: 1)),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 8),
+
+                if (allPlayers.isEmpty)
+                  Padding(
+                    padding: const EdgeInsets.all(32.0),
+                    child: Text(
+                      'Belum ada tim yang mencetak poin.',
+                      style: AppTextStyles.interCaption,
+                    ),
+                  )
+                else
+                  ListView.builder(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    padding: const EdgeInsets.symmetric(horizontal: AppConstants.paddingM, vertical: 8),
+                    itemCount: allPlayers.length,
+                    itemBuilder: (context, index) {
+                      final player = allPlayers[index];
+                      return _buildLeaderboardRow(player);
+                    },
+                  ),
+                  
+                const SizedBox(height: 40),
+              ],
+            ),
+          ),
         ),
       ),
       bottomNavigationBar: _buildBagiHadiahButton(),
     );
   }
 
-  Widget _buildPodium(
-    List<Map<String, dynamic>> order,
-    List<Color> colors,
-    List<int> ranks,
-    List<double> podiumHeights,
-  ) {
-    return SizedBox(
-      height: 260,
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.end,
-        children: List.generate(3, (i) {
-          final item = order[i];
-          final color = colors[i];
-          final rank = ranks[i];
-          final isCenter = rank == 1;
-          final teamName = item['nama_tim'] ?? 'Team';
-          final totalPoin = item['total_poin'] ?? 0;
+  Widget _buildPodiumSection(Map<String, dynamic> top1, Map<String, dynamic> top2, Map<String, dynamic> top3) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.end,
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        _buildPodiumPillar(
+          playerData: top2,
+          pillarHeight: 110,
+          pillarColor: AppColors.backgroundCard,
+          avatarBgColor: AppColors.backgroundCard,
+          rankNumber: '2',
+        ),
+        const SizedBox(width: 12),
 
-          return Expanded(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                Stack(
-                  clipBehavior: Clip.none,
-                  alignment: Alignment.topCenter,
-                  children: [
-                    _avatar(
-                      teamName,
-                      isCenter ? 72 : 52,
-                      borderColor: color,
-                    ),
-                    if (isCenter)
-                      Positioned(
-                        top: -22,
-                        child: Icon(Icons.workspace_premium_rounded, color: color, size: 28),
-                      ),
-                    if (!isCenter)
-                      Positioned(
-                        bottom: -2,
-                        right: 8,
-                        child: Container(
-                          width: 20,
-                          height: 20,
-                          decoration: BoxDecoration(
-                            color: color,
-                            shape: BoxShape.circle,
-                            border: Border.all(color: AppColors.background, width: 1.5),
-                          ),
-                          child: Center(
-                            child: Text(
-                              '$rank',
-                              style: const TextStyle(
-                                color: Colors.black,
-                                fontSize: 10,
-                                fontWeight: FontWeight.w800,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 4),
-                  child: Text(
-                    teamName,
-                    style: AppTextStyles.poppinsTitleSmall.copyWith(
-                      fontSize: isCenter ? 13 : 11,
-                      fontWeight: FontWeight.w700,
-                      color: color,
-                    ),
-                    textAlign: TextAlign.center,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  '$totalPoin',
-                  style: AppTextStyles.poppinsMoneyLarge.copyWith(
-                    fontSize: isCenter ? 28 : 20,
-                    color: AppColors.textPrimary,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Container(
-                  height: podiumHeights[i],
-                  width: double.infinity,
-                  decoration: BoxDecoration(
-                    color: color.withOpacity(0.12),
-                    border: Border(
-                      top: BorderSide(color: color, width: 2),
-                      left: BorderSide(color: color.withOpacity(0.3), width: 1),
-                      right: BorderSide(color: color.withOpacity(0.3), width: 1),
-                    ),
-                    borderRadius: const BorderRadius.vertical(top: Radius.circular(6)),
-                  ),
-                  child: Center(
-                    child: Text(
-                      '#$rank',
-                      style: TextStyle(
-                        color: color,
-                        fontWeight: FontWeight.w800,
-                        fontSize: isCenter ? 22 : 17,
-                        fontFamily: 'Poppins',
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          );
-        }),
-      ),
+        _buildPodiumPillar(
+          playerData: top1,
+          pillarHeight: 145,
+          pillarColor: AppColors.primary,
+          avatarBgColor: AppColors.primary.withOpacity(0.2),
+          rankNumber: '1',
+          isFirstPlace: true,
+        ),
+        const SizedBox(width: 12),
+
+        _buildPodiumPillar(
+          playerData: top3,
+          pillarHeight: 85,
+          pillarColor: AppColors.backgroundCard,
+          avatarBgColor: AppColors.backgroundCard,
+          rankNumber: '3',
+        ),
+      ],
     );
   }
 
-  Widget _buildTable(List<Map<String, dynamic>> items) {
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColors.backgroundCard,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.surfaceVariant, width: 1),
-      ),
+  Widget _buildPodiumPillar({
+    required Map<String, dynamic> playerData,
+    required double pillarHeight,
+    required Color pillarColor,
+    required Color avatarBgColor,
+    required String rankNumber,
+    bool isFirstPlace = false,
+  }) {
+    return Expanded(
       child: Column(
+        mainAxisAlignment: MainAxisAlignment.end,
         children: [
           Container(
-            padding: const EdgeInsets.symmetric(vertical: 11, horizontal: 12),
+            width: 64,
+            height: 64,
             decoration: BoxDecoration(
-              color: AppColors.primary.withOpacity(0.08),
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(13)),
-              border: Border(bottom: BorderSide(color: AppColors.surfaceVariant)),
+              color: avatarBgColor,
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(
+                color: isFirstPlace ? AppColors.primary : AppColors.inputBorder.withOpacity(0.3),
+                width: 1.5,
+              ),
+              boxShadow: isFirstPlace 
+                ? [BoxShadow(color: AppColors.primary.withOpacity(0.25), blurRadius: 15, spreadRadius: 1)]
+                : [],
             ),
-            child: Row(
+            child: Stack(
+              clipBehavior: Clip.none,
               children: [
-                _headerCell('POS', width: 38),
-                const SizedBox(width: 12),
-                Expanded(child: _headerText('TEAM / PLAYER')),
-                _headerCell('KILLS', width: 46),
-                const SizedBox(width: 8),
-                _headerCell('POIN', width: 46),
+                if (playerData['foto_profil'] != null && playerData['foto_profil'].toString().isNotEmpty)
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(16),
+                    child: Image.network(
+                      playerData['foto_profil'],
+                      width: double.infinity,
+                      height: double.infinity,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) => Center(
+                        child: Icon(Icons.groups_rounded, color: isFirstPlace ? AppColors.primary : AppColors.textPrimary, size: 28),
+                      ),
+                    ),
+                  )
+                else
+                  Center(
+                    child: Icon(Icons.groups_rounded, color: isFirstPlace ? AppColors.primary : AppColors.textPrimary, size: 28),
+                  ),
+                Positioned(
+                  bottom: -8,
+                  left: 0,
+                  right: 0,
+                  child: Center(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: AppColors.backgroundCard,
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(
+                          color: isFirstPlace ? AppColors.primary : AppColors.inputBorder.withOpacity(0.5), 
+                          width: 1
+                        ),
+                      ),
+                      child: Text(
+                        rankNumber,
+                        style: GoogleFonts.poppins(
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                          color: isFirstPlace ? AppColors.primary : AppColors.textPrimary,
+                        ),
+                      ),
+                    ),
+                  ),
+                )
               ],
             ),
           ),
-          ...items.asMap().entries.map((e) {
-            final i = e.key;
-            final item = e.value;
-            final isLast = i == items.length - 1;
-            final isMyTeam = item['isMyTeam'] == true;
-
-            return Container(
-              padding: const EdgeInsets.symmetric(vertical: 11, horizontal: 12),
-              decoration: BoxDecoration(
-                color: isMyTeam ? AppColors.primary.withOpacity(0.07) : Colors.transparent,
-                borderRadius: isLast ? const BorderRadius.vertical(bottom: Radius.circular(13)) : BorderRadius.zero,
-                border: !isLast ? Border(bottom: BorderSide(color: AppColors.surfaceVariant)) : null,
+          const SizedBox(height: 16),
+          Text(
+            playerData['nama_tim'],
+            textAlign: TextAlign.center,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: AppTextStyles.poppinsHeadline.copyWith(
+              fontSize: 13, 
+              fontWeight: isFirstPlace ? FontWeight.bold : FontWeight.w500,
+              color: isFirstPlace ? AppColors.primary : AppColors.textPrimary,
+            ),
+          ),
+          Text(
+            '${playerData['total_poin']}',
+            style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.textSecondary),
+          ),
+          const SizedBox(height: 8),
+          Container(
+            height: pillarHeight,
+            width: double.infinity,
+            decoration: BoxDecoration(
+              color: pillarColor,
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(16),
+                topRight: Radius.circular(16),
               ),
-              child: Row(
-                children: [
-                  SizedBox(
-                    width: 38,
-                    child: Center(
-                      child: Text(
-                        '${item['pos']}',
-                        style: AppTextStyles.poppinsTitleSmall.copyWith(
-                          color: isMyTeam ? AppColors.primary : AppColors.textSecondary,
-                          fontWeight: FontWeight.w700,
-                          fontSize: 14,
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  _avatar(item['nama_tim'], 34, borderColor: isMyTeam ? AppColors.primary : null),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          item['nama_tim'],
-                          style: AppTextStyles.poppinsTitleSmall.copyWith(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.textPrimary,
-                          ),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        if (item['kapten'] != null && item['kapten'].isNotEmpty) ...[
-                          const SizedBox(height: 2),
-                          Text(
-                            'Capt: ${item['kapten']}',
-                            style: AppTextStyles.interCaption.copyWith(
-                              fontSize: 10.5,
-                              color: isMyTeam ? AppColors.primary : AppColors.textSecondary,
-                              fontWeight: isMyTeam ? FontWeight.w700 : FontWeight.w400,
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-                  SizedBox(
-                    width: 46,
-                    child: Center(
-                      child: Text(
-                        '${item['total_kill']}',
-                        style: AppTextStyles.interBody.copyWith(
-                          fontWeight: FontWeight.w600,
-                          fontSize: 13,
-                          color: AppColors.textPrimary,
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  SizedBox(
-                    width: 46,
-                    child: Center(
-                      child: Text(
-                        '${item['total_poin']}',
-                        style: AppTextStyles.poppinsMoneySmall.copyWith(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w700,
-                          color: isMyTeam ? AppColors.primary : AppColors.textPrimary,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
+            ),
+            child: Center(
+              child: Container(
+                width: 2,
+                height: pillarHeight * 0.4,
+                color: isFirstPlace ? AppColors.background.withOpacity(0.4) : AppColors.inputBorder.withOpacity(0.2),
               ),
-            );
-          }),
+            ),
+          ),
         ],
       ),
     );
   }
 
-  Widget _headerCell(String text, {required double width}) {
-    return SizedBox(
-      width: width,
-      child: Center(child: _headerText(text)),
-    );
-  }
-
-  Widget _headerText(String text) {
-    return Text(
-      text,
-      style: AppTextStyles.interLabel.copyWith(
-        color: AppColors.primary,
-        fontWeight: FontWeight.w700,
-        fontSize: 11,
-        letterSpacing: 0.5,
+  Widget _buildLeaderboardRow(Map<String, dynamic> player) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.symmetric(horizontal: AppConstants.paddingM, vertical: 12),
+      decoration: BoxDecoration(
+        color: AppColors.backgroundCard,
+        borderRadius: BorderRadius.circular(AppConstants.radiusL),
+      ),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 30,
+            child: Text(
+              '${player['rank']}',
+              style: GoogleFonts.poppins(
+                fontSize: 15,
+                fontWeight: FontWeight.bold,
+                color: AppColors.textSecondary,
+              ),
+            ),
+          ),
+          const SizedBox(width: 16),
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: AppColors.background.withOpacity(0.6),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: player['foto_profil'] != null && player['foto_profil'].toString().isNotEmpty
+                ? ClipRRect(
+                    borderRadius: BorderRadius.circular(10),
+                    child: Image.network(
+                      player['foto_profil'],
+                      width: 40,
+                      height: 40,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) => Center(
+                        child: Icon(Icons.groups_rounded, color: AppColors.textSecondary, size: 18),
+                      ),
+                    ),
+                  )
+                : Center(
+                    child: const Icon(Icons.groups_rounded, color: AppColors.textSecondary, size: 18),
+                  ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  player['nama_tim'],
+                  style: AppTextStyles.poppinsHeadline.copyWith(
+                    fontSize: 14,
+                    color: AppColors.textPrimary,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          SizedBox(
+            width: 50,
+            child: Text(
+              '${player['total_kill']}',
+              textAlign: TextAlign.center,
+              style: GoogleFonts.inter(
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+                color: AppColors.textSecondary,
+              ),
+            ),
+          ),
+          SizedBox(
+            width: 60,
+            child: Text(
+              '${player['total_poin']}',
+              textAlign: TextAlign.right,
+              style: GoogleFonts.poppins(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: AppColors.textPrimary,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
