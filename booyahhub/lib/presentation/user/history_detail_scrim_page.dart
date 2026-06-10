@@ -31,27 +31,28 @@ class _HistoryDetailScrimPageState extends State<HistoryDetailScrimPage> {
     try {
       final supabase = Supabase.instance.client;
 
-      // Fetch detail join antar tabel di Supabase
+      // FIX 1: FK join eksplisit untuk akun dan sesi_scrim
+      // FIX 2: Kolom 'peringkat' tidak ada di schema -> diganti 'placement'
       final response = await supabase
           .from('pendaftaran_tim')
           .select('''
             id_pendaftaran,
             status_pertandingan,
             dibuat_pada,
-            akun(
+            akun!pendaftaran_tim_akun_id_fkey(
               profil_pengguna(
                 nama_tim
               )
             ),
-            sesi_scrim(
+            sesi_scrim!pendaftaran_tim_id_sesi_fkey(
               id_sesi,
-              scrim(
+              scrim!sesi_scrim_id_scrim_fkey(
                 nama_scrim
               )
             ),
             klaim_hadiah(id_klaim),
             hasil_pertandingan(
-              peringkat, 
+              placement,
               total_poin,
               total_kill
             )
@@ -96,12 +97,13 @@ class _HistoryDetailScrimPageState extends State<HistoryDetailScrimPage> {
       }
 
       // Parsing Data Hasil Pertandingan
+      // FIX 3: Pakai 'placement' sesuai kolom di tabel hasil_pertandingan
       String peringkatAkhir = 'BELUM MULAI';
       int totalPoin = 0;
       int totalKills = 0;
 
       if (hasilList.isNotEmpty) {
-        final int rank = hasilList[0]['peringkat'] ?? 0;
+        final int rank = hasilList[0]['placement'] ?? 0;
         peringkatAkhir = rank == 1
             ? 'JUARA 1'
             : rank == 2
