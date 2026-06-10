@@ -358,7 +358,7 @@ class _RegisterAdminPageState extends State<RegisterAdminPage> {
         if (primaryMetodeId != null) 'metode_pembayaran_id': primaryMetodeId,
       });
       
-      _showSnackBar('Pendaftaran admin berhasil! Menunggu verifikasi owner.');
+      _showSnackBar('Pendaftaran admin berhasil!.');
       
       await Future.delayed(const Duration(seconds: 2));
       await supabase.auth.signOut();
