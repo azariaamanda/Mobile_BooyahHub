@@ -67,9 +67,25 @@ class _UserNotificationPageState extends State<UserNotificationPage> {
 
   Future<void> _fetchNotifications() async {
     try {
+      // Ambil id_akun user untuk filter notifikasi yang ditujukan khusus ke user ini
+      int? akunId;
+      final email = Supabase.instance.client.sessionEmail;
+      if (email != null) {
+        final akun = await Supabase.instance.client
+            .from('akun')
+            .select('id_akun')
+            .eq('email', email)
+            .maybeSingle();
+        akunId = akun?['id_akun'] as int?;
+      }
+
+      // Hanya tampilkan: broadcast ke pengguna ATAU notif spesifik ke user ini
       final response = await Supabase.instance.client
           .from('notifikasi')
           .select()
+          .or(akunId != null
+              ? 'target_role.eq.pengguna,target_id_akun.eq.$akunId'
+              : 'target_role.eq.pengguna')
           .order('dikirim_pada', ascending: false);
 
       final List<Notification> fetchedNotifications = [];

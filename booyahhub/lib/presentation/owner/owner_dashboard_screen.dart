@@ -248,6 +248,26 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
         }
       }
 
+      // Premium package revenue (full harga when status = aktif)
+      final premiumRows = await supabase
+          .from('transaksi_premium')
+          .select('harga, tanggal_mulai')
+          .eq('status', 'aktif');
+      for (final tx in premiumRows as List) {
+        final harga = (tx['harga'] as num? ?? 0).toDouble();
+        total += harga;
+        final rawDate = tx['tanggal_mulai']?.toString();
+        if (rawDate != null) {
+          final tgl = DateTime.tryParse(rawDate)?.toLocal();
+          if (tgl != null) {
+            final int monthDiff = (now.year - tgl.year) * 12 + now.month - tgl.month;
+            if (monthDiff >= 0 && monthDiff < 6) {
+              tempMonthly[5 - monthDiff] += harga;
+            }
+          }
+        }
+      }
+
       final monthNames = [
         'Jan',
         'Feb',

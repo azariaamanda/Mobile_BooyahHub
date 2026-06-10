@@ -6,7 +6,7 @@ import '../../config/app_color.dart';
 import '../../config/app_constants.dart';
 import '../../config/app_text_styles.dart';
 import '../../config/app_image_helper.dart';
-import 'admin_notification_page.dart';
+import 'admin_inbox_page.dart';
 
 class AdminDashboardScreen extends StatefulWidget {
   const AdminDashboardScreen({super.key});
@@ -311,7 +311,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                   ),
                   GestureDetector(
                     onTap: () => Navigator.of(context).push(
-                      MaterialPageRoute(builder: (_) => const AdminNotificationPage()),
+                      MaterialPageRoute(builder: (_) => const AdminInboxPage()),
                     ),
                     child: Stack(
                       children: [

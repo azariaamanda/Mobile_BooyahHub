@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../config/app_session.dart';
 import 'manage_banner_page.dart';
+import 'admin_notification_page.dart';
 import '../../config/app_color.dart';
 import '../../config/app_constants.dart';
 import '../../config/app_text_styles.dart';
@@ -200,6 +201,15 @@ class _AdminProfilePageState extends State<AdminProfilePage> {
               icon: Icons.edit_outlined,
               title: 'Edit Profil',
               onTap: () => context.push('/admin/profile/edit'),
+            ),
+            const SizedBox(height: 8),
+            _buildMenuItem(
+              icon: Icons.send_rounded,
+              title: 'Kirim Notifikasi',
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const AdminNotificationPage()),
+              ),
             ),
             const SizedBox(height: 8),
             _buildMenuItemWithSwitch(

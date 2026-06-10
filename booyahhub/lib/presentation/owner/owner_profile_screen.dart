@@ -29,8 +29,11 @@ class _OwnerProfileScreenState extends State<OwnerProfileScreen> {
   @override
   void initState() {
     super.initState();
-    _loadProfile();
-    _fetchRevenue();
+    _refresh();
+  }
+
+  Future<void> _refresh() async {
+    await Future.wait([_loadProfile(), _fetchRevenue()]);
   }
 
   Future<void> _fetchRevenue() async {
@@ -44,20 +47,26 @@ class _OwnerProfileScreenState extends State<OwnerProfileScreen> {
           .from('pengaturan_fee')
           .select('fee_platform_persen, nominal_minimum_platform')
           .maybeSingle();
-      final int feePersen = (feeSettings?['fee_platform_persen'] as num? ?? 25).toInt();
+      final int feePersen = (feeSettings?['fee_platform_persen'] as num? ?? 25)
+          .toInt();
 
       // 2. All scrims biaya
-      final scrims = await _supabase.from('scrim').select('id_scrim, biaya_pendaftaran');
+      final scrims = await _supabase
+          .from('scrim')
+          .select('id_scrim, biaya_pendaftaran');
       final Map<int, double> scrimBiayaMap = {
         for (final s in scrims as List)
-          (s['id_scrim'] as int): (s['biaya_pendaftaran'] as num? ?? 0).toDouble()
+          (s['id_scrim'] as int): (s['biaya_pendaftaran'] as num? ?? 0)
+              .toDouble(),
       };
 
       // 3. All sesi_scrim → scrim mapping
-      final sesis = await _supabase.from('sesi_scrim').select('id_sesi, id_scrim');
+      final sesis = await _supabase
+          .from('sesi_scrim')
+          .select('id_sesi, id_scrim');
       final Map<int, int> sesiToScrim = {
         for (final s in sesis as List)
-          (s['id_sesi'] as int): (s['id_scrim'] as int)
+          (s['id_sesi'] as int): (s['id_scrim'] as int),
       };
 
       // 4. All confirmed registrations
@@ -97,6 +106,25 @@ class _OwnerProfileScreenState extends State<OwnerProfileScreen> {
         }
       }
 
+      // 7. Premium package revenue (full harga when status = aktif)
+      final premiumRows = await _supabase
+          .from('transaksi_premium')
+          .select('harga, tanggal_mulai')
+          .eq('status', 'aktif');
+      for (final tx in premiumRows as List) {
+        final harga = (tx['harga'] as num? ?? 0).toDouble();
+        final rawDate = tx['tanggal_mulai']?.toString();
+        if (rawDate != null) {
+          final tgl = DateTime.tryParse(rawDate)?.toLocal();
+          if (tgl != null) {
+            allTime += harga;
+            final tglDay = DateTime(tgl.year, tgl.month, tgl.day);
+            if (!tglDay.isBefore(todayStart)) hariIni += harga;
+            if (tglDay == yesterdayStart) kemarin += harga;
+          }
+        }
+      }
+
       if (mounted) {
         setState(() {
           _revenueHariIni = hariIni;
@@ -110,8 +138,10 @@ class _OwnerProfileScreenState extends State<OwnerProfileScreen> {
   }
 
   String _formatRupiah(double value) {
-    if (value >= 1000000000) return 'Rp ${(value / 1000000000).toStringAsFixed(1)}M';
-    if (value >= 1000000) return 'Rp ${(value / 1000000).toStringAsFixed(1)} Jt';
+    if (value >= 1000000000)
+      return 'Rp ${(value / 1000000000).toStringAsFixed(1)}M';
+    if (value >= 1000000)
+      return 'Rp ${(value / 1000000).toStringAsFixed(1)} Jt';
     if (value >= 1000) return 'Rp ${(value / 1000).toStringAsFixed(0)} Rb';
     return 'Rp ${value.toStringAsFixed(0)}';
   }
@@ -131,10 +161,13 @@ class _OwnerProfileScreenState extends State<OwnerProfileScreen> {
         _akunData = data['akun'].toJson();
         _profilData = data['profil'] as Map<String, dynamic>?;
 
-        if (_profilData != null && _profilData!['foto_profil'] != null && _profilData!['foto_profil'].toString().isNotEmpty) {
+        if (_profilData != null &&
+            _profilData!['foto_profil'] != null &&
+            _profilData!['foto_profil'].toString().isNotEmpty) {
           final url = _profilData!['foto_profil'].toString();
           final separator = url.contains('?') ? '&' : '?';
-          _profilData!['foto_profil'] = '$url${separator}v=${DateTime.now().millisecondsSinceEpoch}';
+          _profilData!['foto_profil'] =
+              '$url${separator}v=${DateTime.now().millisecondsSinceEpoch}';
         }
 
         _isLoading = false;
@@ -150,38 +183,45 @@ class _OwnerProfileScreenState extends State<OwnerProfileScreen> {
       backgroundColor: AppColors.background,
       body: SafeArea(
         child: _isLoading
-            ? const Center(child: CircularProgressIndicator(color: Color(0xFFFFD700)))
-            : ListView(
-                padding: const EdgeInsets.fromLTRB(24, 24, 24, 100),
-                children: [
-                  _buildAppBar(),
-                  const SizedBox(height: 32),
-                  _buildProfileInfo(),
-                  const SizedBox(height: 32),
-                  _buildStatCard(
-                    icon: Icons.account_balance_wallet_rounded,
-                    iconBgColor: const Color(0xFF3B331A),
-                    iconColor: const Color(0xFFFFD700),
-                    badgeText: _badgeHariIni,
-                    badgeBgColor: const Color(0xFF3B331A),
-                    badgeTextColor: const Color(0xFFFFD700),
-                    title: 'Pendapatan Hari Ini',
-                    value: _formatRupiah(_revenueHariIni),
-                  ),
-                  const SizedBox(height: 16),
-                  _buildStatCard(
-                    icon: Icons.account_balance_rounded,
-                    iconBgColor: Colors.white10,
-                    iconColor: Colors.white70,
-                    badgeText: 'All-Time',
-                    badgeBgColor: Colors.white10,
-                    badgeTextColor: Colors.white70,
-                    title: 'Total Pendapatan',
-                    value: _formatRupiah(_revenueAllTime),
-                  ),
-                  const SizedBox(height: 32),
-                  _buildMenuSection(context),
-                ],
+            ? const Center(
+                child: CircularProgressIndicator(color: Color(0xFFFFD700)),
+              )
+            : RefreshIndicator(
+                color: AppColors.primary,
+                onRefresh: _refresh,
+                child: ListView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: const EdgeInsets.fromLTRB(24, 24, 24, 100),
+                  children: [
+                    _buildAppBar(),
+                    const SizedBox(height: 32),
+                    _buildProfileInfo(),
+                    const SizedBox(height: 32),
+                    _buildStatCard(
+                      icon: Icons.account_balance_wallet_rounded,
+                      iconBgColor: const Color(0xFF3B331A),
+                      iconColor: const Color(0xFFFFD700),
+                      badgeText: _badgeHariIni,
+                      badgeBgColor: const Color(0xFF3B331A),
+                      badgeTextColor: const Color(0xFFFFD700),
+                      title: 'Pendapatan Hari Ini',
+                      value: _formatRupiah(_revenueHariIni),
+                    ),
+                    const SizedBox(height: 16),
+                    _buildStatCard(
+                      icon: Icons.account_balance_rounded,
+                      iconBgColor: Colors.white10,
+                      iconColor: Colors.white70,
+                      badgeText: 'All-Time',
+                      badgeBgColor: Colors.white10,
+                      badgeTextColor: Colors.white70,
+                      title: 'Total Pendapatan',
+                      value: _formatRupiah(_revenueAllTime),
+                    ),
+                    const SizedBox(height: 32),
+                    _buildMenuSection(context),
+                  ],
+                ),
               ),
       ),
     );
@@ -291,7 +331,10 @@ class _OwnerProfileScreenState extends State<OwnerProfileScreen> {
                 child: Icon(icon, color: iconColor, size: 24),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 6,
+                ),
                 decoration: BoxDecoration(
                   color: badgeBgColor,
                   borderRadius: BorderRadius.circular(6),
@@ -389,7 +432,9 @@ class _OwnerProfileScreenState extends State<OwnerProfileScreen> {
     VoidCallback? onTap,
   }) {
     final Color itemColor = isDestructive ? Colors.redAccent : Colors.white;
-    final Color iconBgColor = isDestructive ? Colors.redAccent.withValues(alpha: 0.1) : Colors.white10;
+    final Color iconBgColor = isDestructive
+        ? Colors.redAccent.withValues(alpha: 0.1)
+        : Colors.white10;
 
     return Container(
       decoration: BoxDecoration(
@@ -404,7 +449,11 @@ class _OwnerProfileScreenState extends State<OwnerProfileScreen> {
             color: iconBgColor,
             borderRadius: BorderRadius.circular(8),
           ),
-          child: Icon(icon, color: isDestructive ? Colors.redAccent : Colors.white70, size: 20),
+          child: Icon(
+            icon,
+            color: isDestructive ? Colors.redAccent : Colors.white70,
+            size: 20,
+          ),
         ),
         title: Text(
           title,
@@ -416,7 +465,9 @@ class _OwnerProfileScreenState extends State<OwnerProfileScreen> {
         ),
         trailing: Icon(
           Icons.chevron_right_rounded,
-          color: isDestructive ? Colors.redAccent.withValues(alpha: 0.5) : Colors.white54,
+          color: isDestructive
+              ? Colors.redAccent.withValues(alpha: 0.5)
+              : Colors.white54,
           size: 20,
         ),
         onTap: onTap ?? () {},

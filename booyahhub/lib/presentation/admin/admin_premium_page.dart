@@ -21,6 +21,7 @@ class _AdminPremiumPageState extends State<AdminPremiumPage> {
   bool _isPremium = false;
   DateTime? _premiumExpiry;
   String? _activePaketName;
+  String? _pendingPaketName;
   List<String> _fiturAktif = [];
   List<PaketPremiumModel> _pakets = [];
   Map<String, dynamic>? _pendingTx;
@@ -34,7 +35,7 @@ class _AdminPremiumPageState extends State<AdminPremiumPage> {
   }
 
   Future<void> _fetchData() async {
-    setState(() { _isLoading = true; _loadError = null; });
+    setState(() { _isLoading = true; _loadError = null; _pendingPaketName = null; _pendingTx = null; });
     try {
       final email = _supabase.sessionEmail;
       if (email == null) return;
@@ -71,6 +72,7 @@ class _AdminPremiumPageState extends State<AdminPremiumPage> {
         final status = latest['status'] as String? ?? '';
         if (status == 'menunggu') {
           _pendingTx = latest;
+          _pendingPaketName = latest['nama_paket'] as String?;
         } else if (status == 'aktif') {
           _activePaketName = latest['nama_paket'] as String?;
           if (latest['tanggal_berakhir'] != null) {
@@ -237,25 +239,23 @@ class _AdminPremiumPageState extends State<AdminPremiumPage> {
                     const SizedBox(height: 16),
                     _buildStatusCard(),
                     const SizedBox(height: 32),
-                    if (!_isPremium) ...[
-                      Row(
-                        children: [
-                          const Icon(Icons.rocket_launch_rounded, size: 18, color: AppColors.primary),
-                          const SizedBox(width: 8),
-                          Text('Pilih Paket', style: AppTextStyles.poppinsSectionTitle),
-                        ],
-                      ),
-                      const SizedBox(height: 16),
-                      if (_loadError != null)
-                        _buildErrorCard()
-                      else if (_pakets.isEmpty)
-                        _buildEmptyCard()
-                      else
-                        ..._pakets.map((paket) => Padding(
-                              padding: const EdgeInsets.only(bottom: 20),
-                              child: _buildPaketCard(paket),
-                            )),
-                    ],
+                    Row(
+                      children: [
+                        const Icon(Icons.rocket_launch_rounded, size: 18, color: AppColors.primary),
+                        const SizedBox(width: 8),
+                        Text('Pilih Paket', style: AppTextStyles.poppinsSectionTitle),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    if (_loadError != null)
+                      _buildErrorCard()
+                    else if (_pakets.isEmpty)
+                      _buildEmptyCard()
+                    else
+                      ..._pakets.map((paket) => Padding(
+                            padding: const EdgeInsets.only(bottom: 20),
+                            child: _buildPaketCard(paket),
+                          )),
                     const SizedBox(height: 48),
                   ],
                 ),
@@ -600,14 +600,18 @@ class _AdminPremiumPageState extends State<AdminPremiumPage> {
   }
 
   Widget _buildPaketCard(PaketPremiumModel paket) {
-    final bool hasPending = _pendingTx != null;
-    final Color accentColor = _tierColor(paket.tierLevel);
+    final bool isPendingThis = _pendingTx != null && _pendingPaketName == paket.namaPaket;
+    final bool isBlocked = _isPremium || (_pendingTx != null && !isPendingThis);
+    final Color accentColor = isBlocked ? AppColors.textHint : _tierColor(paket.tierLevel);
 
     return Container(
       decoration: BoxDecoration(
         color: AppColors.backgroundCard,
         borderRadius: BorderRadius.circular(AppConstants.radiusL),
-        border: Border.all(color: AppColors.inputBorder, width: 1),
+        border: Border.all(
+          color: isPendingThis ? AppColors.warning : isBlocked ? AppColors.divider : AppColors.inputBorder,
+          width: isPendingThis ? 1.5 : 1,
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -633,7 +637,20 @@ class _AdminPremiumPageState extends State<AdminPremiumPage> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(paket.namaPaket, style: AppTextStyles.poppinsTitleSmall),
+                          Row(
+                            children: [
+                              Text(
+                                paket.namaPaket,
+                                style: AppTextStyles.poppinsTitleSmall.copyWith(
+                                  color: isBlocked ? AppColors.textSecondary : AppColors.textPrimary,
+                                ),
+                              ),
+                              if (isBlocked) ...[
+                                const SizedBox(width: 8),
+                                const Icon(Icons.lock_rounded, size: 14, color: AppColors.textHint),
+                              ],
+                            ],
+                          ),
                           const SizedBox(height: 2),
                           Text(
                             paket.tierLabel,
@@ -669,10 +686,20 @@ class _AdminPremiumPageState extends State<AdminPremiumPage> {
                         child: Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Icon(Icons.check_circle, color: AppColors.accent, size: 18),
+                            Icon(
+                              Icons.check_circle,
+                              color: isBlocked ? AppColors.textHint : AppColors.accent,
+                              size: 18,
+                            ),
                             const SizedBox(width: 10),
                             Expanded(
-                              child: Text(f, style: AppTextStyles.interBody.copyWith(fontSize: 13)),
+                              child: Text(
+                                f,
+                                style: AppTextStyles.interBody.copyWith(
+                                  fontSize: 13,
+                                  color: isBlocked ? AppColors.textSecondary : AppColors.textPrimary,
+                                ),
+                              ),
                             ),
                           ],
                         ),
@@ -682,7 +709,7 @@ class _AdminPremiumPageState extends State<AdminPremiumPage> {
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
-                    onPressed: hasPending
+                    onPressed: (isPendingThis || isBlocked)
                         ? null
                         : () async {
                             await Navigator.of(context).push(
@@ -694,18 +721,35 @@ class _AdminPremiumPageState extends State<AdminPremiumPage> {
                           },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: accentColor,
-                      disabledBackgroundColor: AppColors.surfaceVariant,
+                      disabledBackgroundColor: isPendingThis
+                          ? AppColors.warning.withValues(alpha: 0.6)
+                          : AppColors.surfaceVariant,
+                      disabledForegroundColor: isPendingThis ? Colors.black87 : AppColors.textSecondary,
                       foregroundColor: Colors.black,
                       padding: const EdgeInsets.symmetric(vertical: 14),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(AppConstants.radiusM),
                       ),
                     ),
-                    child: Text(
-                      hasPending ? 'Menunggu Verifikasi' : 'Upgrade Sekarang',
-                      style: AppTextStyles.poppinsButton.copyWith(
-                        color: hasPending ? AppColors.textSecondary : Colors.black,
-                      ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        if (isPendingThis) ...[
+                          const Icon(Icons.hourglass_top_rounded, size: 16),
+                          const SizedBox(width: 8),
+                        ] else if (isBlocked) ...[
+                          const Icon(Icons.lock_rounded, size: 16),
+                          const SizedBox(width: 8),
+                        ],
+                        Text(
+                          isPendingThis
+                              ? 'Menunggu Verifikasi'
+                              : isBlocked
+                                  ? 'Terkunci'
+                                  : 'Upgrade Sekarang',
+                          style: AppTextStyles.poppinsButton.copyWith(fontSize: 14),
+                        ),
+                      ],
                     ),
                   ),
                 ),
