@@ -26,6 +26,7 @@ class _ParticipantDetailPageState extends State<ParticipantDetailPage> {
   bool _processing = false;
   String? _buktiSignedUrl;
 
+  // Tombol konfirmasi/tolak hanya muncul jika status 'menunggu'
   bool get _sudahDiproses => _peserta.status != StatusPeserta.menunggu;
 
   @override
@@ -569,6 +570,31 @@ class _ParticipantDetailPageState extends State<ParticipantDetailPage> {
   }
 
   Widget _statusBanner() {
+    if (_peserta.status == StatusPeserta.belumBayar) {
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(AppConstants.paddingM),
+        decoration: BoxDecoration(
+          color: Colors.grey.withValues(alpha: 0.12),
+          borderRadius: BorderRadius.circular(AppConstants.radiusM),
+          border: Border.all(color: Colors.grey.withValues(alpha: 0.4)),
+        ),
+        child: const Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.hourglass_empty, color: Colors.grey, size: 20),
+            SizedBox(width: 8),
+            Flexible(
+              child: Text(
+                'User belum melakukan pembayaran',
+                style: TextStyle(color: Colors.grey, fontWeight: FontWeight.w600),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
     final dikonfirmasi = _peserta.status == StatusPeserta.dikonfirmasi;
     final color = dikonfirmasi ? AppColors.success : AppColors.error;
     return Container(

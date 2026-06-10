@@ -1,8 +1,10 @@
-enum StatusPeserta { menunggu, dikonfirmasi, ditolak }
+enum StatusPeserta { belumBayar, menunggu, dikonfirmasi, ditolak }
 
 extension StatusPesertaX on StatusPeserta {
   String get label {
     switch (this) {
+      case StatusPeserta.belumBayar:
+        return 'BELUM BAYAR';
       case StatusPeserta.menunggu:
         return 'MENUNGGU';
       case StatusPeserta.dikonfirmasi:
@@ -14,6 +16,8 @@ extension StatusPesertaX on StatusPeserta {
 
   String get tab {
     switch (this) {
+      case StatusPeserta.belumBayar:
+        return 'Belum Bayar';
       case StatusPeserta.menunggu:
         return 'Menunggu';
       case StatusPeserta.dikonfirmasi:
@@ -29,6 +33,10 @@ extension StatusPesertaX on StatusPeserta {
         return StatusPeserta.dikonfirmasi;
       case 'ditolak':
         return StatusPeserta.ditolak;
+      case 'menunggu':
+        return StatusPeserta.menunggu;
+      case 'belum_bayar':
+        return StatusPeserta.belumBayar;
       default:
         return StatusPeserta.menunggu;
     }

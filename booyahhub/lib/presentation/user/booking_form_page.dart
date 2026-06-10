@@ -208,7 +208,7 @@ class _BookingFormPageState extends State<BookingFormPage> {
               'id_player_3': _idPlayer3Controller.text.isEmpty ? null : _idPlayer3Controller.text,
               'id_player_4': _idPlayer4Controller.text.isEmpty ? null : _idPlayer4Controller.text,
               'metode_pembayaran_daftar': _selectedPaymentMethod,
-              'status_pembayaran': 'menunggu',
+              'status_pembayaran': 'belum_bayar',
             })
             .select('id_pendaftaran')
             .single();
