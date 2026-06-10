@@ -36,7 +36,9 @@ class _AdminScrimPageState extends State<AdminScrimPage>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
   bool _isLoading = false;
-  bool _isPremium = true;
+  List<String> _fiturAktif = [];
+
+  int get _scrimLimit => _fiturAktif.contains('Kuota Scrim Diperluas') ? 10 : 2;
   String? _error;
   List<ScrimSummary> _allScrims = [];
 
@@ -67,13 +69,14 @@ class _AdminScrimPageState extends State<AdminScrimPage>
 
       final akunResponse = await _supabase
           .from('akun')
-          .select('id_akun, is_premium')
+          .select('id_akun, is_premium, fitur_premium')
           .eq('email', userEmail)
           .maybeSingle();
 
       if (akunResponse == null) throw Exception('Akun tidak ditemukan');
       final adminId = akunResponse['id_akun'];
-      _isPremium = (akunResponse['is_premium'] ?? false) as bool;
+      final rawFitur = akunResponse['fitur_premium'];
+      _fiturAktif = rawFitur is List ? List<String>.from(rawFitur) : [];
 
       final scrimResponse = await _supabase
           .from('scrim')
@@ -189,7 +192,7 @@ class _AdminScrimPageState extends State<AdminScrimPage>
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _buildHeader(),
-            if (!_isPremium) _buildLimitBanner(),
+            _buildLimitBanner(),
             _buildTabBar(),
             Expanded(
               child: TabBarView(
@@ -208,7 +211,9 @@ class _AdminScrimPageState extends State<AdminScrimPage>
 
   Widget _buildLimitBanner() {
     final used = _allScrims.length;
-    final remaining = 2 - used;
+    final limit = _scrimLimit;
+    final remaining = limit - used;
+    final isPremiumQuota = _fiturAktif.contains('Kuota Scrim Diperluas');
     return Container(
       margin: const EdgeInsets.fromLTRB(
         AppConstants.paddingM, 0, AppConstants.paddingM, AppConstants.paddingS,
@@ -226,8 +231,10 @@ class _AdminScrimPageState extends State<AdminScrimPage>
           Expanded(
             child: Text(
               remaining > 0
-                  ? 'Admin reguler: $used/2 scrim digunakan, sisa $remaining slot.'
-                  : 'Batas scrim admin reguler tercapai (2/2). Upgrade ke Premium untuk tanpa batas.',
+                  ? '${isPremiumQuota ? 'Admin premium' : 'Admin reguler'}: $used/$limit scrim digunakan, sisa $remaining slot.'
+                  : isPremiumQuota
+                      ? 'Batas scrim premium tercapai ($limit/$limit). Hubungi owner untuk menambah kuota.'
+                      : 'Batas scrim admin reguler tercapai (2/2). Upgrade ke Premium untuk kuota lebih besar.',
               style: AppTextStyles.interCaption.copyWith(
                 color: AppColors.primary,
                 fontSize: 11,
@@ -268,7 +275,7 @@ class _AdminScrimPageState extends State<AdminScrimPage>
           ),
           GestureDetector(
             onTap: () async {
-              final isLocked = !_isPremium && _allScrims.length >= 2;
+              final isLocked = _allScrims.length >= _scrimLimit;
               if (isLocked) {
                 Navigator.push(context, MaterialPageRoute(builder: (_) => const ScrimLimitPage()));
                 return;
@@ -289,7 +296,7 @@ class _AdminScrimPageState extends State<AdminScrimPage>
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Icon(
-                    (!_isPremium && _allScrims.length >= 2) ? Icons.lock_outline_rounded : Icons.add,
+                    (_allScrims.length >= _scrimLimit) ? Icons.lock_outline_rounded : Icons.add,
                     color: Colors.black,
                     size: 18,
                   ),

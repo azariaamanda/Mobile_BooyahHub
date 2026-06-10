@@ -23,6 +23,7 @@ class _AdminProfilePageState extends State<AdminProfilePage> {
 
   bool _notificationEnabled = true;
   bool _isPremium = false;
+  List<String> _fiturAktif = [];
 
   @override
   void initState() {
@@ -43,8 +44,10 @@ class _AdminProfilePageState extends State<AdminProfilePage> {
           .single();
       _akun = akunData;
 
-      // Baca is_premium dari akun (defaultnya false jika kolom belum ada)
+      // Baca is_premium dan fitur_premium dari akun
       _isPremium = (akunData['is_premium'] ?? false) as bool;
+      final rawFitur = akunData['fitur_premium'];
+      _fiturAktif = rawFitur is List ? List<String>.from(rawFitur) : [];
 
       final profilData = await _supabase
           .from('profil_admin')
@@ -219,11 +222,18 @@ class _AdminProfilePageState extends State<AdminProfilePage> {
             _buildMenuItemLockable(
               icon: Icons.campaign_rounded,
               title: 'Kelola Banner',
-              isLocked: !_isPremium,
+              isLocked: !_fiturAktif.contains('Kelola Banner Promosi'),
               onTap: () => Navigator.push(
                 context,
                 MaterialPageRoute(builder: (_) => const ManageBannerPage()),
               ),
+            ),
+            const SizedBox(height: 8),
+            _buildMenuItemLockable(
+              icon: Icons.support_agent_rounded,
+              title: 'Prioritas Support 24/7',
+              isLocked: !_fiturAktif.contains('Prioritas Support 24/7'),
+              onTap: _showSupportSheet,
             ),
 
             const SizedBox(height: 24),
@@ -459,6 +469,97 @@ class _AdminProfilePageState extends State<AdminProfilePage> {
       ),
     );
   }
+
+  void _showSupportSheet() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: AppColors.backgroundCard,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => Padding(
+        padding: const EdgeInsets.fromLTRB(24, 20, 24, 40),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: AppColors.divider,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(Icons.support_agent_rounded, color: AppColors.primary, size: 24),
+                ),
+                const SizedBox(width: 12),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Prioritas Support 24/7', style: AppTextStyles.poppinsTitle.copyWith(fontSize: 16)),
+                    Text(
+                      'Respons dalam < 1 jam',
+                      style: AppTextStyles.interCaption.copyWith(color: AppColors.success, fontSize: 11),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+            _buildSupportRow(Icons.chat_rounded, 'WhatsApp', '+62 812-3456-7890'),
+            const SizedBox(height: 12),
+            _buildSupportRow(Icons.email_rounded, 'Email', 'support@booyahhub.id'),
+            const SizedBox(height: 12),
+            _buildSupportRow(Icons.access_time_rounded, 'Jam Operasional', '24 jam / 7 hari'),
+            const SizedBox(height: 24),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: () => Navigator.pop(ctx),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.black,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                ),
+                icon: const Icon(Icons.check_rounded, size: 18),
+                label: Text('Mengerti', style: AppTextStyles.poppinsButton),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSupportRow(IconData icon, String label, String value) {
+    return Row(
+      children: [
+        Icon(icon, size: 18, color: AppColors.primary),
+        const SizedBox(width: 12),
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(label, style: AppTextStyles.interCaption.copyWith(color: AppColors.textSecondary, fontSize: 11)),
+            Text(value, style: AppTextStyles.interBody.copyWith(fontSize: 14)),
+          ],
+        ),
+      ],
+    );
+  }
+
 
   Widget _buildMenuItemWithSwitch({
     required IconData icon,

@@ -80,11 +80,41 @@ class _ScrimPageState extends State<ScrimPage> {
         }
       }
 
-      return scrims
+      final result = scrims
           .map(
             (s) => {...s, 'terisi_count': terisiMap[s['id_scrim'] as int] ?? 0},
           )
           .toList();
+
+      // Sort: scrim milik admin premium tampil paling atas
+      final adminIds = scrims
+          .map((s) => s['id_admin'] as int?)
+          .whereType<int>()
+          .toSet()
+          .toList();
+
+      if (adminIds.isNotEmpty) {
+        final adminRows = await SupabaseClientHelper.client
+            .from('akun')
+            .select('id_akun, fitur_premium')
+            .inFilter('id_akun', adminIds);
+
+        final premiumMap = <int, bool>{};
+        for (final a in adminRows as List) {
+          final fitur = a['fitur_premium'];
+          final list = fitur is List ? List<String>.from(fitur) : <String>[];
+          premiumMap[a['id_akun'] as int] = list.contains('Scrim Tampil di Halaman Utama');
+        }
+
+        result.sort((a, b) {
+          final aPremium = premiumMap[a['id_admin'] as int?] ?? false;
+          final bPremium = premiumMap[b['id_admin'] as int?] ?? false;
+          if (aPremium == bPremium) return 0;
+          return aPremium ? -1 : 1;
+        });
+      }
+
+      return result;
     } catch (e) {
       print('EROR FETCH SCRIM PAGE: $e');
       return [];

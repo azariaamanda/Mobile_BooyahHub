@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../config/app_session.dart';
 import '../../config/app_color.dart';
@@ -17,11 +17,14 @@ class AdminPremiumPage extends StatefulWidget {
 class _AdminPremiumPageState extends State<AdminPremiumPage> {
   final _supabase = Supabase.instance.client;
   bool _isLoading = true;
+  bool _isCancelling = false;
   bool _isPremium = false;
   DateTime? _premiumExpiry;
   String? _activePaketName;
+  List<String> _fiturAktif = [];
   List<PaketPremiumModel> _pakets = [];
   Map<String, dynamic>? _pendingTx;
+  int? _akunId;
   String? _loadError;
 
   @override
@@ -38,30 +41,28 @@ class _AdminPremiumPageState extends State<AdminPremiumPage> {
 
       final akun = await _supabase
           .from('akun')
-          .select('id_akun, is_premium')
+          .select('id_akun, is_premium, fitur_premium')
           .eq('email', email)
           .single();
 
       _isPremium = (akun['is_premium'] ?? false) as bool;
-      final akunId = akun['id_akun'] as int;
+      _akunId = akun['id_akun'] as int;
+      final rawFitur = akun['fitur_premium'];
+      _fiturAktif = rawFitur is List ? List<String>.from(rawFitur) : [];
 
-      // Fetch ALL packages (no status filter) to diagnose what's in the table
       final pkgData = await _supabase
           .from('paket_premium')
           .select()
           .order('harga', ascending: true);
-      final all = (pkgData as List);
-      debugPrint('Total pakets in DB: ${all.length}, statuses: ${all.map((e) => e['status']).toList()}');
-      _pakets = all
+      _pakets = (pkgData as List)
           .where((e) => (e['status'] as String? ?? '').toUpperCase() == 'AKTIF')
           .map((e) => PaketPremiumModel.fromJson(e as Map<String, dynamic>))
           .toList();
 
-      // Latest premium transaction for this admin
       final txData = await _supabase
           .from('transaksi_premium')
           .select()
-          .eq('akun_id', akunId)
+          .eq('akun_id', _akunId!)
           .order('dibuat_pada', ascending: false)
           .limit(1);
 
@@ -85,6 +86,121 @@ class _AdminPremiumPageState extends State<AdminPremiumPage> {
     }
   }
 
+  Future<void> _cancelSubscription() async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      barrierColor: Colors.black.withValues(alpha: 0.75),
+      builder: (ctx) => Dialog(
+        backgroundColor: AppColors.backgroundCard,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: Colors.red.withValues(alpha: 0.12),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.cancel_outlined, color: Colors.red, size: 32),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Batalkan Langganan?',
+                style: AppTextStyles.poppinsTitle.copyWith(fontSize: 17),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                'Semua fitur premium akan langsung dinonaktifkan setelah pembatalan.',
+                textAlign: TextAlign.center,
+                style: AppTextStyles.interBody.copyWith(
+                  color: AppColors.textSecondary,
+                  fontSize: 13,
+                  height: 1.5,
+                ),
+              ),
+              const SizedBox(height: 24),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () => Navigator.pop(ctx, false),
+                      style: OutlinedButton.styleFrom(
+                        side: BorderSide(color: AppColors.divider),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        padding: const EdgeInsets.symmetric(vertical: 13),
+                      ),
+                      child: Text(
+                        'Kembali',
+                        style: AppTextStyles.poppinsButton.copyWith(
+                          color: AppColors.textSecondary,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: () => Navigator.pop(ctx, true),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.red,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        padding: const EdgeInsets.symmetric(vertical: 13),
+                      ),
+                      child: Text(
+                        'Batalkan',
+                        style: AppTextStyles.poppinsButton.copyWith(
+                          color: Colors.white,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    if (confirm != true || _akunId == null) return;
+
+    setState(() => _isCancelling = true);
+    try {
+      await _supabase
+          .from('transaksi_premium')
+          .update({'status': 'ditolak'})
+          .eq('akun_id', _akunId!)
+          .eq('status', 'aktif');
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Langganan berhasil dibatalkan'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        _fetchData();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Gagal membatalkan: $e'), backgroundColor: Colors.red),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isCancelling = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -93,7 +209,7 @@ class _AdminPremiumPageState extends State<AdminPremiumPage> {
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: AppColors.textPrimary),
+          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: AppColors.textPrimary, size: 20),
           onPressed: () => Navigator.of(context).pop(),
         ),
         title: Text(
@@ -121,51 +237,25 @@ class _AdminPremiumPageState extends State<AdminPremiumPage> {
                     const SizedBox(height: 16),
                     _buildStatusCard(),
                     const SizedBox(height: 32),
-                    Text('Pilih Paket', style: AppTextStyles.poppinsSectionTitle),
-                    const SizedBox(height: 16),
-                    if (_loadError != null)
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(AppConstants.paddingL),
-                        decoration: BoxDecoration(
-                          color: AppColors.backgroundCard,
-                          borderRadius: BorderRadius.circular(AppConstants.radiusL),
-                          border: Border.all(color: AppColors.error),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text('Error memuat paket:', style: AppTextStyles.interBody.copyWith(color: AppColors.error, fontWeight: FontWeight.w700)),
-                            const SizedBox(height: 8),
-                            Text(_loadError!, style: AppTextStyles.interCaption.copyWith(color: AppColors.textSecondary)),
-                          ],
-                        ),
-                      )
-                    else if (_pakets.isEmpty)
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(AppConstants.paddingXL),
-                        decoration: BoxDecoration(
-                          color: AppColors.backgroundCard,
-                          borderRadius: BorderRadius.circular(AppConstants.radiusL),
-                          border: Border.all(color: AppColors.inputBorder),
-                        ),
-                        child: Column(
-                          children: [
-                            Icon(Icons.star_outline, size: 48, color: AppColors.textHint),
-                            const SizedBox(height: 12),
-                            Text(
-                              'Belum ada paket tersedia',
-                              style: AppTextStyles.interBody.copyWith(color: AppColors.textSecondary),
-                            ),
-                          ],
-                        ),
-                      )
-                    else
-                      ..._pakets.map((paket) => Padding(
-                            padding: const EdgeInsets.only(bottom: 20),
-                            child: _buildPaketCard(paket),
-                          )),
+                    if (!_isPremium) ...[
+                      Row(
+                        children: [
+                          const Icon(Icons.rocket_launch_rounded, size: 18, color: AppColors.primary),
+                          const SizedBox(width: 8),
+                          Text('Pilih Paket', style: AppTextStyles.poppinsSectionTitle),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      if (_loadError != null)
+                        _buildErrorCard()
+                      else if (_pakets.isEmpty)
+                        _buildEmptyCard()
+                      else
+                        ..._pakets.map((paket) => Padding(
+                              padding: const EdgeInsets.only(bottom: 20),
+                              child: _buildPaketCard(paket),
+                            )),
+                    ],
                     const SizedBox(height: 48),
                   ],
                 ),
@@ -175,69 +265,245 @@ class _AdminPremiumPageState extends State<AdminPremiumPage> {
   }
 
   Widget _buildStatusCard() {
+    // ── PENDING ──
     if (_pendingTx != null) {
-      return _buildStatusWidget(
-        icon: Icons.hourglass_top_rounded,
-        iconColor: AppColors.warning,
-        title: 'Menunggu Verifikasi',
-        subtitle: 'Pembayaran paket "${_pendingTx!['nama_paket']}" sedang diverifikasi oleh owner.',
-        borderColor: AppColors.warning,
-        badgeText: 'PENDING',
-        badgeColor: AppColors.warning,
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(AppConstants.paddingL),
+        decoration: BoxDecoration(
+          color: AppColors.backgroundCard,
+          borderRadius: BorderRadius.circular(AppConstants.radiusL),
+          border: Border.all(color: AppColors.warning, width: 1.5),
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppColors.warning.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Icon(Icons.hourglass_top_rounded, color: AppColors.warning, size: 26),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Text('Status Akun', style: AppTextStyles.interLabel),
+                      const SizedBox(width: 8),
+                      _badge('PENDING', AppColors.warning),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    'Menunggu Verifikasi',
+                    style: AppTextStyles.poppinsTitleSmall,
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Pembayaran paket "${_pendingTx!['nama_paket']}" sedang diverifikasi owner.',
+                    style: AppTextStyles.interBody.copyWith(fontSize: 12, color: AppColors.textSecondary, height: 1.4),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       );
     }
+
+    // ── PREMIUM ACTIVE ──
     if (_isPremium) {
       String expText = 'Aktif';
       if (_premiumExpiry != null) {
-        expText = 'Berlaku s/d ${_premiumExpiry!.day}/${_premiumExpiry!.month}/${_premiumExpiry!.year}';
+        final d = _premiumExpiry!;
+        final months = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
+        expText = '${d.day} ${months[d.month - 1]} ${d.year}';
       }
-      return _buildStatusWidget(
-        icon: Icons.star_rounded,
-        iconColor: const Color(0xFFFFD700),
-        title: _activePaketName ?? 'Premium Aktif',
-        subtitle: expText,
-        borderColor: const Color(0xFFFFD700),
-        badgeText: 'PREMIUM',
-        badgeColor: const Color(0xFFFFD700),
+
+      return Container(
+        width: double.infinity,
+        decoration: BoxDecoration(
+          color: AppColors.backgroundCard,
+          borderRadius: BorderRadius.circular(AppConstants.radiusL),
+          border: Border.all(color: const Color(0xFFFFD700), width: 1.5),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFFFFD700).withValues(alpha: 0.08),
+              blurRadius: 20,
+              spreadRadius: 2,
+            ),
+          ],
+        ),
+        child: Column(
+          children: [
+            // Top accent strip
+            Container(
+              height: 4,
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [Color(0xFFFFD700), Color(0xFFFFA000)],
+                ),
+                borderRadius: BorderRadius.only(
+                  topLeft: Radius.circular(AppConstants.radiusL),
+                  topRight: Radius.circular(AppConstants.radiusL),
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(AppConstants.paddingL),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Header
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFFD700).withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: const Icon(Icons.star_rounded, color: Color(0xFFFFD700), size: 22),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Text('Status Akun', style: AppTextStyles.interLabel),
+                                const SizedBox(width: 8),
+                                _badge('PREMIUM', const Color(0xFFFFD700)),
+                              ],
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              _activePaketName ?? 'Premium Aktif',
+                              style: AppTextStyles.poppinsTitleSmall.copyWith(
+                                color: const Color(0xFFFFD700),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Expiry
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFFD700).withValues(alpha: 0.07),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.calendar_today_rounded, size: 14, color: Color(0xFFFFD700)),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Berlaku hingga $expText',
+                          style: AppTextStyles.interCaption.copyWith(
+                            color: const Color(0xFFFFD700),
+                            fontWeight: FontWeight.w600,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  // Active features
+                  if (_fiturAktif.isNotEmpty) ...[
+                    const SizedBox(height: 16),
+                    const Divider(color: Color(0x26FFD700)),
+                    const SizedBox(height: 12),
+                    Text(
+                      'Fitur Aktif',
+                      style: AppTextStyles.interLabel.copyWith(
+                        color: AppColors.textSecondary,
+                        fontSize: 11,
+                        letterSpacing: 0.8,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    ..._fiturAktif.map((f) => Padding(
+                          padding: const EdgeInsets.only(bottom: 8),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.check_circle_rounded, size: 16, color: Color(0xFFFFD700)),
+                              const SizedBox(width: 10),
+                              Text(
+                                f,
+                                style: AppTextStyles.interBody.copyWith(fontSize: 13),
+                              ),
+                            ],
+                          ),
+                        )),
+                  ],
+
+                  const SizedBox(height: 20),
+
+                  // Cancel button
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: _isCancelling ? null : _cancelSubscription,
+                      style: OutlinedButton.styleFrom(
+                        side: const BorderSide(color: Colors.red, width: 1.2),
+                        foregroundColor: Colors.red,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(AppConstants.radiusM),
+                        ),
+                        padding: const EdgeInsets.symmetric(vertical: 13),
+                      ),
+                      icon: _isCancelling
+                          ? const SizedBox(
+                              width: 14, height: 14,
+                              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.red),
+                            )
+                          : const Icon(Icons.cancel_outlined, size: 18),
+                      label: Text(
+                        _isCancelling ? 'Membatalkan...' : 'Batalkan Langganan',
+                        style: AppTextStyles.poppinsButton.copyWith(
+                          color: Colors.red,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       );
     }
-    return _buildStatusWidget(
-      icon: Icons.star_outline_rounded,
-      iconColor: AppColors.textSecondary,
-      title: 'Admin Standar',
-      subtitle: 'Upgrade ke premium untuk membuka fitur eksklusif.',
-      borderColor: AppColors.inputBorder,
-      badgeText: 'STANDAR',
-      badgeColor: AppColors.textSecondary,
-    );
-  }
 
-  Widget _buildStatusWidget({
-    required IconData icon,
-    required Color iconColor,
-    required String title,
-    required String subtitle,
-    required Color borderColor,
-    required String badgeText,
-    required Color badgeColor,
-  }) {
+    // ── STANDAR ──
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(AppConstants.paddingL),
       decoration: BoxDecoration(
         color: AppColors.backgroundCard,
         borderRadius: BorderRadius.circular(AppConstants.radiusL),
-        border: Border.all(color: borderColor, width: 1.5),
+        border: Border.all(color: AppColors.inputBorder, width: 1.5),
       ),
       child: Row(
         children: [
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: iconColor.withValues(alpha: 0.12),
+              color: AppColors.surfaceVariant,
               borderRadius: BorderRadius.circular(12),
             ),
-            child: Icon(icon, color: iconColor, size: 28),
+            child: const Icon(Icons.star_outline_rounded, color: AppColors.textSecondary, size: 26),
           ),
           const SizedBox(width: 16),
           Expanded(
@@ -248,34 +514,15 @@ class _AdminPremiumPageState extends State<AdminPremiumPage> {
                   children: [
                     Text('Status Akun', style: AppTextStyles.interLabel),
                     const SizedBox(width: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: badgeColor.withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: badgeColor.withValues(alpha: 0.4)),
-                      ),
-                      child: Text(
-                        badgeText,
-                        style: AppTextStyles.interCaption.copyWith(
-                          color: badgeColor,
-                          fontWeight: FontWeight.w800,
-                          fontSize: 9,
-                          letterSpacing: 0.8,
-                        ),
-                      ),
-                    ),
+                    _badge('STANDAR', AppColors.textSecondary),
                   ],
                 ),
                 const SizedBox(height: 6),
-                Text(title, style: AppTextStyles.poppinsTitleSmall),
+                Text('Admin Standar', style: AppTextStyles.poppinsTitleSmall),
                 const SizedBox(height: 4),
                 Text(
-                  subtitle,
-                  style: AppTextStyles.interBody.copyWith(
-                    fontSize: 13,
-                    color: AppColors.textSecondary,
-                  ),
+                  'Upgrade ke premium untuk membuka fitur eksklusif.',
+                  style: AppTextStyles.interBody.copyWith(fontSize: 12, color: AppColors.textSecondary, height: 1.4),
                 ),
               ],
             ),
@@ -285,25 +532,86 @@ class _AdminPremiumPageState extends State<AdminPremiumPage> {
     );
   }
 
+  Widget _badge(String text, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: color.withValues(alpha: 0.4)),
+      ),
+      child: Text(
+        text,
+        style: AppTextStyles.interCaption.copyWith(
+          color: color,
+          fontWeight: FontWeight.w800,
+          fontSize: 9,
+          letterSpacing: 0.8,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildErrorCard() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(AppConstants.paddingL),
+      decoration: BoxDecoration(
+        color: AppColors.backgroundCard,
+        borderRadius: BorderRadius.circular(AppConstants.radiusL),
+        border: Border.all(color: AppColors.error),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Error memuat paket:', style: AppTextStyles.interBody.copyWith(color: AppColors.error, fontWeight: FontWeight.w700)),
+          const SizedBox(height: 8),
+          Text(_loadError!, style: AppTextStyles.interCaption.copyWith(color: AppColors.textSecondary)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEmptyCard() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(AppConstants.paddingXL),
+      decoration: BoxDecoration(
+        color: AppColors.backgroundCard,
+        borderRadius: BorderRadius.circular(AppConstants.radiusL),
+        border: Border.all(color: AppColors.inputBorder),
+      ),
+      child: Column(
+        children: [
+          const Icon(Icons.star_outline, size: 48, color: AppColors.textHint),
+          const SizedBox(height: 12),
+          Text(
+            'Belum ada paket tersedia',
+            style: AppTextStyles.interBody.copyWith(color: AppColors.textSecondary),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Hubungi owner untuk informasi paket premium.',
+            style: AppTextStyles.interCaption.copyWith(color: AppColors.textHint),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildPaketCard(PaketPremiumModel paket) {
     final bool hasPending = _pendingTx != null;
-    final bool isActive = _isPremium && _activePaketName == paket.namaPaket;
-
     final Color accentColor = _tierColor(paket.tierLevel);
 
     return Container(
       decoration: BoxDecoration(
         color: AppColors.backgroundCard,
         borderRadius: BorderRadius.circular(AppConstants.radiusL),
-        border: Border.all(
-          color: isActive ? const Color(0xFFFFD700) : AppColors.inputBorder,
-          width: isActive ? 2 : 1,
-        ),
+        border: Border.all(color: AppColors.inputBorder, width: 1),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Colored top strip
           Container(
             height: 4,
             decoration: BoxDecoration(
@@ -319,7 +627,6 @@ class _AdminPremiumPageState extends State<AdminPremiumPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Header row
                 Row(
                   children: [
                     Expanded(
@@ -335,37 +642,15 @@ class _AdminPremiumPageState extends State<AdminPremiumPage> {
                         ],
                       ),
                     ),
-                    if (isActive)
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFFFD700).withValues(alpha: 0.15),
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(color: const Color(0xFFFFD700).withValues(alpha: 0.5)),
-                        ),
-                        child: Text(
-                          'AKTIF',
-                          style: AppTextStyles.interCaption.copyWith(
-                            color: const Color(0xFFFFD700),
-                            fontWeight: FontWeight.w800,
-                            fontSize: 9,
-                            letterSpacing: 0.8,
-                          ),
-                        ),
-                      ),
                   ],
                 ),
                 const SizedBox(height: 16),
-                // Price + duration
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
                     Text(
                       paket.formattedHarga,
-                      style: AppTextStyles.poppinsMoneyLarge.copyWith(
-                        fontSize: 22,
-                        color: accentColor,
-                      ),
+                      style: AppTextStyles.poppinsMoneyLarge.copyWith(fontSize: 22, color: accentColor),
                     ),
                     const SizedBox(width: 4),
                     Padding(
@@ -377,7 +662,6 @@ class _AdminPremiumPageState extends State<AdminPremiumPage> {
                     ),
                   ],
                 ),
-                // Features
                 if (paket.fiturPaket != null && paket.fiturPaket!.isNotEmpty) ...[
                   const SizedBox(height: 20),
                   ...paket.fiturPaket!.take(5).map((f) => Padding(
@@ -388,21 +672,17 @@ class _AdminPremiumPageState extends State<AdminPremiumPage> {
                             Icon(Icons.check_circle, color: AppColors.accent, size: 18),
                             const SizedBox(width: 10),
                             Expanded(
-                              child: Text(
-                                f,
-                                style: AppTextStyles.interBody.copyWith(fontSize: 13),
-                              ),
+                              child: Text(f, style: AppTextStyles.interBody.copyWith(fontSize: 13)),
                             ),
                           ],
                         ),
                       )),
                 ],
                 const SizedBox(height: 20),
-                // Action button
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
-                    onPressed: (hasPending || isActive)
+                    onPressed: hasPending
                         ? null
                         : () async {
                             await Navigator.of(context).push(
@@ -413,24 +693,18 @@ class _AdminPremiumPageState extends State<AdminPremiumPage> {
                             _fetchData();
                           },
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: isActive ? const Color(0xFFFFD700) : AppColors.primary,
+                      backgroundColor: accentColor,
                       disabledBackgroundColor: AppColors.surfaceVariant,
-                      foregroundColor: AppColors.buttonText,
+                      foregroundColor: Colors.black,
                       padding: const EdgeInsets.symmetric(vertical: 14),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(AppConstants.radiusM),
                       ),
                     ),
                     child: Text(
-                      isActive
-                          ? 'Paket Aktif'
-                          : hasPending
-                              ? 'Menunggu Verifikasi'
-                              : 'Upgrade Sekarang',
+                      hasPending ? 'Menunggu Verifikasi' : 'Upgrade Sekarang',
                       style: AppTextStyles.poppinsButton.copyWith(
-                        color: (hasPending && !isActive)
-                            ? AppColors.textSecondary
-                            : AppColors.buttonText,
+                        color: hasPending ? AppColors.textSecondary : Colors.black,
                       ),
                     ),
                   ),
