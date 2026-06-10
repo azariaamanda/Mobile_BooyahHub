@@ -300,69 +300,64 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
 
   Widget _buildHeader() {
     return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Row(
-          children: [
-            Container(
-              width: 50,
-              height: 50,
-              decoration: BoxDecoration(
-                color: const Color(0xFFFFD700), // Yellow
-                shape: BoxShape.circle,
-                image: _ownerPhotoUrl != null && _ownerPhotoUrl!.isNotEmpty
-                    ? DecorationImage(
-                        image: NetworkImage(_ownerPhotoUrl!),
-                        fit: BoxFit.cover,
-                      )
-                    : null,
-              ),
-              child: _ownerPhotoUrl == null || _ownerPhotoUrl!.isEmpty
-                  ? Center(
-                      child: Text(
-                        _ownerName.isNotEmpty ? _ownerName[0].toUpperCase() : 'O',
-                        style: AppTextStyles.poppinsHeadline.copyWith(
-                          color: Colors.black,
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    )
-                  : null,
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Selamat datang,',
-                    style: AppTextStyles.interBody.copyWith(
-                      color: Colors.white70,
-                      fontSize: 12,
-                    ),
-                  ),
-                  Text(
-                    _ownerName,
-                    style: AppTextStyles.poppinsTitleSmall.copyWith(
-                      color: Colors.white,
+        Container(
+          width: 50,
+          height: 50,
+          decoration: BoxDecoration(
+            color: const Color(0xFFFFD700),
+            shape: BoxShape.circle,
+            image: _ownerPhotoUrl != null && _ownerPhotoUrl!.isNotEmpty
+                ? DecorationImage(
+                    image: NetworkImage(_ownerPhotoUrl!),
+                    fit: BoxFit.cover,
+                  )
+                : null,
+          ),
+          child: _ownerPhotoUrl == null || _ownerPhotoUrl!.isEmpty
+              ? Center(
+                  child: Text(
+                    _ownerName.isNotEmpty ? _ownerName[0].toUpperCase() : 'O',
+                    style: AppTextStyles.poppinsHeadline.copyWith(
+                      color: Colors.black,
+                      fontSize: 18,
                       fontWeight: FontWeight.bold,
-                      fontSize: 14,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  Text(
-                    'Owner',
-                    style: AppTextStyles.interBody.copyWith(
-                      color: Colors.white70,
-                      fontSize: 12,
                     ),
                   ),
-                ],
+                )
+              : null,
+        ),
+        const SizedBox(width: 16),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Selamat datang,',
+                style: AppTextStyles.interBody.copyWith(
+                  color: Colors.white70,
+                  fontSize: 12,
+                ),
               ),
-            ),
-          ],
+              Text(
+                _ownerName,
+                style: AppTextStyles.poppinsTitleSmall.copyWith(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              Text(
+                'Owner',
+                style: AppTextStyles.interBody.copyWith(
+                  color: Colors.white70,
+                  fontSize: 12,
+                ),
+              ),
+            ],
+          ),
         ),
         GestureDetector(
           onTap: () {
@@ -595,7 +590,7 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
                           boxShadow: [
                             if (heightRatio > 0)
                               BoxShadow(
-                                color: const Color(0xFFFFD700).withOpacity(0.4),
+                                color: const Color(0xFFFFD700).withValues(alpha: 0.4),
                                 blurRadius: 6,
                                 offset: const Offset(0, -2),
                               )

@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../config/app_color.dart';
 import '../../config/app_text_styles.dart';
 import '../../data/models/services/auth_service.dart';
+import 'owner_notification_page.dart';
 
 class OwnerProfileScreen extends StatefulWidget {
   final void Function(int index)? onNavigateTab;
@@ -14,14 +16,73 @@ class OwnerProfileScreen extends StatefulWidget {
 
 class _OwnerProfileScreenState extends State<OwnerProfileScreen> {
   final _authService = AuthService();
+  final _supabase = Supabase.instance.client;
+
   bool _isLoading = true;
   Map<String, dynamic>? _akunData;
   Map<String, dynamic>? _profilData;
+
+  double _revenueHariIni = 0;
+  double _revenueKemarin = 0;
+  double _revenueAllTime = 0;
 
   @override
   void initState() {
     super.initState();
     _loadProfile();
+    _fetchRevenue();
+  }
+
+  Future<void> _fetchRevenue() async {
+    try {
+      final now = DateTime.now();
+      final todayStart = DateTime(now.year, now.month, now.day);
+      final yesterdayStart = todayStart.subtract(const Duration(days: 1));
+
+      final rows = await _supabase
+          .from('pelunasan_utang_admin')
+          .select('nominal, diverifikasi_pada, created_at')
+          .eq('status', 'diverifikasi');
+
+      double hariIni = 0, kemarin = 0, allTime = 0;
+      for (final row in rows as List) {
+        final nominal = (row['nominal'] as num? ?? 0).toDouble();
+        allTime += nominal;
+
+        final rawDate = row['diverifikasi_pada'] ?? row['created_at'];
+        if (rawDate != null) {
+          final tgl = DateTime.tryParse(rawDate.toString())?.toLocal();
+          if (tgl != null) {
+            final tglDay = DateTime(tgl.year, tgl.month, tgl.day);
+            if (!tglDay.isBefore(todayStart)) hariIni += nominal;
+            if (tglDay == yesterdayStart) kemarin += nominal;
+          }
+        }
+      }
+
+      if (mounted) {
+        setState(() {
+          _revenueHariIni = hariIni;
+          _revenueKemarin = kemarin;
+          _revenueAllTime = allTime;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error fetch revenue profile: $e');
+    }
+  }
+
+  String _formatRupiah(double value) {
+    if (value >= 1000000000) return 'Rp ${(value / 1000000000).toStringAsFixed(1)}M';
+    if (value >= 1000000) return 'Rp ${(value / 1000000).toStringAsFixed(1)} Jt';
+    if (value >= 1000) return 'Rp ${(value / 1000).toStringAsFixed(0)} Rb';
+    return 'Rp ${value.toStringAsFixed(0)}';
+  }
+
+  String get _badgeHariIni {
+    if (_revenueKemarin == 0) return 'Hari ini';
+    final pct = (_revenueHariIni - _revenueKemarin) / _revenueKemarin * 100;
+    return '${pct >= 0 ? '+' : ''}${pct.toStringAsFixed(1)}% vs kemarin';
   }
 
   Future<void> _loadProfile() async {
@@ -32,13 +93,13 @@ class _OwnerProfileScreenState extends State<OwnerProfileScreen> {
       setState(() {
         _akunData = data['akun'].toJson();
         _profilData = data['profil'] as Map<String, dynamic>?;
-        
+
         if (_profilData != null && _profilData!['foto_profil'] != null && _profilData!['foto_profil'].toString().isNotEmpty) {
           final url = _profilData!['foto_profil'].toString();
           final separator = url.contains('?') ? '&' : '?';
           _profilData!['foto_profil'] = '$url${separator}v=${DateTime.now().millisecondsSinceEpoch}';
         }
-        
+
         _isLoading = false;
       });
     } else {
@@ -62,24 +123,24 @@ class _OwnerProfileScreenState extends State<OwnerProfileScreen> {
                   const SizedBox(height: 32),
                   _buildStatCard(
                     icon: Icons.account_balance_wallet_rounded,
-                    iconBgColor: const Color(0xFF3B331A), // Dark yellowish
+                    iconBgColor: const Color(0xFF3B331A),
                     iconColor: const Color(0xFFFFD700),
-                    badgeText: '+12.5% Today',
+                    badgeText: _badgeHariIni,
                     badgeBgColor: const Color(0xFF3B331A),
                     badgeTextColor: const Color(0xFFFFD700),
-                    title: 'Total Revenue',
-                    value: 'Rp 45.500.000',
+                    title: 'Pendapatan Hari Ini',
+                    value: _formatRupiah(_revenueHariIni),
                   ),
                   const SizedBox(height: 16),
                   _buildStatCard(
-                    icon: Icons.videogame_asset_rounded,
+                    icon: Icons.account_balance_rounded,
                     iconBgColor: Colors.white10,
                     iconColor: Colors.white70,
                     badgeText: 'All-Time',
                     badgeBgColor: Colors.white10,
                     badgeTextColor: Colors.white70,
-                    title: 'Total Revenue',
-                    value: 'Rp 45.500.000',
+                    title: 'Total Pendapatan',
+                    value: _formatRupiah(_revenueAllTime),
                   ),
                   const SizedBox(height: 32),
                   _buildMenuSection(context),
@@ -236,26 +297,26 @@ class _OwnerProfileScreenState extends State<OwnerProfileScreen> {
     return Column(
       children: [
         _buildMenuItem(
-          icon: Icons.person_rounded, 
+          icon: Icons.person_rounded,
           title: 'Edit Profil & Password',
           onTap: () async {
             await context.push('/owner/edit-profile');
-            _loadProfile(); // Refresh data after returning
+            _loadProfile();
           },
         ),
         const SizedBox(height: 8),
         _buildMenuItem(
-          icon: Icons.account_balance_wallet_rounded, 
+          icon: Icons.account_balance_wallet_rounded,
           title: 'Kelola Fee',
           onTap: () => context.push('/owner/manage-fee'),
         ),
         const SizedBox(height: 8),
         _buildMenuItem(
-          icon: Icons.stars_rounded, 
+          icon: Icons.stars_rounded,
           title: 'Layanan Premium',
           onTap: () {
             if (widget.onNavigateTab != null) {
-              widget.onNavigateTab!(3);
+              widget.onNavigateTab!(2);
             } else {
               context.push('/owner/premium-management');
             }
@@ -263,18 +324,13 @@ class _OwnerProfileScreenState extends State<OwnerProfileScreen> {
         ),
         const SizedBox(height: 8),
         _buildMenuItem(
-          icon: Icons.campaign_rounded, 
-          title: 'Kelola Banner',
-          onTap: () {
-            if (widget.onNavigateTab != null) {
-              widget.onNavigateTab!(2);
-            }
-          },
+          icon: Icons.notifications_rounded,
+          title: 'Notifikasi Owner',
+          onTap: () => Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const OwnerNotificationPage()),
+          ),
         ),
-        const SizedBox(height: 8),
-        _buildMenuItem(icon: Icons.notifications_rounded, title: 'Notifikasi Owner'),
-        const SizedBox(height: 8),
-        _buildMenuItem(icon: Icons.settings_rounded, title: 'Pengaturan'),
         const SizedBox(height: 8),
         _buildMenuItem(
           icon: Icons.logout_rounded,
