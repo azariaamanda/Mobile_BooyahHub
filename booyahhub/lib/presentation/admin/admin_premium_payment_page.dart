@@ -94,6 +94,7 @@ class _AdminPremiumPaymentPageState extends State<AdminPremiumPaymentPage> {
         'tier_level': widget.paket.tierLevel,
         'status': 'menunggu',
         'bukti_pembayaran': filePath,
+        'fitur_paket': widget.paket.fiturPaket ?? [],
       });
 
       if (!mounted) return;

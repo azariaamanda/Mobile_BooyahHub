@@ -213,6 +213,14 @@ class _PremiumManagementScreenState extends State<PremiumManagementScreen> {
     if (konfirm != true || !mounted) return;
 
     try {
+      // Cabut premium semua admin yang pakai paket ini sebelum dihapus
+      // → memicu fn_aktifkan_premium trigger untuk reset is_premium & fitur_premium
+      await _supabase
+          .from('transaksi_premium')
+          .update({'status': 'ditolak'})
+          .eq('nama_paket', pkg.namaPaket)
+          .eq('status', 'aktif');
+
       await _supabase.from('paket_premium').delete().eq('id_langganan', pkg.idLangganan!);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

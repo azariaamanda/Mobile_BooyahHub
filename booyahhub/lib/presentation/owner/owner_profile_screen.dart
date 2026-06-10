@@ -45,7 +45,6 @@ class _OwnerProfileScreenState extends State<OwnerProfileScreen> {
           .select('fee_platform_persen, nominal_minimum_platform')
           .maybeSingle();
       final int feePersen = (feeSettings?['fee_platform_persen'] as num? ?? 25).toInt();
-      final double minFee = (feeSettings?['nominal_minimum_platform'] as num? ?? 5000).toDouble();
 
       // 2. All scrims biaya
       final scrims = await _supabase.from('scrim').select('id_scrim, biaya_pendaftaran');
@@ -88,8 +87,7 @@ class _OwnerProfileScreenState extends State<OwnerProfileScreen> {
       for (final entry in countPerScrim.entries) {
         final biaya = scrimBiayaMap[entry.key] ?? 0;
         final rawFee = biaya * entry.value * feePersen / 100;
-        final scrimFee = rawFee < minFee ? minFee : rawFee;
-        final feePerReg = scrimFee / entry.value;
+        final feePerReg = rawFee / entry.value;
 
         for (final tgl in datesByScrim[entry.key] ?? <DateTime>[]) {
           allTime += feePerReg;

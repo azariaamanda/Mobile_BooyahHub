@@ -30,16 +30,11 @@ class _EditPremiumPackageScreenState extends State<EditPremiumPackageScreen> {
 
   // Daftar fitur default (tanpa RPC)
   final List<String> _defaultFeatures = [
-    'Akses Scrim Unlimited',
-    'Pembuatan Scrim Sendiri',
+    'Peningkatan Batas Tagihan',
     'Prioritas Support 24/7',
-    'Dashboard Analitik',
-    'Custom Branding',
-    'Export Data Keuangan',
-    'API Access',
-    'No Iklan',
-    'Statistik Lengkap',
-    'Multi Tim Management',
+    'Kelola Banner Promosi',
+    'Kuota Scrim Diperluas',
+    'Scrim Tampil di Halaman Utama',
   ];
 
   @override
