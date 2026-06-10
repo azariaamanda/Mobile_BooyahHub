@@ -355,6 +355,11 @@ class _CreateScrimPageState extends State<CreateScrimPage> {
       _showSnackBar('Minimal 1 tanggal dipilih', isError: true);
       return;
     }
+    final cekPeserta = int.tryParse(_maksPesertaController.text) ?? 0;
+    if (cekPeserta < 2 || cekPeserta > 12) {
+      _showSnackBar('Maks peserta harus antara 2–12 tim', isError: true);
+      return;
+    }
 
     setState(() => _isLoading = true);
 
@@ -374,7 +379,7 @@ class _CreateScrimPageState extends State<CreateScrimPage> {
       String? posterUrl = await _uploadPoster();
 
       final biaya = int.tryParse(_biayaController.text) ?? 0;
-      final maksPeserta = int.tryParse(_maksPesertaController.text) ?? 16;
+      final maksPeserta = int.tryParse(_maksPesertaController.text) ?? 12;
       final totalPendaftaran = biaya * maksPeserta;
       
       // Gunakan fee dari database dengan logika lengkap
@@ -515,7 +520,7 @@ class _CreateScrimPageState extends State<CreateScrimPage> {
                     _buildSection('KEUANGAN & PESERTA', [
                       _buildTextField('BIAYA PENDAFTARAN', _biayaController, hint: '50000', keyboardType: TextInputType.number, onChanged: (_) => setState(() {})),
                       const SizedBox(height: 16),
-                      _buildTextField('MAKS PESERTA', _maksPesertaController, hint: '16', keyboardType: TextInputType.number, onChanged: (_) => setState(() {})),
+                      _buildTextField('MAKS PESERTA', _maksPesertaController, hint: '12', keyboardType: TextInputType.number, onChanged: (_) => setState(() {})),
                       const SizedBox(height: 16),
                       _buildTextField('JUMLAH MATCH', _jumlahMatchController, hint: '3', keyboardType: TextInputType.number),
                       const SizedBox(height: 16),

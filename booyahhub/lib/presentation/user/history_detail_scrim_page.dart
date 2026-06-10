@@ -12,10 +12,7 @@ import '../user/request_claim_prize_page.dart';
 class HistoryDetailScrimPage extends StatefulWidget {
   final int idPendaftaran; // Dikirim dinamis dari halaman riwayat
 
-  const HistoryDetailScrimPage({
-    super.key,
-    required this.idPendaftaran,
-  });
+  const HistoryDetailScrimPage({super.key, required this.idPendaftaran});
 
   @override
   State<HistoryDetailScrimPage> createState() => _HistoryDetailScrimPageState();
@@ -52,8 +49,12 @@ class _HistoryDetailScrimPageState extends State<HistoryDetailScrimPage> {
                 nama_scrim
               )
             ),
-            hasil_pertandingan(*),
-            klaim_hadiah(id_klaim)
+            klaim_hadiah(id_klaim),
+            hasil_pertandingan(
+              peringkat, 
+              total_poin,
+              total_kill
+            )
           ''')
           .eq('id_pendaftaran', widget.idPendaftaran)
           .maybeSingle();
@@ -63,12 +64,14 @@ class _HistoryDetailScrimPageState extends State<HistoryDetailScrimPage> {
       }
 
       // Parsing Relasi Sesi & Scrim
-      final Map<String, dynamic>? sesiScrimData = response['sesi_scrim'] as Map<String, dynamic>?;
-      final Map<String, dynamic>? scrimData = sesiScrimData?['scrim'] as Map<String, dynamic>?;
+      final Map<String, dynamic>? sesiScrimData =
+          response['sesi_scrim'] as Map<String, dynamic>?;
+      final Map<String, dynamic>? scrimData =
+          sesiScrimData?['scrim'] as Map<String, dynamic>?;
       final List<dynamic> hasilList = response['hasil_pertandingan'] ?? [];
       final List<dynamic> klaimList = response['klaim_hadiah'] ?? [];
       final bool hasClaimed = klaimList.isNotEmpty;
-      
+
       // Mengambil nama_tim dari relasi akun -> profil_pengguna
       String namaTim = 'No Team Name';
       final akunData = response['akun'] as Map<String, dynamic>?;
@@ -99,13 +102,21 @@ class _HistoryDetailScrimPageState extends State<HistoryDetailScrimPage> {
 
       if (hasilList.isNotEmpty) {
         final int rank = hasilList[0]['peringkat'] ?? 0;
-        peringkatAkhir = rank == 1 ? 'JUARA 1' : rank == 2 ? 'JUARA 2' : rank == 3 ? 'JUARA 3' : 'RANK $rank';
+        peringkatAkhir = rank == 1
+            ? 'JUARA 1'
+            : rank == 2
+            ? 'JUARA 2'
+            : rank == 3
+            ? 'JUARA 3'
+            : 'RANK $rank';
         totalPoin = hasilList[0]['total_poin'] ?? 0;
         totalKills = hasilList[0]['total_kill'] ?? 0;
       }
 
       return {
-        'nama_scrim': scrimData?['nama_scrim'] ?? 'Scrim Match #${response['id_pendaftaran']}',
+        'nama_scrim':
+            scrimData?['nama_scrim'] ??
+            'Scrim Match #${response['id_pendaftaran']}',
         'bulan': bulan,
         'tanggal_angka': tanggalAngka,
         'jam': jam,
@@ -158,7 +169,9 @@ class _HistoryDetailScrimPageState extends State<HistoryDetailScrimPage> {
                   padding: const EdgeInsets.all(AppConstants.paddingM),
                   child: Text(
                     'Gagal memuat detail scrim bray: ${snapshot.error}',
-                    style: AppTextStyles.interBody.copyWith(color: Colors.redAccent),
+                    style: AppTextStyles.interBody.copyWith(
+                      color: Colors.redAccent,
+                    ),
                     textAlign: TextAlign.center,
                   ),
                 ),
@@ -176,7 +189,9 @@ class _HistoryDetailScrimPageState extends State<HistoryDetailScrimPage> {
               },
               child: SingleChildScrollView(
                 physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.symmetric(horizontal: AppConstants.paddingM),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppConstants.paddingM,
+                ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -190,7 +205,9 @@ class _HistoryDetailScrimPageState extends State<HistoryDetailScrimPage> {
                     // ─── 2. SECTION HEADER "Hasil Scrim" ──────────────────────────
                     Text(
                       'Hasil Scrim',
-                      style: AppTextStyles.poppinsSectionTitle.copyWith(fontSize: 18),
+                      style: AppTextStyles.poppinsSectionTitle.copyWith(
+                        fontSize: 18,
+                      ),
                     ),
                     const SizedBox(height: AppConstants.paddingM),
 
@@ -235,7 +252,10 @@ class _HistoryDetailScrimPageState extends State<HistoryDetailScrimPage> {
       decoration: BoxDecoration(
         color: AppColors.backgroundCard,
         borderRadius: BorderRadius.circular(AppConstants.radiusL),
-        border: Border.all(color: AppColors.inputBorder.withOpacity(0.3), width: 1),
+        border: Border.all(
+          color: AppColors.inputBorder.withOpacity(0.3),
+          width: 1,
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -261,13 +281,18 @@ class _HistoryDetailScrimPageState extends State<HistoryDetailScrimPage> {
                       const SizedBox(height: 6),
                       Text(
                         data['nama_scrim'],
-                        style: AppTextStyles.poppinsHeadline.copyWith(fontSize: 22),
+                        style: AppTextStyles.poppinsHeadline.copyWith(
+                          fontSize: 22,
+                        ),
                       ),
                     ],
                   ),
                 ),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 8,
+                  ),
                   decoration: BoxDecoration(
                     color: AppColors.surface,
                     borderRadius: BorderRadius.circular(AppConstants.radiusM),
@@ -300,8 +325,13 @@ class _HistoryDetailScrimPageState extends State<HistoryDetailScrimPage> {
             ),
           ),
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: AppConstants.paddingM),
-            child: Divider(color: AppColors.inputBorder.withOpacity(0.5), thickness: 1),
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppConstants.paddingM,
+            ),
+            child: Divider(
+              color: AppColors.inputBorder.withOpacity(0.5),
+              thickness: 1,
+            ),
           ),
           Padding(
             padding: const EdgeInsets.all(AppConstants.paddingM),
@@ -351,13 +381,13 @@ class _HistoryDetailScrimPageState extends State<HistoryDetailScrimPage> {
                               fontSize: 12,
                               fontWeight: FontWeight.w400,
                               color: AppColors.textSecondary,
-                    ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
-                ],
-              ),
-            ],
-          ),
-        ),
+                ),
                 Expanded(
                   child: Row(
                     children: [
@@ -427,7 +457,11 @@ class _HistoryDetailScrimPageState extends State<HistoryDetailScrimPage> {
             : const LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
-                colors: [Color(0xFF2A2308), Color(0xFF1A1605), Color(0xFF0F0D03)],
+                colors: [
+                  Color(0xFF2A2308),
+                  Color(0xFF1A1605),
+                  Color(0xFF0F0D03),
+                ],
               ),
         borderRadius: BorderRadius.circular(AppConstants.radiusL),
       ),
@@ -452,7 +486,9 @@ class _HistoryDetailScrimPageState extends State<HistoryDetailScrimPage> {
                   style: GoogleFonts.poppins(
                     fontSize: isCancelled ? 28 : 40,
                     fontWeight: FontWeight.w900,
-                    color: isCancelled ? AppColors.error.withOpacity(0.8) : AppColors.primary,
+                    color: isCancelled
+                        ? AppColors.error.withOpacity(0.8)
+                        : AppColors.primary,
                     letterSpacing: 2,
                   ),
                 ),
@@ -463,12 +499,18 @@ class _HistoryDetailScrimPageState extends State<HistoryDetailScrimPage> {
             width: 56,
             height: 56,
             decoration: BoxDecoration(
-              color: isCancelled ? AppColors.error.withOpacity(0.15) : AppColors.primary.withOpacity(0.15),
+              color: isCancelled
+                  ? AppColors.error.withOpacity(0.15)
+                  : AppColors.primary.withOpacity(0.15),
               borderRadius: BorderRadius.circular(16),
             ),
             child: Icon(
-              isCancelled ? Icons.cancel_outlined : Icons.keyboard_double_arrow_up_rounded,
-              color: isCancelled ? AppColors.error.withOpacity(0.6) : AppColors.primary,
+              isCancelled
+                  ? Icons.cancel_outlined
+                  : Icons.keyboard_double_arrow_up_rounded,
+              color: isCancelled
+                  ? AppColors.error.withOpacity(0.6)
+                  : AppColors.primary,
               size: 32,
             ),
           ),
@@ -487,7 +529,10 @@ class _HistoryDetailScrimPageState extends State<HistoryDetailScrimPage> {
             decoration: BoxDecoration(
               color: AppColors.backgroundCard,
               borderRadius: BorderRadius.circular(AppConstants.radiusL),
-              border: Border.all(color: AppColors.inputBorder.withOpacity(0.3), width: 1),
+              border: Border.all(
+                color: AppColors.inputBorder.withOpacity(0.3),
+                width: 1,
+              ),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -537,7 +582,10 @@ class _HistoryDetailScrimPageState extends State<HistoryDetailScrimPage> {
             decoration: BoxDecoration(
               color: AppColors.backgroundCard,
               borderRadius: BorderRadius.circular(AppConstants.radiusL),
-              border: Border.all(color: AppColors.inputBorder.withOpacity(0.3), width: 1),
+              border: Border.all(
+                color: AppColors.inputBorder.withOpacity(0.3),
+                width: 1,
+              ),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -592,21 +640,27 @@ class _HistoryDetailScrimPageState extends State<HistoryDetailScrimPage> {
       width: double.infinity,
       height: AppConstants.buttonHeight,
       child: ElevatedButton(
-        onPressed: hasClaimed ? null : () {
-          Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (context) => RequestClaimPrizePage(
-                title: data['nama_scrim'],
-                rank: data['peringkat_akhir'],
-                totalPrize: 'Rp 150.000', // Sesuai prize pool database lu nanti bray
-                pendaftaranId: widget.idPendaftaran,
-              ),
-            ),
-          );
-        },
+        onPressed: hasClaimed
+            ? null
+            : () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (context) => RequestClaimPrizePage(
+                      title: data['nama_scrim'],
+                      rank: data['peringkat_akhir'],
+                      totalPrize: 'Rp 150.000',
+                      pendaftaranId: widget.idPendaftaran,
+                    ),
+                  ),
+                );
+              },
         style: ElevatedButton.styleFrom(
-          backgroundColor: hasClaimed ? AppColors.surfaceVariant : AppColors.primary,
-          foregroundColor: hasClaimed ? AppColors.textHint : AppColors.buttonText,
+          backgroundColor: hasClaimed
+              ? AppColors.surfaceVariant
+              : AppColors.primary,
+          foregroundColor: hasClaimed
+              ? AppColors.textHint
+              : AppColors.buttonText,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(AppConstants.radiusL),
           ),
@@ -617,16 +671,14 @@ class _HistoryDetailScrimPageState extends State<HistoryDetailScrimPage> {
           children: [
             Text(
               hasClaimed ? 'Klaim Telah Diajukan' : 'Ajukan Klaim',
-              style: AppTextStyles.poppinsButton.copyWith(
-                fontSize: 16,
-                color: hasClaimed ? AppColors.textHint : AppColors.buttonText,
-              ),
+              style: AppTextStyles.poppinsButton.copyWith(fontSize: 16),
             ),
             const SizedBox(width: 8),
             Icon(
-              hasClaimed ? Icons.check_circle_outline : Icons.arrow_forward_rounded, 
+              hasClaimed
+                  ? Icons.check_circle_outline
+                  : Icons.arrow_forward_rounded,
               size: 20,
-              color: hasClaimed ? AppColors.textHint : AppColors.buttonText,
             ),
           ],
         ),
@@ -635,7 +687,10 @@ class _HistoryDetailScrimPageState extends State<HistoryDetailScrimPage> {
   }
 
   // WIDGET: TOMBOL LIHAT LEADERBOARD
-  Widget _buildLeaderboardButton(BuildContext context, Map<String, dynamic> data) {
+  Widget _buildLeaderboardButton(
+    BuildContext context,
+    Map<String, dynamic> data,
+  ) {
     return SizedBox(
       width: double.infinity,
       height: AppConstants.buttonHeight,
@@ -653,7 +708,11 @@ class _HistoryDetailScrimPageState extends State<HistoryDetailScrimPage> {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.bar_chart_rounded, color: AppColors.textPrimary, size: 22),
+            const Icon(
+              Icons.bar_chart_rounded,
+              color: AppColors.textPrimary,
+              size: 22,
+            ),
             const SizedBox(width: 10),
             Text(
               'Lihat Leaderboard',
@@ -680,7 +739,11 @@ class _HistoryDetailScrimPageState extends State<HistoryDetailScrimPage> {
       ),
       child: Row(
         children: [
-          const Icon(Icons.info_outline_rounded, color: AppColors.error, size: 22),
+          const Icon(
+            Icons.info_outline_rounded,
+            color: AppColors.error,
+            size: 22,
+          ),
           const SizedBox(width: 12),
           Expanded(
             child: Text(

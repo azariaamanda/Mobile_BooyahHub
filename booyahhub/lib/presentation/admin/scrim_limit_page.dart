@@ -49,7 +49,7 @@ class ScrimLimitPage extends StatelessWidget {
               ),
               const SizedBox(height: 12),
               Text(
-                'Admin standar hanya dapat membuat maksimal 1 scrim.\nUpgrade ke Premium untuk membuat scrim tanpa batas.',
+                'Admin standar hanya dapat membuat maksimal 2 scrim.\nUpgrade ke Premium untuk membuat scrim tanpa batas.',
                 style: AppTextStyles.interBody.copyWith(
                   color: AppColors.textSecondary,
                   height: 1.6,

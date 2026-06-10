@@ -100,7 +100,7 @@ class _AdminPaymentVerificationPageState
   @override
     Widget build(BuildContext context) {
       final totalUtang = (widget.admin['total_utang'] ?? 0).toDouble();
-      final limitUtang = (widget.admin['limit_utang'] ?? 50000).toDouble();
+      final limitUtang = (widget.admin['limit_utang'] ?? 100000).toDouble();
       final status = widget.admin['status_akun'] ?? 'aktif';
 
       return Scaffold(

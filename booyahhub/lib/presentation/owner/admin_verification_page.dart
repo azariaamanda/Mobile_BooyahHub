@@ -53,7 +53,7 @@ class _AdminVerificationPageState extends State<AdminVerificationPage> {
       case 'Utang tinggi':
         filtered = filtered.where((a) {
           final utang = a['profil_admin']?['total_utang'] ?? 0;
-          final limit = a['profil_admin']?['limit_utang'] ?? 50000;
+          final limit = a['profil_admin']?['limit_utang'] ?? 100000;
           return utang >= limit;
         }).toList();
         break;
@@ -88,7 +88,7 @@ class _AdminVerificationPageState extends State<AdminVerificationPage> {
   String _resolveStatus(Map<String, dynamic> admin) {
     final profil     = admin['profil_admin'] as Map<String, dynamic>?;
     final totalUtang = (profil?['total_utang'] ?? 0).toDouble();
-    final limitUtang = (profil?['limit_utang'] ?? 50000).toDouble();
+    final limitUtang = (profil?['limit_utang'] ?? 100000).toDouble();
     final status     = admin['status_akun']?.toString().toLowerCase() ?? 'pending';
     return (totalUtang >= limitUtang && status == 'aktif') ? 'suspended' : status;
   }
@@ -146,7 +146,7 @@ class _AdminVerificationPageState extends State<AdminVerificationPage> {
             'email': email,
             'status_akun': status,
             'total_utang': totalUtang,
-            'limit_utang': profil?['limit_utang'] ?? 50000,
+            'limit_utang': profil?['limit_utang'] ?? 100000,
           },
         ).then((_) => _fetchAdmins());
       },

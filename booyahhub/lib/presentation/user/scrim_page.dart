@@ -292,7 +292,7 @@ class _ScrimPageState extends State<ScrimPage> {
                       final double hadiah =
                           double.tryParse(scrim['total_hadiah'].toString()) ??
                           0;
-                      final int maksPeserta = scrim['maks_peserta'] ?? 16;
+                      final int maksPeserta = scrim['maks_peserta'] ?? 12;
 
                       final String posterUrl = _getPosterUrl(
                         scrim['poster'] as String?,

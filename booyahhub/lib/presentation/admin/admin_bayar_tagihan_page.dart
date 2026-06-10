@@ -141,7 +141,7 @@ class _AdminBayarTagihanPageState extends State<AdminBayarTagihanPage> {
       setState(() {
         _adminId = data['id_akun'];
         _totalUtang = (profil?['total_utang'] ?? 0).toDouble();
-        _limitUtang = (profil?['limit_utang'] ?? 50000).toDouble();
+        _limitUtang = (profil?['limit_utang'] ?? 100000).toDouble();
         _statusAkun = data['status_akun'] ?? 'aktif';
         _isLoading = false;
       });
