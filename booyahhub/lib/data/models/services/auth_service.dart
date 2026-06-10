@@ -22,87 +22,111 @@ class AuthService {
   // LOGIN - TANPA SUPABASE AUTH (LANGSUNG CEK DATABASE)
   // ============================================================
   Future<Map<String, dynamic>> login({
-    required String email,
-    required String password, // password plain text dari UI
-  }) async {
-    try {
-      // Cari user di tabel akun berdasarkan email
-      final userData = await _supabase
-          .from('akun')
+  required String email,
+  required String password,
+}) async {
+  try {
+    // 1. Login dulu ke Supabase Auth
+    final authResponse = await _supabase.auth.signInWithPassword(
+      email: email,
+      password: password,
+    );
+
+    final user = authResponse.user;
+    final session = authResponse.session;
+
+    if (user == null || session == null) {
+      return {
+        'success': false,
+        'message': 'Session Supabase tidak terbentuk. Coba login ulang.',
+      };
+    }
+
+    // 2. Baru ambil data akun custom dari tabel akun
+    final userData = await _supabase
+        .from('akun')
+        .select()
+        .eq('email', email)
+        .maybeSingle();
+
+    if (userData == null) {
+      await _supabase.auth.signOut();
+      return {
+        'success': false,
+        'message': 'Data akun tidak ditemukan di tabel akun.',
+      };
+    }
+
+    final statusAkun = userData['status_akun'];
+    if (statusAkun != 'aktif') {
+      await _supabase.auth.signOut();
+      return {
+        'success': false,
+        'message': 'Akun Anda belum aktif atau diblokir',
+      };
+    }
+
+    final akun = Akun.fromJson(userData);
+
+    // 3. Simpan session fallback lokal
+    await AppSession.save(
+      email: email,
+      userId: user.id,
+    );
+
+    Map<String, dynamic> profil = {};
+
+    if (akun.role == 'pengguna') {
+      final profilData = await _supabase
+          .from('profil_pengguna')
           .select()
-          .eq('email', email)
+          .eq('akun_id', akun.idAkun)
           .maybeSingle();
 
-      if (userData == null) {
-        return {'success': false, 'message': 'Email tidak terdaftar'};
+      if (profilData != null) {
+        profil = ProfilPengguna.fromJson(profilData).toJson();
       }
+    } else if (akun.role == 'admin') {
+      final profilData = await _supabase
+          .from('profil_admin')
+          .select()
+          .eq('akun_id', akun.idAkun)
+          .maybeSingle();
 
-      // Bandingkan hash password
-      final hashedPassword = _hashPassword(password);
-      if (userData['kata_sandi'] != hashedPassword) {
-        return {'success': false, 'message': 'Password salah'};
+      if (profilData != null) {
+        profil = ProfilAdmin.fromJson(profilData).toJson();
       }
+    } else if (akun.role == 'owner') {
+      final profilData = await _supabase
+          .from('profil_owner')
+          .select()
+          .eq('akun_id', akun.idAkun)
+          .maybeSingle();
 
-      // Cek status akun
-      final statusAkun = userData['status_akun'];
-      if (statusAkun != 'aktif') {
-        return {'success': false, 'message': 'Akun Anda belum aktif atau diblokir'};
+      if (profilData != null) {
+        profil = profilData;
       }
-
-      // Simpan session lokal (fallback jika Supabase Auth session tidak tersedia)
-      await AppSession.save(email: email);
-
-      // Login ke Supabase Auth untuk session (pakai password asli)
-      try {
-        await _supabase.auth.signInWithPassword(
-          email: email,
-          password: password,
-        );
-      } catch (_) {}
-
-      final akun = Akun.fromJson(userData);
-
-      Map<String, dynamic> profil = {};
-      if (akun.role == 'pengguna') {
-        final profilData = await _supabase
-            .from('profil_pengguna')
-            .select()
-            .eq('akun_id', akun.idAkun)
-            .maybeSingle();
-        if (profilData != null) {
-          profil = ProfilPengguna.fromJson(profilData).toJson();
-        }
-      } else if (akun.role == 'admin') {
-        final profilData = await _supabase
-            .from('profil_admin')
-            .select()
-            .eq('akun_id', akun.idAkun)
-            .maybeSingle();
-        if (profilData != null) {
-          profil = ProfilAdmin.fromJson(profilData).toJson();
-        }
-      } else if (akun.role == 'owner') {
-        final profilData = await _supabase
-            .from('profil_owner')
-            .select()
-            .eq('akun_id', akun.idAkun)
-            .maybeSingle();
-        if (profilData != null) {
-          profil = profilData;
-        }
-      }
-
-      return {
-        'success': true,
-        'message': 'Login berhasil',
-        'akun': akun,
-        'profil': profil,
-        'role': akun.role,
-      };
-    } catch (e) {
-      return {'success': false, 'message': 'Terjadi kesalahan: $e'};
     }
+
+    return {
+      'success': true,
+      'message': 'Login berhasil',
+      'akun': akun,
+      'profil': profil,
+      'role': akun.role,
+    };
+  } on AuthException catch (e) {
+    return {
+      'success': false,
+      'message': 'Login Supabase Auth gagal: ${e.message}',
+    };
+  } catch (e) {
+    return {
+      'success': false,
+      'message': 'Terjadi kesalahan: $e',
+    };
   }
+}
 
   // ============================================================
   // REGISTER PENGGUNA (TIM)
