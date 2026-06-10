@@ -18,6 +18,7 @@ class PaymentCheckoutPage extends StatefulWidget {
 class _PaymentCheckoutPageState extends State<PaymentCheckoutPage> {
   late Future<Map<String, dynamic>> _allData;
   Uint8List? _buktiBytes;
+  bool _isUploading = false;
 
   @override
   void initState() {
@@ -28,7 +29,7 @@ class _PaymentCheckoutPageState extends State<PaymentCheckoutPage> {
   Future<Map<String, dynamic>> _fetchAllData() async {
     final supabase = Supabase.instance.client;
 
-    // 1. Ambil data pendaftaran + sesi + scrim
+    // FIX: Gunakan FK eksplisit agar join tidak ambigu
     final pendaftaran = await supabase
         .from('pendaftaran_tim')
         .select('''
@@ -36,10 +37,10 @@ class _PaymentCheckoutPageState extends State<PaymentCheckoutPage> {
           nama_kapten,
           whatsapp_kapten,
           metode_pembayaran_daftar,
-          sesi_scrim (
+          sesi_scrim!pendaftaran_tim_id_sesi_fkey(
             id_sesi,
             nama_sesi,
-            scrim (
+            scrim!sesi_scrim_id_scrim_fkey(
               id_scrim,
               id_admin,
               nama_scrim,
@@ -55,7 +56,7 @@ class _PaymentCheckoutPageState extends State<PaymentCheckoutPage> {
     final int? adminId = scrim?['id_admin'];
     final String metodePembayaran = pendaftaran['metode_pembayaran_daftar'] ?? '';
 
-    // 2. Ambil metode pembayaran penyelenggara yang sesuai
+    // Ambil metode pembayaran penyelenggara yang sesuai
     Map<String, dynamic>? metodePenyelenggara;
     String? qrisSignedUrl;
     if (adminId != null) {
@@ -70,14 +71,12 @@ class _PaymentCheckoutPageState extends State<PaymentCheckoutPage> {
       if (metodeList.isNotEmpty) {
         metodePenyelenggara = metodeList[0];
 
-        // Generate signed URL jika ada gambar QRIS
         final String? qrisPath = metodePenyelenggara['qris_image'] as String?;
         if (qrisPath != null && qrisPath.isNotEmpty) {
           try {
             qrisSignedUrl = await supabase.storage
                 .from('qr_qris')
                 .createSignedUrl(qrisPath, 3600);
-            debugPrint('QRIS signed URL: $qrisSignedUrl');
           } catch (e) {
             debugPrint('Gagal generate signed URL QRIS: $e');
           }
@@ -117,46 +116,63 @@ class _PaymentCheckoutPageState extends State<PaymentCheckoutPage> {
   }
 
   Future<void> _kirimBuktiPembayaran() async {
-    if (_buktiBytes == null) return;
+  if (_buktiBytes == null) return;
 
-    try {
-      final supabase = Supabase.instance.client;
-      final pendaftaranId = widget.pendaftaranId;
-      final timestamp = DateTime.now().millisecondsSinceEpoch;
-      final filePath = 'user/bukti_${pendaftaranId}_$timestamp.jpg';
+  try {
+    final supabase = Supabase.instance.client;
 
-      await supabase.storage
-          .from('bukti_bayar')
-          .uploadBinary(filePath, _buktiBytes!);
+    final session = supabase.auth.currentSession;
+    final user = supabase.auth.currentUser;
 
-      await supabase
-          .from('pendaftaran_tim')
-          .update({
-            'bukti_pembayaran': filePath,
-            'status_pembayaran': 'menunggu',
-          })
-          .eq('id_pendaftaran', pendaftaranId);
+    debugPrint('PAYMENT USER: ${user?.id}');
+    debugPrint('PAYMENT SESSION: ${session?.accessToken != null ? "ADA" : "NULL"}');
 
-      if (!mounted) return;
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Bukti transfer berhasil dikirim! Menunggu verifikasi admin.'),
-          backgroundColor: AppColors.success,
-        ),
-      );
-
-      context.go('/user/home');
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Gagal upload bukti pembayaran: $e'),
-          backgroundColor: AppColors.error,
-        ),
-      );
+    if (session == null || user == null) {
+      throw Exception('Sesi login habis. Silakan login ulang.');
     }
+
+    final pendaftaranId = widget.pendaftaranId;
+    final timestamp = DateTime.now().millisecondsSinceEpoch;
+    final filePath = 'user/${user.id}/bukti_${pendaftaranId}_$timestamp.jpg';
+
+    await supabase.storage.from('bukti_bayar').uploadBinary(
+      filePath,
+      _buktiBytes!,
+      fileOptions: const FileOptions(
+        contentType: 'image/jpeg',
+        upsert: true,
+      ),
+    );
+
+    await supabase
+        .from('pendaftaran_tim')
+        .update({
+          'bukti_pembayaran': filePath,
+          'status_pembayaran': 'menunggu',
+        })
+        .eq('id_pendaftaran', pendaftaranId);
+
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Bukti transfer berhasil dikirim! Menunggu verifikasi admin.'),
+        backgroundColor: AppColors.success,
+      ),
+    );
+
+    context.go('/user/home');
+  } catch (e) {
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Gagal upload bukti pembayaran: $e'),
+        backgroundColor: AppColors.error,
+      ),
+    );
   }
+}
 
   @override
   Widget build(BuildContext context) {
@@ -227,7 +243,6 @@ class _PaymentCheckoutPageState extends State<PaymentCheckoutPage> {
           final String metodePembayaran = pendaftaran['metode_pembayaran_daftar'] ?? '';
           final bool isQris = metodePembayaran == 'qris';
 
-          // Data dari metode penyelenggara
           final String namaBank = metodePenyelenggara?['nama_bank'] ?? '';
           final String namaPemilik = metodePenyelenggara?['nama_pemilik'] ?? '-';
           final String nomorRekening = metodePenyelenggara?['nomor_rekening'] ?? '-';
@@ -290,7 +305,7 @@ class _PaymentCheckoutPageState extends State<PaymentCheckoutPage> {
                   ),
                   const SizedBox(height: 16),
 
-                  // ─── KARTU 2: INFO TRANSFER / QRIS (DARI DATABASE) ─────────
+                  // ─── KARTU 2: INFO TRANSFER / QRIS ────────────────────────
                   Container(
                     width: double.infinity,
                     padding: const EdgeInsets.all(16),
@@ -333,7 +348,6 @@ class _PaymentCheckoutPageState extends State<PaymentCheckoutPage> {
                             ),
                           )
                         else if (isQris) ...[
-                          // ── QRIS: Tampilkan nama pemilik + gambar QR ──
                           if (namaPemilik != '-' && namaPemilik.isNotEmpty)
                             Text(
                               'QRIS $namaPemilik',
@@ -383,7 +397,6 @@ class _PaymentCheckoutPageState extends State<PaymentCheckoutPage> {
                             ),
                           ),
                         ] else ...[
-                          // ── BANK TRANSFER: Tampilkan nama bank + rekening ──
                           Text(
                             namaBank.isNotEmpty ? 'Bank $namaBank' : 'Transfer Bank',
                             style: const TextStyle(
@@ -471,9 +484,12 @@ class _PaymentCheckoutPageState extends State<PaymentCheckoutPage> {
                       ),
                     ),
                     child: InkWell(
-                      onTap: () async {
+                      onTap: _isUploading ? null : () async {
                         final ImagePicker picker = ImagePicker();
-                        final XFile? image = await picker.pickImage(source: ImageSource.gallery);
+                        final XFile? image = await picker.pickImage(
+                          source: ImageSource.gallery,
+                          imageQuality: 80, // FIX: Kompres gambar agar upload lebih cepat
+                        );
                         if (image != null) {
                           final bytes = await image.readAsBytes();
                           setState(() {
@@ -533,18 +549,20 @@ class _PaymentCheckoutPageState extends State<PaymentCheckoutPage> {
                     width: double.infinity,
                     height: 52,
                     child: ElevatedButton(
-                      onPressed: () async {
-                        if (_buktiBytes == null) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Silakan unggah bukti transfer terlebih dahulu.'),
-                              backgroundColor: AppColors.error,
-                            ),
-                          );
-                          return;
-                        }
-                        await _kirimBuktiPembayaran();
-                      },
+                      onPressed: _isUploading
+                          ? null
+                          : () async {
+                              if (_buktiBytes == null) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('Silakan unggah bukti transfer terlebih dahulu.'),
+                                    backgroundColor: AppColors.error,
+                                  ),
+                                );
+                                return;
+                              }
+                              await _kirimBuktiPembayaran();
+                            },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.buttonPrimary,
                         foregroundColor: AppColors.buttonText,
@@ -553,13 +571,22 @@ class _PaymentCheckoutPageState extends State<PaymentCheckoutPage> {
                         ),
                         elevation: 0,
                       ),
-                      child: const Text(
-                        'Kirim Bukti Pembayaran',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
+                      child: _isUploading
+                          ? const SizedBox(
+                              width: 24,
+                              height: 24,
+                              child: CircularProgressIndicator(
+                                color: AppColors.buttonText,
+                                strokeWidth: 2.5,
+                              ),
+                            )
+                          : const Text(
+                              'Kirim Bukti Pembayaran',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
                     ),
                   ),
                   const SizedBox(height: 16),
