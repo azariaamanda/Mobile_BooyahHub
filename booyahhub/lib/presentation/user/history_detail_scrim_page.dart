@@ -635,58 +635,62 @@ class _HistoryDetailScrimPageState extends State<HistoryDetailScrimPage> {
   }
 
   // WIDGET: TOMBOL AJUKAN KLAIM
-  Widget _buildClaimButton(BuildContext context, Map<String, dynamic> data) {
-    final bool hasClaimed = data['has_claimed'] ?? false;
+  Widget _buildClaimButton(BuildContext context, Map data) {
+  final bool hasClaimed = data['has_claimed'] ?? false;
 
-    return SizedBox(
-      width: double.infinity,
-      height: AppConstants.buttonHeight,
-      child: ElevatedButton(
-        onPressed: hasClaimed
-            ? null
-            : () {
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (context) => RequestClaimPrizePage(
-                      title: data['nama_scrim'],
-                      rank: data['peringkat_akhir'],
-                      totalPrize: 'Rp 150.000',
-                      pendaftaranId: widget.idPendaftaran,
-                    ),
+  return SizedBox(
+    width: double.infinity,
+    height: AppConstants.buttonHeight,
+    child: ElevatedButton(
+      onPressed: hasClaimed
+          ? null
+          : () async {
+              final result = await Navigator.of(context).push<bool>(
+                MaterialPageRoute(
+                  builder: (context) => RequestClaimPrizePage(
+                    title: data['nama_scrim'],
+                    rank: data['peringkat_akhir'],
+                    totalPrize: 'Rp 150.000',
+                    pendaftaranId: widget.idPendaftaran,
                   ),
-                );
-              },
-        style: ElevatedButton.styleFrom(
-          backgroundColor: hasClaimed
-              ? AppColors.surfaceVariant
-              : AppColors.primary,
-          foregroundColor: hasClaimed
-              ? AppColors.textHint
-              : AppColors.buttonText,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AppConstants.radiusL),
-          ),
-          elevation: 0,
+                ),
+              );
+
+              // Kalau klaim berhasil, RequestClaimPrizePage akan mengirim true.
+              // Setelah itu detail langsung fetch ulang, jadi tombol langsung disable.
+              if (result == true && mounted) {
+                setState(() {
+                  _scrimDetailFuture = _fetchDetailScrim();
+                });
+              }
+            },
+      style: ElevatedButton.styleFrom(
+        backgroundColor:
+            hasClaimed ? AppColors.surfaceVariant : AppColors.primary,
+        foregroundColor:
+            hasClaimed ? AppColors.textHint : AppColors.buttonText,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppConstants.radiusL),
         ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(
-              hasClaimed ? 'Klaim Telah Diajukan' : 'Ajukan Klaim',
-              style: AppTextStyles.poppinsButton.copyWith(fontSize: 16),
-            ),
-            const SizedBox(width: 8),
-            Icon(
-              hasClaimed
-                  ? Icons.check_circle_outline
-                  : Icons.arrow_forward_rounded,
-              size: 20,
-            ),
-          ],
-        ),
+        elevation: 0,
       ),
-    );
-  }
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text(
+            hasClaimed ? 'Klaim Telah Diajukan' : 'Ajukan Klaim',
+            style: AppTextStyles.poppinsButton.copyWith(fontSize: 16),
+          ),
+          const SizedBox(width: 8),
+          Icon(
+            hasClaimed ? Icons.check_circle_outline : Icons.arrow_forward_rounded,
+            size: 20,
+          ),
+        ],
+      ),
+    ),
+  );
+}
 
   // WIDGET: TOMBOL LIHAT LEADERBOARD
   Widget _buildLeaderboardButton(
