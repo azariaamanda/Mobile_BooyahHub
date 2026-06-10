@@ -259,13 +259,13 @@ class _BookingScrimPageState extends State<BookingScrimPage> {
       leading: IconButton(
         icon: const Icon(
           Icons.arrow_back,
-          color: AppColors.textPrimary,
+          color: AppColors.primary,
         ),
         onPressed: () => context.pop(),
       ),
       title: Text(
         _namaScrim ?? 'Booking Scrim',
-        style: AppTextStyles.poppinsTitle,
+        style: AppTextStyles.poppinsTitle.copyWith(color: AppColors.primary),
       ),
       centerTitle: false,
     );

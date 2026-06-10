@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../config/app_refresh.dart';
 import '../../config/app_color.dart';
 import '../../config/app_text_styles.dart';
 import '../../data/models/paket_premium_model.dart';
@@ -21,7 +22,18 @@ class _PremiumManagementScreenState extends State<PremiumManagementScreen> {
   @override
   void initState() {
     super.initState();
+    AppRefresh.instance.addListener(_onRefresh);
     _fetchAll();
+  }
+
+  void _onRefresh() {
+    if (mounted) _fetchAll();
+  }
+
+  @override
+  void dispose() {
+    AppRefresh.instance.removeListener(_onRefresh);
+    super.dispose();
   }
 
   Future<void> _fetchAll() async {
@@ -288,9 +300,12 @@ class _PremiumManagementScreenState extends State<PremiumManagementScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
-        child: _isLoading 
+        child: _isLoading
             ? const Center(child: CircularProgressIndicator(color: Color(0xFFFFD700)))
-            : ListView(
+            : RefreshIndicator(
+                color: AppColors.primary,
+                onRefresh: () async => AppRefresh.instance.refresh(),
+                child: ListView(
                 padding: const EdgeInsets.fromLTRB(24, 24, 24, 100),
                 children: [
                   _buildAppBar(),
@@ -322,6 +337,7 @@ class _PremiumManagementScreenState extends State<PremiumManagementScreen> {
                   ],
                 ],
               ),
+            ),
       ),
     );
   }

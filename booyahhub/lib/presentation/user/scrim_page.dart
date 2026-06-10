@@ -147,6 +147,17 @@ class _ScrimPageState extends State<ScrimPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
+      appBar: AppBar(
+        backgroundColor: AppColors.background,
+        elevation: 0,
+        leading: Navigator.canPop(context)
+            ? IconButton(
+                icon: const Icon(Icons.arrow_back, color: AppColors.primary),
+                onPressed: () => context.pop(),
+              )
+            : null,
+        title: Text('Semua Scrim', style: AppTextStyles.poppinsTitle.copyWith(color: AppColors.primary)),
+      ),
       body: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,

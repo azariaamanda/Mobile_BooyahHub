@@ -1,6 +1,7 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'config/app_refresh.dart';
 import 'config/app_session.dart';
 import 'config/app_theme.dart';
 import 'data/models/services/fcm_service.dart';
@@ -24,6 +25,7 @@ void main() async {
   );
 
   await AppSession.load();
+  AppRefresh.instance.init();
 
   runApp(const MyApp());
 }

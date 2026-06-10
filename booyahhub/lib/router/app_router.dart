@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../presentation/auth/splash_screen.dart';
 import '../presentation/auth/login_screen.dart';
@@ -36,6 +37,8 @@ import '../presentation/admin/input_score_page.dart';
 import '../presentation/admin/admin_claim_list_page.dart';
 import '../presentation/admin/admin_profile_page.dart';
 import '../presentation/admin/admin_premium_page.dart';
+import '../presentation/admin/manage_banner_page.dart';
+import '../presentation/admin/scrim_limit_page.dart';
 import '../presentation/user/user_home_screen.dart';
 import '../presentation/user/scrim_page.dart';
 import '../presentation/user/user_pesanan.dart';
@@ -61,367 +64,402 @@ import '../data/models/transaksi_keuangan_model.dart';
 class AppRouter {
   AppRouter._();
 
+  // ── Fade: perpindahan konteks besar (auth → app, splash → login) ──
+  static CustomTransitionPage _fade(LocalKey key, Widget child) {
+    return CustomTransitionPage(
+      key: key,
+      child: child,
+      transitionDuration: const Duration(milliseconds: 300),
+      reverseTransitionDuration: const Duration(milliseconds: 220),
+      transitionsBuilder: (_, animation, __, child) => FadeTransition(
+        opacity: CurvedAnimation(parent: animation, curve: Curves.easeInOut),
+        child: child,
+      ),
+    );
+  }
+
+  // ── Slide kanan + fade: navigasi standar drill-down ──
+  static CustomTransitionPage _push(LocalKey key, Widget child) {
+    return CustomTransitionPage(
+      key: key,
+      child: child,
+      transitionDuration: const Duration(milliseconds: 280),
+      reverseTransitionDuration: const Duration(milliseconds: 240),
+      transitionsBuilder: (_, animation, secondaryAnimation, child) {
+        final slide = Tween<Offset>(begin: const Offset(1.0, 0), end: Offset.zero)
+            .chain(CurveTween(curve: Curves.easeOutCubic));
+        final fade = Tween<double>(begin: 0.0, end: 1.0)
+            .chain(CurveTween(curve: Curves.easeIn));
+        // Halaman sebelumnya sedikit geser ke kiri
+        final secondarySlide = Tween<Offset>(begin: Offset.zero, end: const Offset(-0.25, 0))
+            .chain(CurveTween(curve: Curves.easeOutCubic));
+        return SlideTransition(
+          position: secondaryAnimation.drive(secondarySlide),
+          child: SlideTransition(
+            position: animation.drive(slide),
+            child: FadeTransition(opacity: animation.drive(fade), child: child),
+          ),
+        );
+      },
+    );
+  }
+
+  // ── Slide atas: aksi/transaksi (booking, payment, premium) ──
+  static CustomTransitionPage _modal(LocalKey key, Widget child) {
+    return CustomTransitionPage(
+      key: key,
+      child: child,
+      transitionDuration: const Duration(milliseconds: 360),
+      reverseTransitionDuration: const Duration(milliseconds: 280),
+      transitionsBuilder: (_, animation, __, child) {
+        final slide = Tween<Offset>(begin: const Offset(0, 1.0), end: Offset.zero)
+            .chain(CurveTween(curve: Curves.easeOutQuart));
+        final fade = Tween<double>(begin: 0.3, end: 1.0)
+            .chain(CurveTween(curve: Curves.easeOut));
+        return SlideTransition(
+          position: animation.drive(slide),
+          child: FadeTransition(opacity: animation.drive(fade), child: child),
+        );
+      },
+    );
+  }
+
   static final GoRouter router = GoRouter(
     initialLocation: '/splash',
     routes: [
-      // ─── AUTH ──────────────────────────────────────────────────
+      // ─── AUTH — fade (perpindahan konteks besar) ────────────────
       GoRoute(
         path: '/splash',
         name: 'splash',
-        builder: (context, state) => const SplashScreen(),
+        pageBuilder: (c, s) => _fade(s.pageKey, const SplashScreen()),
       ),
       GoRoute(
         path: '/login',
         name: 'login',
-        builder: (context, state) => const LoginScreen(),
+        pageBuilder: (c, s) => _fade(s.pageKey, const LoginScreen()),
       ),
       GoRoute(
         path: '/reset-password',
         name: 'reset_password',
-        builder: (context, state) => const ResetPasswordPage(),
+        pageBuilder: (c, s) => _push(s.pageKey, const ResetPasswordPage()),
       ),
-
       GoRoute(
         path: '/register/selection',
         name: 'register_selection',
-        builder: (context, state) => const RegisterSelectionPage(),
+        pageBuilder: (c, s) => _fade(s.pageKey, const RegisterSelectionPage()),
       ),
       GoRoute(
         path: '/register/pengguna',
         name: 'register_pengguna',
-        builder: (context, state) => const RegisterUserPage(),
+        pageBuilder: (c, s) => _push(s.pageKey, const RegisterUserPage()),
       ),
       GoRoute(
         path: '/register/admin',
         name: 'register_admin',
-        builder: (context, state) => const RegisterAdminPage(),
+        pageBuilder: (c, s) => _push(s.pageKey, const RegisterAdminPage()),
       ),
       GoRoute(
         path: '/register/owner',
         name: 'register_owner',
-        builder: (context, state) => const RegisterOwnerPage(),
+        pageBuilder: (c, s) => _push(s.pageKey, const RegisterOwnerPage()),
       ),
 
-      // ─── OWNER ─────────────────────────────────────────────────
+      // ─── OWNER — main: fade, sub: push/modal ───────────────────
       GoRoute(
         path: '/owner/dashboard',
         name: 'owner_dashboard',
-        builder: (context, state) => const OwnerMainNavigator(),
+        pageBuilder: (c, s) => _fade(s.pageKey, const OwnerMainNavigator()),
       ),
       GoRoute(
         path: '/owner/edit-premium',
         name: 'owner_edit_premium',
-        builder: (context, state) {
-          final pkg = state.extra as PaketPremiumModel?;
-          return EditPremiumPackageScreen(package: pkg);
+        pageBuilder: (c, s) {
+          final pkg = s.extra as PaketPremiumModel?;
+          return _push(s.pageKey, EditPremiumPackageScreen(package: pkg));
         },
       ),
       GoRoute(
         path: '/owner/verifikasi-pembayaran',
         name: 'owner_verifikasi_pembayaran',
-        builder: (context, state) {
-          final admin = state.extra as Map<String, dynamic>;
-          return AdminPaymentVerificationPage(admin: admin);
+        pageBuilder: (c, s) {
+          final admin = s.extra as Map<String, dynamic>;
+          return _modal(s.pageKey, AdminPaymentVerificationPage(admin: admin));
         },
       ),
       GoRoute(
         path: '/owner/manage-fee',
         name: 'owner_manage_fee',
-        builder: (context, state) => const ManageFeeScreen(),
+        pageBuilder: (c, s) => _push(s.pageKey, const ManageFeeScreen()),
       ),
       GoRoute(
         path: '/owner/edit-profile',
         name: 'owner_edit_profile',
-        builder: (context, state) => const EditProfileScreen(),
+        pageBuilder: (c, s) => _push(s.pageKey, const EditProfileScreen()),
       ),
       GoRoute(
         path: '/owner/premium-management',
         name: 'owner_premium_management',
-        builder: (context, state) => const PremiumManagementScreen(),
+        pageBuilder: (c, s) => _push(s.pageKey, const PremiumManagementScreen()),
       ),
       GoRoute(
         path: '/owner/laporan-keuangan',
         name: 'laporan_keuangan',
-        builder: (context, state) => const FinancialReportPage(),
+        pageBuilder: (c, s) => _push(s.pageKey, const FinancialReportPage()),
       ),
       GoRoute(
         path: '/owner/approve-pembayaran',
         name: 'approve_pembayaran',
-        builder: (context, state) => const PrizeApprovalPage(),
+        pageBuilder: (c, s) => _modal(s.pageKey, const PrizeApprovalPage()),
       ),
 
-      // ─── ADMIN ─────────────────────────────────────────────────
+      // ─── ADMIN — main: fade, drill-down: push, aksi: modal ─────
       GoRoute(
         path: '/admin/dashboard',
         name: 'admin_dashboard',
-        builder: (context, state) => const AdminSuspensionGuard(
-          child: AdminMainNavigator(),
-        ),
+        pageBuilder: (c, s) => _fade(s.pageKey, const AdminSuspensionGuard(child: AdminMainNavigator())),
       ),
       GoRoute(
         path: '/admin/scrim',
         name: 'admin_scrim',
-        builder: (context, state) => const AdminSuspensionGuard(
-          child: AdminScrimPage(),
-        ),
+        pageBuilder: (c, s) => _push(s.pageKey, const AdminSuspensionGuard(child: AdminScrimPage())),
       ),
       GoRoute(
         path: '/admin/scrim/buat',
         name: 'buat_scrim',
-        builder: (context, state) => const AdminSuspensionGuard(
-          child: CreateScrimPage(),
-        ),
+        pageBuilder: (c, s) => _modal(s.pageKey, const AdminSuspensionGuard(child: CreateScrimPage())),
       ),
       GoRoute(
         path: '/admin/scrim/detail/:id',
         name: 'detail_scrim_admin',
-        builder: (context, state) {
-          final id = int.parse(state.pathParameters['id']!);
-          return AdminSuspensionGuard(
-            child: DetailScrimPage(scrimId: id),
-          );
+        pageBuilder: (c, s) {
+          final id = int.parse(s.pathParameters['id']!);
+          return _push(s.pageKey, AdminSuspensionGuard(child: DetailScrimPage(scrimId: id)));
         },
       ),
       GoRoute(
         path: '/admin/scrim/edit/:id',
         name: 'edit_scrim',
-        builder: (context, state) {
-          final id = int.parse(state.pathParameters['id']!);
-          return AdminSuspensionGuard(
-            child: EditScrimPage(scrimId: id),
-          );
+        pageBuilder: (c, s) {
+          final id = int.parse(s.pathParameters['id']!);
+          return _push(s.pageKey, AdminSuspensionGuard(child: EditScrimPage(scrimId: id)));
         },
       ),
       GoRoute(
         path: '/admin/scrim/:id/sessions',
         name: 'scrim_sessions',
-        builder: (context, state) {
-          final id = int.parse(state.pathParameters['id']!);
-          return AdminSuspensionGuard(
-            child: ScrimSessionsPage(scrimId: id),
-          );
+        pageBuilder: (c, s) {
+          final id = int.parse(s.pathParameters['id']!);
+          return _push(s.pageKey, AdminSuspensionGuard(child: ScrimSessionsPage(scrimId: id)));
         },
       ),
       GoRoute(
         path: '/admin/sesi/detail/:id',
         name: 'detail_session',
-        builder: (context, state) {
-          final sesiId = int.parse(state.pathParameters['id']!);
-          return AdminSuspensionGuard(
-            child: DetailSessionPage(sesiId: sesiId),
-          );
+        pageBuilder: (c, s) {
+          final sesiId = int.parse(s.pathParameters['id']!);
+          return _push(s.pageKey, AdminSuspensionGuard(child: DetailSessionPage(sesiId: sesiId)));
         },
       ),
       GoRoute(
         path: '/admin/sesi/tambah/:scrimId',
         name: 'add_session',
-        builder: (context, state) {
-          final scrimId = int.parse(state.pathParameters['scrimId']!);
-          return AdminSuspensionGuard(
-            child: AddSessionPage(scrimId: scrimId),
-          );
+        pageBuilder: (c, s) {
+          final scrimId = int.parse(s.pathParameters['scrimId']!);
+          return _modal(s.pageKey, AdminSuspensionGuard(child: AddSessionPage(scrimId: scrimId)));
         },
       ),
       GoRoute(
         path: '/admin/sesi/edit/:sesiId',
         name: 'edit_session',
-        builder: (context, state) {
-          final sesiId = int.parse(state.pathParameters['sesiId']!);
-          return AdminSuspensionGuard(
-            child: EditSessionPage(sesiId: sesiId),
-          );
+        pageBuilder: (c, s) {
+          final sesiId = int.parse(s.pathParameters['sesiId']!);
+          return _push(s.pageKey, AdminSuspensionGuard(child: EditSessionPage(sesiId: sesiId)));
         },
       ),
       GoRoute(
         path: '/admin/scrim/:idScrim/sesi',
         name: 'atur_sesi',
-        builder: (context, state) {
-          final idScrim = int.parse(state.pathParameters['idScrim']!);
-          return AdminSuspensionGuard(
-            child: SetupSessionPage(scrimId: idScrim),
-          );
+        pageBuilder: (c, s) {
+          final idScrim = int.parse(s.pathParameters['idScrim']!);
+          return _modal(s.pageKey, AdminSuspensionGuard(child: SetupSessionPage(scrimId: idScrim)));
         },
       ),
       GoRoute(
         path: '/admin/verifikasi-pembayaran',
         name: 'verifikasi_pembayaran',
-        builder: (context, state) => const AdminSuspensionGuard(
-          child: ValidatePaymentPage(),
-        ),
+        pageBuilder: (c, s) => _modal(s.pageKey, const AdminSuspensionGuard(child: ValidatePaymentPage())),
       ),
       GoRoute(
         path: '/admin/input-skor/:idSesi',
         name: 'input_skor',
-        builder: (context, state) {
-          final idSesi = int.parse(state.pathParameters['idSesi']!);
-          return AdminSuspensionGuard(
-            child: InputScorePage(sesiId: idSesi),
-          );
+        pageBuilder: (c, s) {
+          final idSesi = int.parse(s.pathParameters['idSesi']!);
+          return _modal(s.pageKey, AdminSuspensionGuard(child: InputScorePage(sesiId: idSesi)));
         },
       ),
       GoRoute(
         path: '/admin/klaim',
         name: 'admin_klaim',
-        builder: (context, state) => const AdminSuspensionGuard(
-          child: AdminClaimListPage(),
-        ),
+        pageBuilder: (c, s) => _push(s.pageKey, const AdminSuspensionGuard(child: AdminClaimListPage())),
       ),
       GoRoute(
         path: '/admin/profile/edit',
         name: 'edit_profile',
-        builder: (context, state) => const AdminSuspensionGuard(
-          child: EditProfilePage(),
-        ),
+        pageBuilder: (c, s) => _push(s.pageKey, const AdminSuspensionGuard(child: EditProfilePage())),
       ),
       GoRoute(
         path: '/admin/profile/notifikasi',
         name: 'admin_notifikasi',
-        builder: (context, state) => const AdminSuspensionGuard(
-          child: AdminNotificationPage(),
-        ),
+        pageBuilder: (c, s) => _push(s.pageKey, const AdminSuspensionGuard(child: AdminNotificationPage())),
       ),
       GoRoute(
         path: '/admin/peserta',
         name: 'peserta',
-        builder: (context, state) => const AdminSuspensionGuard(
-          child: PesertaManagementPage(),
-        ),
+        pageBuilder: (c, s) => _push(s.pageKey, const AdminSuspensionGuard(child: PesertaManagementPage())),
       ),
       GoRoute(
         path: '/admin/premium',
         name: 'admin_premium',
-        builder: (context, state) => const AdminSuspensionGuard(
-          child: AdminPremiumPage(),
-        ),
+        pageBuilder: (c, s) => _modal(s.pageKey, const AdminSuspensionGuard(child: AdminPremiumPage())),
       ),
       GoRoute(
         path: '/admin/bayar-tagihan',
         name: 'admin_bayar_tagihan',
-        builder: (context, state) => const AdminBayarTagihanPage(),
+        pageBuilder: (c, s) => _modal(s.pageKey, const AdminBayarTagihanPage()),
+      ),
+      GoRoute(
+        path: '/admin/banner',
+        name: 'admin_banner',
+        pageBuilder: (c, s) => _push(s.pageKey, const AdminSuspensionGuard(child: ManageBannerPage())),
+      ),
+      GoRoute(
+        path: '/admin/scrim/limit',
+        name: 'scrim_limit',
+        pageBuilder: (c, s) => _push(s.pageKey, const ScrimLimitPage()),
       ),
 
-      // ─── USER (PELANGGAN) ──────────────────────────────────────
+      // ─── USER — main: fade, list: push, detail: scale, aksi: modal ─
       GoRoute(
         path: '/user/home',
         name: 'user_home',
-        builder: (context, state) => const UserMainNavigator(),
+        pageBuilder: (c, s) => _fade(s.pageKey, const UserMainNavigator()),
       ),
       GoRoute(
         path: '/user/beranda-konten',
         name: 'user_beranda_konten',
-        builder: (context, state) => const UserHomeScreen(),
+        pageBuilder: (c, s) => _fade(s.pageKey, const UserHomeScreen()),
       ),
       GoRoute(
         path: '/user/scrim',
         name: 'scrim_page',
-        builder: (context, state) => const ScrimPage(),
+        pageBuilder: (c, s) => _push(s.pageKey, const ScrimPage()),
       ),
       GoRoute(
         path: '/user/pesanan',
         name: 'user_pesanan',
-        builder: (context, state) => const UserPesananPage(),
+        pageBuilder: (c, s) => _push(s.pageKey, const UserPesananPage()),
       ),
       GoRoute(
         path: '/user/scrim/:idScrim',
         name: 'detail_scrim',
-        builder: (context, state) {
-          final idScrim = int.parse(state.pathParameters['idScrim']!);
-          return ScrimDetailPage(scrimId: idScrim);
+        pageBuilder: (c, s) {
+          final idScrim = int.parse(s.pathParameters['idScrim']!);
+          return _push(s.pageKey, ScrimDetailPage(scrimId: idScrim));
         },
       ),
       GoRoute(
         path: '/user/booking-scrim/:idScrim',
         name: 'booking_scrim',
-        builder: (context, state) {
-          final idScrim = int.parse(state.pathParameters['idScrim']!);
-          return BookingScrimPage(scrimId: idScrim);
+        pageBuilder: (c, s) {
+          final idScrim = int.parse(s.pathParameters['idScrim']!);
+          return _modal(s.pageKey, BookingScrimPage(scrimId: idScrim));
         },
       ),
       GoRoute(
         path: '/user/booking/:idSesi',
         name: 'booking',
-        builder: (context, state) {
-          final idSesi = int.parse(state.pathParameters['idSesi']!);
-          return BookingFormPage(sesiId: idSesi);
+        pageBuilder: (c, s) {
+          final idSesi = int.parse(s.pathParameters['idSesi']!);
+          return _modal(s.pageKey, BookingFormPage(sesiId: idSesi));
         },
       ),
       GoRoute(
         path: '/user/payment/:idPendaftaran',
         name: 'payment',
-        builder: (context, state) {
-          final idPendaftaran = int.parse(state.pathParameters['idPendaftaran']!);
-          return PaymentCheckoutPage(pendaftaranId: idPendaftaran);
+        pageBuilder: (c, s) {
+          final idPendaftaran = int.parse(s.pathParameters['idPendaftaran']!);
+          return _modal(s.pageKey, PaymentCheckoutPage(pendaftaranId: idPendaftaran));
         },
       ),
       GoRoute(
         path: '/user/leaderboard/:idSesi',
         name: 'leaderboard',
-        builder: (context, state) {
-          final idSesi = int.parse(state.pathParameters['idSesi']!);
-          return LeaderboardPage(sesiId: idSesi);
+        pageBuilder: (c, s) {
+          final idSesi = int.parse(s.pathParameters['idSesi']!);
+          return _push(s.pageKey, LeaderboardPage(sesiId: idSesi));
         },
       ),
       GoRoute(
         path: '/user/history',
         name: 'history',
-        builder: (context, state) => const HistoryScrimPage(),
+        pageBuilder: (c, s) => _push(s.pageKey, const HistoryScrimPage()),
       ),
       GoRoute(
         path: '/user/history-detail',
         name: 'history_detail',
-        builder: (context, state) {
-          final idPendaftaran = int.tryParse(state.extra?.toString() ?? '0') ?? 0;
-          return HistoryDetailScrimPage(idPendaftaran: idPendaftaran);
+        pageBuilder: (c, s) {
+          final idPendaftaran = int.tryParse(s.extra?.toString() ?? '0') ?? 0;
+          return _push(s.pageKey, HistoryDetailScrimPage(idPendaftaran: idPendaftaran));
         },
       ),
       GoRoute(
         path: '/user/klaim/:idPendaftaran',
         name: 'klaim',
-        builder: (context, state) {
-          final idPendaftaran = int.parse(state.pathParameters['idPendaftaran']!);
-          return ClaimPrizePage(pendaftaranId: idPendaftaran);
+        pageBuilder: (c, s) {
+          final idPendaftaran = int.parse(s.pathParameters['idPendaftaran']!);
+          return _modal(s.pageKey, ClaimPrizePage(pendaftaranId: idPendaftaran));
         },
       ),
       GoRoute(
         path: '/user/premium',
         name: 'premium',
-        builder: (context, state) => const UserPremiumPage(),
+        pageBuilder: (c, s) => _modal(s.pageKey, const UserPremiumPage()),
       ),
       GoRoute(
         path: '/user/klaim-hadiah',
         name: 'klaim_hadiah',
-        builder: (context, state) => const UserClaimRewardsPage(),
+        pageBuilder: (c, s) => _modal(s.pageKey, const UserClaimRewardsPage()),
       ),
       GoRoute(
         path: '/user/notifikasi',
         name: 'notifikasi',
-        builder: (context, state) => const UserNotificationPage(),
+        pageBuilder: (c, s) => _push(s.pageKey, const UserNotificationPage()),
       ),
       GoRoute(
         path: '/user/financial',
         name: 'financial',
-        builder: (context, state) => const UserFinancialScreen(),
+        pageBuilder: (c, s) => _push(s.pageKey, const UserFinancialScreen()),
       ),
       GoRoute(
         path: '/financial/withdraw',
         name: 'withdraw',
-        builder: (context, state) {
-          final saldo = state.extra as SaldoPengguna;
-          return WithdrawPage(saldo: saldo);
+        pageBuilder: (c, s) {
+          final saldo = s.extra as SaldoPengguna;
+          return _modal(s.pageKey, WithdrawPage(saldo: saldo));
         },
       ),
       GoRoute(
         path: '/financial/detail',
         name: 'financial_detail',
-        builder: (context, state) {
-          final transaksi = state.extra as TransaksiKeuangan;
-          return TransactionDetailPage(transaksi: transaksi);
+        pageBuilder: (c, s) {
+          final transaksi = s.extra as TransaksiKeuangan;
+          return _push(s.pageKey, TransactionDetailPage(transaksi: transaksi));
         },
       ),
       GoRoute(
         path: '/financial/history',
         name: 'financial_history',
-        builder: (context, state) => const TransactionHistoryPage(),
+        pageBuilder: (c, s) => _push(s.pageKey, const TransactionHistoryPage()),
       ),
     ],
   );

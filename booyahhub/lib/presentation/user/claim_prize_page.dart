@@ -634,14 +634,14 @@ class _ClaimPrizePageState extends State<ClaimPrizePage> {
         leading: IconButton(
           icon: const Icon(
             Icons.arrow_back,
-            color: AppColors.textPrimary,
+            color: AppColors.primary,
           ),
           onPressed: () => Navigator.of(context).pop(),
         ),
         title: Text(
           'Klaim Hadiah',
           style: AppTextStyles.poppinsTitle.copyWith(
-            color: AppColors.textPrimary,
+            color: AppColors.primary,
           ),
         ),
         centerTitle: false,

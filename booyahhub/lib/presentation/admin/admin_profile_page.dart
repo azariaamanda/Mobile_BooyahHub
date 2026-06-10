@@ -1,8 +1,8 @@
 ﻿import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../config/app_refresh.dart';
 import '../../config/app_session.dart';
-import 'manage_banner_page.dart';
 import 'admin_notification_page.dart';
 import '../../config/app_color.dart';
 import '../../config/app_constants.dart';
@@ -29,7 +29,18 @@ class _AdminProfilePageState extends State<AdminProfilePage> {
   @override
   void initState() {
     super.initState();
+    AppRefresh.instance.addListener(_onRefresh);
     _fetchProfile();
+  }
+
+  void _onRefresh() {
+    if (mounted) _fetchProfile();
+  }
+
+  @override
+  void dispose() {
+    AppRefresh.instance.removeListener(_onRefresh);
+    super.dispose();
   }
 
   Future<void> _fetchProfile() async {
@@ -186,7 +197,11 @@ class _AdminProfilePageState extends State<AdminProfilePage> {
           ),
         ],
       ),
-      body: SingleChildScrollView(
+      body: RefreshIndicator(
+        color: AppColors.primary,
+        onRefresh: () async => AppRefresh.instance.refresh(),
+        child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.all(AppConstants.paddingM),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -233,10 +248,7 @@ class _AdminProfilePageState extends State<AdminProfilePage> {
               icon: Icons.campaign_rounded,
               title: 'Kelola Banner',
               isLocked: !_fiturAktif.contains('Kelola Banner Promosi'),
-              onTap: () => Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const ManageBannerPage()),
-              ),
+              onTap: () => context.push('/admin/banner'),
             ),
             const SizedBox(height: 8),
             _buildMenuItemLockable(
@@ -249,6 +261,7 @@ class _AdminProfilePageState extends State<AdminProfilePage> {
             const SizedBox(height: 24),
             _buildLogoutButton(),
           ],
+        ),
         ),
       ),
     );

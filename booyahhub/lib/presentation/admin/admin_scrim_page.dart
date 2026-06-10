@@ -1,11 +1,11 @@
 ﻿import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../config/app_refresh.dart';
 import '../../config/app_session.dart';
 import '../../config/app_color.dart';
 import '../../config/app_constants.dart';
 import '../../config/app_text_styles.dart';
-import 'scrim_limit_page.dart';
 
 class ScrimSummary {
   final String id;
@@ -48,12 +48,18 @@ class _AdminScrimPageState extends State<AdminScrimPage>
   @override
   void initState() {
     super.initState();
+    AppRefresh.instance.addListener(_onRefresh);
     _tabController = TabController(length: _tabs.length, vsync: this);
     _fetchScrims();
   }
 
+  void _onRefresh() {
+    if (mounted) _fetchScrims();
+  }
+
   @override
   void dispose() {
+    AppRefresh.instance.removeListener(_onRefresh);
     _tabController.dispose();
     super.dispose();
   }
@@ -277,7 +283,7 @@ class _AdminScrimPageState extends State<AdminScrimPage>
             onTap: () async {
               final isLocked = _allScrims.length >= _scrimLimit;
               if (isLocked) {
-                Navigator.push(context, MaterialPageRoute(builder: (_) => const ScrimLimitPage()));
+                context.push('/admin/scrim/limit');
                 return;
               }
               await context.push('/admin/scrim/buat');
@@ -400,7 +406,7 @@ class _AdminScrimPageState extends State<AdminScrimPage>
     return RefreshIndicator(
       color: AppColors.primary,
       backgroundColor: AppColors.backgroundCard,
-      onRefresh: _fetchScrims,
+      onRefresh: () async => AppRefresh.instance.refresh(),
       child: ListView.builder(
         padding: const EdgeInsets.fromLTRB(
           AppConstants.paddingM,

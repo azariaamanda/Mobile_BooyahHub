@@ -1,6 +1,7 @@
 ﻿import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../config/app_refresh.dart';
 import '../../config/app_session.dart';
 import '../../config/app_color.dart';
 import '../../config/app_constants.dart';
@@ -34,7 +35,18 @@ class _UserPesananPageState extends State<UserPesananPage> {
   @override
   void initState() {
     super.initState();
+    AppRefresh.instance.addListener(_onRefresh);
     _fetchPesanan();
+  }
+
+  void _onRefresh() {
+    if (mounted) _fetchPesanan();
+  }
+
+  @override
+  void dispose() {
+    AppRefresh.instance.removeListener(_onRefresh);
+    super.dispose();
   }
 
   Future<void> _fetchPesanan() async {
@@ -526,7 +538,9 @@ class _UserPesananPageState extends State<UserPesananPage> {
         title: const Text('Pesanan', style: TextStyle(fontWeight: FontWeight.bold)),
         backgroundColor: AppColors.background,
         elevation: 0,
-        leading: IconButton(icon: const Icon(Icons.arrow_back), onPressed: () => context.pop()),
+        leading: Navigator.canPop(context)
+            ? IconButton(icon: const Icon(Icons.arrow_back), onPressed: () => context.pop())
+            : null,
       ),
       body: Column(
         children: [
@@ -549,7 +563,7 @@ class _UserPesananPageState extends State<UserPesananPage> {
 
   Widget _buildPesananList() {
     return RefreshIndicator(
-      onRefresh: _fetchPesanan,
+      onRefresh: () async => AppRefresh.instance.refresh(),
       color: AppColors.primary,
       child: ListView.builder(
         padding: const EdgeInsets.symmetric(horizontal: AppConstants.paddingM),
@@ -659,7 +673,13 @@ class _UserPesananPageState extends State<UserPesananPage> {
           const SizedBox(height: AppConstants.paddingL),
           ElevatedButton(
             onPressed: () => context.pushNamed('scrim_page'),
-            style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary, foregroundColor: AppColors.buttonText),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              foregroundColor: AppColors.buttonText,
+              minimumSize: Size.zero,
+              padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 12),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
             child: const Text('Cari Scrim'),
           ),
         ],

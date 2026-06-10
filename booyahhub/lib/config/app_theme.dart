@@ -26,8 +26,8 @@ class AppTheme {
       foregroundColor: AppColors.textPrimary,
       elevation: 0,
       centerTitle: false,
-      titleTextStyle: AppTextStyles.poppinsTitle.copyWith(fontSize: 20),
-      iconTheme: const IconThemeData(color: AppColors.textPrimary),
+      titleTextStyle: AppTextStyles.poppinsTitle.copyWith(fontSize: 20, color: AppColors.primary),
+      iconTheme: const IconThemeData(color: AppColors.primary),
     ),
 
     // Text Theme

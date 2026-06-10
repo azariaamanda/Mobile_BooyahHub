@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../config/app_refresh.dart';
 import '../../config/app_color.dart';
 import '../../config/app_text_styles.dart';
 import '../../data/models/services/auth_service.dart';
@@ -29,7 +30,18 @@ class _OwnerProfileScreenState extends State<OwnerProfileScreen> {
   @override
   void initState() {
     super.initState();
+    AppRefresh.instance.addListener(_onRefresh);
     _refresh();
+  }
+
+  void _onRefresh() {
+    if (mounted) _refresh();
+  }
+
+  @override
+  void dispose() {
+    AppRefresh.instance.removeListener(_onRefresh);
+    super.dispose();
   }
 
   Future<void> _refresh() async {
@@ -188,7 +200,7 @@ class _OwnerProfileScreenState extends State<OwnerProfileScreen> {
               )
             : RefreshIndicator(
                 color: AppColors.primary,
-                onRefresh: _refresh,
+                onRefresh: () async => AppRefresh.instance.refresh(),
                 child: ListView(
                   physics: const AlwaysScrollableScrollPhysics(),
                   padding: const EdgeInsets.fromLTRB(24, 24, 24, 100),

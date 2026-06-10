@@ -179,12 +179,12 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
           backgroundColor: AppColors.background,
           elevation: 0,
           leading: IconButton(
-            icon: const Icon(Icons.arrow_back, color: AppColors.textPrimary),
+            icon: const Icon(Icons.arrow_back, color: AppColors.primary),
             onPressed: () => context.pop(),
           ),
           title: Text(
             'Leaderboard',
-            style: AppTextStyles.poppinsTitle.copyWith(fontSize: 18),
+            style: AppTextStyles.poppinsTitle.copyWith(color: AppColors.primary, fontSize: 18),
           ),
           centerTitle: false,
         ),
@@ -208,12 +208,12 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
         backgroundColor: AppColors.background,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: AppColors.textPrimary),
+          icon: const Icon(Icons.arrow_back, color: AppColors.primary),
           onPressed: () => context.pop(),
         ),
         title: Text(
           'Leaderboard',
-          style: AppTextStyles.poppinsTitle.copyWith(fontSize: 18),
+          style: AppTextStyles.poppinsTitle.copyWith(color: AppColors.primary, fontSize: 18),
         ),
         centerTitle: false,
       ),

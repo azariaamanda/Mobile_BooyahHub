@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../config/app_refresh.dart';
 import '../../config/app_session.dart';
 import '../../config/app_color.dart';
 import '../../config/app_constants.dart';
@@ -22,8 +23,10 @@ class UserHomeScreen extends StatefulWidget {
 }
 
 class UserHomeScreenState extends State<UserHomeScreen> {
-  void refreshProfile() {
-    setState(() {});
+  void refreshProfile() => setState(() {});
+
+  void _onRefresh() {
+    if (mounted) setState(() {});
   }
 
   int _unreadNotifCount = 0;
@@ -44,11 +47,18 @@ class UserHomeScreenState extends State<UserHomeScreen> {
   @override
   void initState() {
     super.initState();
+    AppRefresh.instance.addListener(_onRefresh);
     _fetchModes();
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) _showUnreadNotifications();
     });
+  }
+
+  @override
+  void dispose() {
+    AppRefresh.instance.removeListener(_onRefresh);
+    super.dispose();
   }
 
   Future<void> _showUnreadNotifications() async {
@@ -400,11 +410,61 @@ class UserHomeScreenState extends State<UserHomeScreen> {
           );
         }
 
-        if (snapshot.hasError || !snapshot.hasData || snapshot.data!.isEmpty) {
+        if (snapshot.hasError) {
           return Center(
-            child: Text(
-              'Gagal memuat data scrim atau data kosong.',
-              style: AppTextStyles.interBody,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 32),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.wifi_off_rounded, size: 44, color: AppColors.textSecondary),
+                  const SizedBox(height: 12),
+                  Text('Gagal memuat scrim', style: AppTextStyles.poppinsTitle.copyWith(fontSize: 15)),
+                  const SizedBox(height: 6),
+                  Text('Periksa koneksi internetmu', style: AppTextStyles.interCaption),
+                  const SizedBox(height: 16),
+                  GestureDetector(
+                    onTap: () => setState(() {}),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: AppColors.primary,
+                        borderRadius: BorderRadius.circular(AppConstants.radiusM),
+                      ),
+                      child: Text('Coba Lagi', style: AppTextStyles.poppinsButton.copyWith(fontSize: 13)),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }
+
+        if (!snapshot.hasData || snapshot.data!.isEmpty) {
+          return Center(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 32),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      color: AppColors.surfaceVariant,
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.sports_esports_outlined, size: 44, color: AppColors.primary),
+                  ),
+                  const SizedBox(height: 16),
+                  Text('Belum Ada Scrim Aktif', style: AppTextStyles.poppinsTitle.copyWith(fontSize: 16)),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Scrim sedang kosong.\nTunggu admin membuat scrim baru!',
+                    style: AppTextStyles.interCaption.copyWith(height: 1.5),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
             ),
           );
         }
@@ -470,8 +530,12 @@ class UserHomeScreenState extends State<UserHomeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: SafeArea(
-        child: SingleChildScrollView(
-          child: Padding(
+        child: RefreshIndicator(
+          color: AppColors.primary,
+          onRefresh: () async => AppRefresh.instance.refresh(),
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            child: Padding(
             padding: const EdgeInsets.all(AppConstants.paddingM),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -531,7 +595,97 @@ class UserHomeScreenState extends State<UserHomeScreen> {
                       );
                     }
                     if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                      return const SizedBox(height: 180);
+                      return ClipRRect(
+                        borderRadius: BorderRadius.circular(AppConstants.radiusL),
+                        child: Container(
+                          height: 180,
+                          decoration: const BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                              colors: [Color(0xFF1A1A2E), Color(0xFF16213E), Color(0xFF0F3460)],
+                            ),
+                          ),
+                          child: Stack(
+                            children: [
+                              // Lingkaran dekoratif
+                              Positioned(
+                                right: -30,
+                                top: -30,
+                                child: Container(
+                                  width: 140,
+                                  height: 140,
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    color: AppColors.primary.withValues(alpha: 0.08),
+                                  ),
+                                ),
+                              ),
+                              Positioned(
+                                right: 20,
+                                bottom: -40,
+                                child: Container(
+                                  width: 100,
+                                  height: 100,
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    color: AppColors.primary.withValues(alpha: 0.06),
+                                  ),
+                                ),
+                              ),
+                              // Konten
+                              Padding(
+                                padding: const EdgeInsets.all(20),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                      decoration: BoxDecoration(
+                                        color: AppColors.primary.withValues(alpha: 0.2),
+                                        borderRadius: BorderRadius.circular(20),
+                                        border: Border.all(color: AppColors.primary.withValues(alpha: 0.4)),
+                                      ),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Icon(Icons.sports_esports_rounded, size: 13, color: AppColors.primary),
+                                          const SizedBox(width: 5),
+                                          Text('BooyahHub', style: AppTextStyles.interLabel.copyWith(color: AppColors.primary, fontSize: 11)),
+                                        ],
+                                      ),
+                                    ),
+                                    const SizedBox(height: 12),
+                                    Text(
+                                      'Segera Hadir\nScrim Seru!',
+                                      style: AppTextStyles.poppinsHeadline.copyWith(fontSize: 22, height: 1.2),
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Text(
+                                      'Nantikan scrim dari admin terbaikmu',
+                                      style: AppTextStyles.interCaption.copyWith(color: AppColors.textSecondary),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              // Ikon kanan
+                              Positioned(
+                                right: 24,
+                                top: 0,
+                                bottom: 0,
+                                child: Center(
+                                  child: Icon(
+                                    Icons.emoji_events_rounded,
+                                    size: 64,
+                                    color: AppColors.primary.withValues(alpha: 0.25),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
                     }
                     return HomeBannerSlider(
                       banners: snapshot.data!,
@@ -550,6 +704,7 @@ class UserHomeScreenState extends State<UserHomeScreen> {
               ],
             ),
           ),
+        ),
         ),
       ),
     );

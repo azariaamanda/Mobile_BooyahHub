@@ -7,6 +7,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../config/app_refresh.dart';
 import '../../config/app_session.dart';
 
 import '../../config/app_color.dart';
@@ -42,7 +43,18 @@ class _PesertaManagementPageState extends State<PesertaManagementPage> {
   @override
   void initState() {
     super.initState();
+    AppRefresh.instance.addListener(_onRefresh);
     _fetchData();
+  }
+
+  void _onRefresh() {
+    if (mounted) _fetchData();
+  }
+
+  @override
+  void dispose() {
+    AppRefresh.instance.removeListener(_onRefresh);
+    super.dispose();
   }
 
   Future<void> _fetchData() async {
@@ -232,7 +244,7 @@ class _PesertaManagementPageState extends State<PesertaManagementPage> {
     final list = _filtered;
     return RefreshIndicator(
       color: AppColors.primary,
-      onRefresh: _fetchData,
+      onRefresh: () async => AppRefresh.instance.refresh(),
       child: list.isEmpty
           ? _buildEmptyState()
           : ListView.separated(

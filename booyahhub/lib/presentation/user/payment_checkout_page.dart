@@ -182,13 +182,13 @@ class _PaymentCheckoutPageState extends State<PaymentCheckoutPage> {
         backgroundColor: AppColors.background,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: AppColors.textPrimary),
+          icon: const Icon(Icons.arrow_back, color: AppColors.primary),
           onPressed: () => context.pop(),
         ),
         title: const Text(
           'Pembayaran Scrim',
           style: TextStyle(
-            color: AppColors.textPrimary,
+            color: AppColors.primary,
             fontWeight: FontWeight.bold,
             fontSize: 20,
           ),

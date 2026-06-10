@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:intl/intl.dart';
 
+import '../../config/app_refresh.dart';
 import '../../config/app_session.dart';
 import '../../config/app_color.dart';
 import '../../config/app_constants.dart';
@@ -25,16 +26,21 @@ class _HistoryScrimPageState extends State<HistoryScrimPage> {
   @override
   void initState() {
     super.initState();
+    AppRefresh.instance.addListener(_onRefresh);
     _historyFuture = _fetchHistoryScrim();
     _listenToScrimChanges();
   }
 
+  void _onRefresh() {
+    if (mounted) setState(() => _historyFuture = _fetchHistoryScrim());
+  }
+
   @override
   void dispose() {
+    AppRefresh.instance.removeListener(_onRefresh);
     if (_scrimRealtimeChannel != null) {
       Supabase.instance.client.removeChannel(_scrimRealtimeChannel!);
     }
-
     super.dispose();
   }
 
@@ -295,16 +301,16 @@ class _HistoryScrimPageState extends State<HistoryScrimPage> {
       appBar: AppBar(
         backgroundColor: AppColors.background,
         elevation: 0,
-        leading: IconButton(
-          icon: const Icon(
-            Icons.arrow_back,
-            color: AppColors.textPrimary,
-          ),
-          onPressed: () => context.pop(),
-        ),
+        leading: Navigator.canPop(context)
+            ? IconButton(
+                icon: const Icon(Icons.arrow_back, color: AppColors.primary),
+                onPressed: () => context.pop(),
+              )
+            : null,
         title: Text(
           'Riwayat Scrim',
           style: AppTextStyles.poppinsTitle.copyWith(
+            color: AppColors.primary,
             fontSize: 18,
           ),
         ),
@@ -500,11 +506,7 @@ class _HistoryScrimPageState extends State<HistoryScrimPage> {
                     }
 
                     return RefreshIndicator(
-                      onRefresh: () async {
-                        setState(() {
-                          _historyFuture = _fetchHistoryScrim();
-                        });
-                      },
+                      onRefresh: () async => AppRefresh.instance.refresh(),
                       child: ListView.builder(
                         itemCount: filteredList.length,
                         itemBuilder: (context, index) {

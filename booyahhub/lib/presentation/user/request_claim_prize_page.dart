@@ -853,14 +853,14 @@ class _RequestClaimPrizePageState extends State<RequestClaimPrizePage> {
         leading: IconButton(
           icon: const Icon(
             Icons.arrow_back,
-            color: AppColors.textPrimary,
+            color: AppColors.primary,
           ),
           onPressed: () => Navigator.of(context).pop(false),
         ),
         title: Text(
           'Ajukan Klaim Hadiah',
           style: AppTextStyles.poppinsTitle.copyWith(
-            color: AppColors.textPrimary,
+            color: AppColors.primary,
           ),
         ),
         centerTitle: false,

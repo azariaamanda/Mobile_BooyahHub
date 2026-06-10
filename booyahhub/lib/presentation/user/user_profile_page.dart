@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../config/app_refresh.dart';
 import '../../config/app_color.dart';
 import '../../config/app_text_styles.dart';
 import '../../data/models/services/auth_service.dart';
@@ -30,8 +31,19 @@ class _UserProfilePageState extends State<UserProfilePage> {
   @override
   void initState() {
     super.initState();
+    AppRefresh.instance.addListener(_onRefresh);
     _loadUserProfile();
     _loadNotificationPreference();
+  }
+
+  void _onRefresh() {
+    if (mounted) _loadUserProfile();
+  }
+
+  @override
+  void dispose() {
+    AppRefresh.instance.removeListener(_onRefresh);
+    super.dispose();
   }
 
   Future<void> _loadNotificationPreference() async {
@@ -85,17 +97,23 @@ class _UserProfilePageState extends State<UserProfilePage> {
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: AppColors.textPrimary),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
+        leading: Navigator.canPop(context)
+            ? IconButton(
+                icon: const Icon(Icons.arrow_back, color: AppColors.primary),
+                onPressed: () => Navigator.of(context).pop(),
+              )
+            : null,
         title: Text(
           'Profil',
-          style: AppTextStyles.poppinsTitle.copyWith(color: AppColors.textPrimary),
+          style: AppTextStyles.poppinsTitle.copyWith(color: AppColors.primary),
         ),
         centerTitle: false,
       ),
-      body: SingleChildScrollView(
+      body: RefreshIndicator(
+        color: AppColors.primary,
+        onRefresh: () async => AppRefresh.instance.refresh(),
+        child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 24.0),
           child: Column(
@@ -276,6 +294,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
               const SizedBox(height: 40),
             ],
           ),
+        ),
         ),
       ),
     );

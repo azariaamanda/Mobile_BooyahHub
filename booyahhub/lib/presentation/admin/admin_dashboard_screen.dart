@@ -1,6 +1,7 @@
 ﻿import 'dart:math' show min, max;
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../config/app_refresh.dart';
 import '../../config/app_session.dart';
 import '../../config/app_color.dart';
 import '../../config/app_constants.dart';
@@ -38,6 +39,17 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   @override
   void initState() {
     super.initState();
+    AppRefresh.instance.addListener(_onRefresh);
+  }
+
+  void _onRefresh() {
+    if (mounted) _fetchData();
+  }
+
+  @override
+  void dispose() {
+    AppRefresh.instance.removeListener(_onRefresh);
+    super.dispose();
   }
 
   @override
@@ -257,7 +269,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     return SafeArea(
       child: RefreshIndicator(
         color: AppColors.primary,
-        onRefresh: _fetchData,
+        onRefresh: () async => AppRefresh.instance.refresh(),
         child: SingleChildScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
           primary: false,

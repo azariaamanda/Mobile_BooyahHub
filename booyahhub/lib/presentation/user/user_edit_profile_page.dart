@@ -110,12 +110,12 @@ class _UserEditProfilePageState extends State<UserEditProfilePage> {
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: AppColors.textPrimary),
+          icon: const Icon(Icons.arrow_back, color: AppColors.primary),
           onPressed: () => Navigator.of(context).pop(),
         ),
         title: Text(
           'Profil',
-          style: AppTextStyles.poppinsTitle.copyWith(color: AppColors.textPrimary),
+          style: AppTextStyles.poppinsTitle.copyWith(color: AppColors.primary),
         ),
         centerTitle: false,
       ),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
+import '../../config/app_refresh.dart';
 import '../../config/app_constants.dart';
 import '../../config/app_color.dart';
 import '../../config/app_text_styles.dart';
@@ -26,7 +27,18 @@ class _AdminVerificationPageState extends State<AdminVerificationPage> {
   @override
   void initState() {
     super.initState();
+    AppRefresh.instance.addListener(_onRefresh);
     _fetchAdmins();
+  }
+
+  void _onRefresh() {
+    if (mounted) _fetchAdmins();
+  }
+
+  @override
+  void dispose() {
+    AppRefresh.instance.removeListener(_onRefresh);
+    super.dispose();
   }
 
   Future<void> _fetchAdmins() async {
@@ -242,16 +254,13 @@ class _AdminVerificationPageState extends State<AdminVerificationPage> {
         centerTitle: false,
         automaticallyImplyLeading: false,
         titleSpacing: 16,
-        title: Row(
-          children: [
-            GestureDetector(
-              onTap: () => context.pop(),
-              child: const Icon(Icons.arrow_back, color: Color(0xFFFFD700), size: 24),
-            ),
-            const SizedBox(width: 12),
-            Text('LIST ADMIN', style: AppTextStyles.poppinsHeadline.copyWith( color: Color(0xFFFFD700), fontSize: 20)),
-          ],
-        ),
+        leading: Navigator.canPop(context)
+            ? IconButton(
+                icon: const Icon(Icons.arrow_back, color: Color(0xFFFFD700)),
+                onPressed: () => context.pop(),
+              )
+            : null,
+        title: Text('LIST ADMIN', style: AppTextStyles.poppinsHeadline.copyWith(color: Color(0xFFFFD700), fontSize: 20)),
       ),
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -286,27 +295,37 @@ class _AdminVerificationPageState extends State<AdminVerificationPage> {
           ),
           const SizedBox(height: 14),
           Expanded(
-            child: _isLoading
-                ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
-                : _filteredAdmins.isEmpty
-                    ? Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
+            child: RefreshIndicator(
+              color: AppColors.primary,
+              onRefresh: () async => AppRefresh.instance.refresh(),
+              child: _isLoading
+                  ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
+                  : _filteredAdmins.isEmpty
+                      ? ListView(
+                          physics: const AlwaysScrollableScrollPhysics(),
                           children: [
-                            Icon(Icons.person_off_outlined, size: 64, color: AppColors.textHint),
-                            const SizedBox(height: 12),
-                            Text(
-                              'Tidak ada admin ditemukan',
-                              style: AppTextStyles.interBody.copyWith(color: AppColors.textHint),
+                            const SizedBox(height: 80),
+                            Center(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(Icons.person_off_outlined, size: 64, color: AppColors.textHint),
+                                  const SizedBox(height: 12),
+                                  Text(
+                                    'Tidak ada admin ditemukan',
+                                    style: AppTextStyles.interBody.copyWith(color: AppColors.textHint),
+                                  ),
+                                ],
+                              ),
                             ),
                           ],
+                        )
+                      : ListView.builder(
+                          padding: const EdgeInsets.fromLTRB(16, 8, 16, 80),
+                          itemCount: _filteredAdmins.length,
+                          itemBuilder: (_, i) => _buildCard(_filteredAdmins[i]),
                         ),
-                      )
-                    : ListView.builder(
-                        padding: const EdgeInsets.fromLTRB(16, 8, 16, 80),
-                        itemCount: _filteredAdmins.length,
-                        itemBuilder: (_, i) => _buildCard(_filteredAdmins[i]),
-                      ),
+            ),
           ),
         ],
       ),

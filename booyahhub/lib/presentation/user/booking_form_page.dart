@@ -243,12 +243,12 @@ class _BookingFormPageState extends State<BookingFormPage> {
         backgroundColor: AppColors.background,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: AppColors.textPrimary),
+          icon: const Icon(Icons.arrow_back, color: AppColors.primary),
           onPressed: () => context.pop(),
         ),
         title: const Text(
           'Pendaftaran Tim',
-          style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.bold, fontSize: 20),
+          style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold, fontSize: 20),
         ),
         centerTitle: false,
       ),

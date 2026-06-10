@@ -17,6 +17,12 @@ class AdminClaimListPage extends StatelessWidget {
         backgroundColor: AppColors.background,
         elevation: 0,
         automaticallyImplyLeading: false,
+        leading: Navigator.canPop(context)
+            ? IconButton(
+                icon: const Icon(Icons.arrow_back_ios, color: AppColors.primary),
+                onPressed: () => Navigator.pop(context),
+              )
+            : null,
         title: Text(
           'Keuangan',
           style: AppTextStyles.poppinsTitleSmall.copyWith(

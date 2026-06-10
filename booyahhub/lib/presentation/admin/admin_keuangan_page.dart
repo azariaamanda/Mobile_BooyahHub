@@ -1,5 +1,6 @@
 ﻿import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../config/app_refresh.dart';
 import '../../config/app_session.dart';
 import '../../config/app_color.dart';
 import '../../config/app_constants.dart';
@@ -31,6 +32,17 @@ class _AdminKeuanganPageState extends State<AdminKeuanganPage> {
   @override
   void initState() {
     super.initState();
+    AppRefresh.instance.addListener(_onRefresh);
+  }
+
+  void _onRefresh() {
+    if (mounted) _fetchData();
+  }
+
+  @override
+  void dispose() {
+    AppRefresh.instance.removeListener(_onRefresh);
+    super.dispose();
   }
 
   @override
@@ -302,7 +314,7 @@ class _AdminKeuanganPageState extends State<AdminKeuanganPage> {
   Widget _buildBody(BuildContext context) {
     return RefreshIndicator(
       color: AppColors.primary,
-      onRefresh: _fetchData,
+      onRefresh: () async => AppRefresh.instance.refresh(),
       child: SingleChildScrollView(
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.all(AppConstants.paddingM),

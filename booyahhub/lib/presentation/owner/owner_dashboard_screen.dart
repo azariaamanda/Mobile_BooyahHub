@@ -1,5 +1,6 @@
 ﻿import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../config/app_refresh.dart';
 import '../../config/app_session.dart';
 import '../../config/app_color.dart';
 import '../../config/app_text_styles.dart';
@@ -42,6 +43,7 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
   @override
   void initState() {
     super.initState();
+    AppRefresh.instance.addListener(_onRefresh);
     _fetchOwnerProfile();
     _fetchTotalAdmin();
     _fetchActiveSessions();
@@ -49,10 +51,25 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
     _fetchTotalRevenue();
     _fetchActionData();
 
-    // Tampilkan popup notifikasi belum terbaca
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) _showUnreadNotifications();
     });
+  }
+
+  void _onRefresh() {
+    if (!mounted) return;
+    _fetchOwnerProfile();
+    _fetchTotalAdmin();
+    _fetchActiveSessions();
+    _fetchPendingBills();
+    _fetchTotalRevenue();
+    _fetchActionData();
+  }
+
+  @override
+  void dispose() {
+    AppRefresh.instance.removeListener(_onRefresh);
+    super.dispose();
   }
 
   Future<void> _showUnreadNotifications() async {
@@ -410,22 +427,21 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(
-            24,
-            24,
-            24,
-            100,
-          ), // extra padding for floating navbar
-          children: [
-            _buildHeader(),
-            const SizedBox(height: 32),
-            _buildSummaryGrid(context),
-            const SizedBox(height: 32),
-            _buildChartSection(),
-            const SizedBox(height: 32),
-            _buildActionList(),
-          ],
+        child: RefreshIndicator(
+          color: AppColors.primary,
+          onRefresh: () async => AppRefresh.instance.refresh(),
+          child: ListView(
+            padding: const EdgeInsets.fromLTRB(24, 24, 24, 100),
+            children: [
+              _buildHeader(),
+              const SizedBox(height: 32),
+              _buildSummaryGrid(context),
+              const SizedBox(height: 32),
+              _buildChartSection(),
+              const SizedBox(height: 32),
+              _buildActionList(),
+            ],
+          ),
         ),
       ),
     );
