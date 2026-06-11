@@ -165,7 +165,7 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
       // 3. Paket premium menunggu aktivasi
       final premiumRes = await supabase
           .from('transaksi_premium')
-          .select('id_transaksi')
+          .select('status')
           .eq('status', 'menunggu');
 
       if (mounted) {
@@ -277,7 +277,8 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
         if (rawDate != null) {
           final tgl = DateTime.tryParse(rawDate)?.toLocal();
           if (tgl != null) {
-            final int monthDiff = (now.year - tgl.year) * 12 + now.month - tgl.month;
+            final int monthDiff =
+                (now.year - tgl.year) * 12 + now.month - tgl.month;
             if (monthDiff >= 0 && monthDiff < 6) {
               tempMonthly[5 - monthDiff] += harga;
             }

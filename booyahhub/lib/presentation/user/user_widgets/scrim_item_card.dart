@@ -10,8 +10,9 @@ class ScrimItemCard extends StatelessWidget {
   final String prize;
   final String fee;
   final String slotsInfo;
-  final String posterImage; // Variabel ini sudah berisi URL lengkap dari Home Screen
+  final String posterImage;
   final Color primaryYellow;
+  final int terisiCount;
 
   const ScrimItemCard({
     super.key,
@@ -22,6 +23,7 @@ class ScrimItemCard extends StatelessWidget {
     required this.slotsInfo,
     required this.posterImage,
     required this.primaryYellow,
+    this.terisiCount = 0,
   });
 
   @override
@@ -51,23 +53,24 @@ class ScrimItemCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisAlignment: MainAxisAlignment.end,
           children: [
-            Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppConstants.paddingS, 
-                vertical: AppConstants.paddingXS
+            if (terisiCount >= 3)
+              Container(
+                margin: const EdgeInsets.only(bottom: AppConstants.paddingXS),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppConstants.paddingS,
+                  vertical: AppConstants.paddingXS,
+                ),
+                decoration: BoxDecoration(
+                  color: AppColors.primary,
+                  borderRadius: BorderRadius.circular(AppConstants.radiusS),
+                ),
+                child: Text(
+                  'Terpopuler',
+                  style: AppTextStyles.interStatus.copyWith(color: AppColors.buttonText),
+                ),
               ),
-              decoration: BoxDecoration(
-                color: AppColors.primary, // Memakai warna emas utama asli
-                borderRadius: BorderRadius.circular(AppConstants.radiusS),
-              ),
-              child: Text(
-                'Terpopuler', 
-                style: AppTextStyles.interStatus.copyWith(color: AppColors.buttonText),
-              ),
-            ),
-            const SizedBox(height: AppConstants.paddingS),
             Text(
-              title, 
+              title,
               style: AppTextStyles.poppinsTitleSmall, // Memakai text style poppins title small
               maxLines: 1,
               overflow: TextOverflow.ellipsis,

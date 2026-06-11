@@ -358,6 +358,7 @@ class _ScrimPageState extends State<ScrimPage> {
                           slotsInfo: '$terisi/$maksPeserta terisi',
                           posterImage: posterUrl,
                           primaryYellow: AppColors.primary,
+                          terisiCount: terisi,
                         ),
                       );
                     },

@@ -513,6 +513,7 @@ class UserHomeScreenState extends State<UserHomeScreen> {
                 slotsInfo: '$terisi/$maksPeserta terisi',
                 posterImage: posterUrl ?? '',
                 primaryYellow: AppColors.primary,
+                terisiCount: terisi,
               ),
             );
           },
